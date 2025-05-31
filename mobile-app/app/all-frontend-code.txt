@@ -1,0 +1,6013 @@
+-e \n\n=== ./(coach-manage)/payment-summary.tsx ===\n
+import { View, Text, FlatList, StyleSheet, TouchableOpacity } from "react-native";
+import { useEffect, useState } from "react";
+import { useRouter } from "expo-router";
+import api from "../../utils/api";
+import { Ionicons } from "@expo/vector-icons";
+
+export default function PaymentSummaryScreen() {
+  const [summary, setSummary] = useState<any[]>([]);
+  const [dates, setDates] = useState<string[]>([]);
+  const router = useRouter();
+
+  useEffect(() => {
+    const load = async () => {
+      const me = await api.get("/users/me");
+      const branchId = me.data.branch_id;
+      const res = await api.get(`/payments/summary/${branchId}`);
+      setSummary(res.data.records || []);
+      setDates(res.data.session_dates || []);
+    };
+
+    load();
+  }, []);
+
+  return (
+    <View style={styles.container}>
+      <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+        <Ionicons name="arrow-back" size={24} color="#007AFF" />
+      </TouchableOpacity>
+      <Text style={styles.title}>📊 Payment Summary</Text>
+
+      <FlatList
+        data={summary}
+        keyExtractor={(item) => item.athlete_id.toString()}
+        renderItem={({ item }) => (
+          <View style={styles.card}>
+            <Text style={styles.name}>{item.athlete_name}</Text>
+            {dates.map(date => (
+              <Text key={date} style={styles.detail}>
+                {date}: {item.statuses?.[date] || "pending"}
+              </Text>
+            ))}
+          </View>
+        )}
+      />
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, paddingTop: 60, paddingHorizontal: 20 },
+  backButton: { marginBottom: 10 },
+  title: { fontSize: 22, fontWeight: "700", marginBottom: 20 },
+  card: {
+    backgroundColor: "#fff",
+    padding: 15,
+    borderRadius: 10,
+    marginBottom: 15,
+  },
+  name: { fontWeight: "600", fontSize: 16, marginBottom: 5 },
+  detail: { fontSize: 14, color: "#444" },
+});-e \n\n=== ./(coach-manage)/register-requests.tsx ===\n
+import { useEffect, useState } from "react";
+import {
+  View,
+  Text,
+  FlatList,
+  TouchableOpacity,
+  StyleSheet,
+  ActivityIndicator,
+  Alert,
+  SafeAreaView,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
+import api from "../../utils/api";
+
+export default function RegisterRequestsScreen() {
+  const [requests, setRequests] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
+
+  const fetchRequests = async () => {
+    try {
+      const res = await api.get("/users/requests");
+      setRequests(res.data);
+    } catch (err: any) {
+      console.error("❌ Failed to fetch registration requests:", err);
+      if (err.response) {
+        console.error("📡 Axios response error:", err.response.status, err.response.data);
+      }
+      Alert.alert("Error", "Failed to fetch registration requests");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleApprove = async (requestId: number) => {
+    try {
+      await api.post(`/users/approve/${requestId}`);
+      Alert.alert("✅ Approved", "Athlete has been successfully approved.");
+      fetchRequests();
+    } catch (err) {
+      console.error("❌ Failed to approve athlete:", err);
+      Alert.alert("Error", "Failed to approve athlete");
+    }
+  };
+
+  const handleReject = async (requestId: number) => {
+    Alert.alert(
+      "Are you sure?",
+      "This will permanently reject the registration request.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Reject",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await api.post(`/users/reject/${requestId}`);
+              Alert.alert("❌ Rejected", "The request was successfully rejected.");
+              fetchRequests();
+            } catch (err) {
+              console.error("❌ Failed to reject request:", err);
+              Alert.alert("Error", "Failed to reject the request.");
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  useEffect(() => {
+    fetchRequests();
+  }, []);
+
+  if (loading) {
+    return (
+      <View style={styles.loading}>
+        <ActivityIndicator size="large" color="#007AFF" />
+      </View>
+    );
+  }
+
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#f8f9fb" }}>
+      <View style={styles.container}>
+        <TouchableOpacity onPress={() => router.push("/(coach-tabs)/home")} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={24} color="#007AFF" />
+        </TouchableOpacity>
+
+        <Text style={styles.title}>Athlete Requests</Text>
+
+        <FlatList
+          data={requests}
+          keyExtractor={(item) => item.id.toString()}
+          ListEmptyComponent={<Text style={styles.empty}>No pending requests.</Text>}
+          renderItem={({ item }) => (
+            <View style={styles.card}>
+              <Text style={styles.name}>{item.athlete_name}</Text>
+              <Text style={styles.detail}>📞 {item.phone}</Text>
+              <Text style={styles.detail}>📧 {item.email}</Text>
+
+              <View style={{ flexDirection: "row", gap: 10, marginTop: 16 }}>
+                <TouchableOpacity
+                  style={styles.approveBtn}
+                  onPress={() => handleApprove(item.id)}
+                >
+                  <Text style={styles.btnText}>Approve</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.rejectBtn}
+                  onPress={() => handleReject(item.id)}
+                >
+                  <Text style={styles.btnText}>Reject</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+        />
+      </View>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    paddingTop: 40,
+    paddingHorizontal: 20,
+  },
+  backButton: {
+    padding: 8,
+    borderRadius: 10,
+    backgroundColor: "#eef3f9",
+    alignSelf: "flex-start",
+    marginBottom: 15,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: "700",
+    marginBottom: 20,
+    color: "#1e1e2d",
+  },
+  card: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 20,
+    shadowColor: "#000",
+    shadowOpacity: 0.06,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  name: {
+    fontSize: 18,
+    fontWeight: "600",
+    marginBottom: 6,
+    color: "#333",
+  },
+  detail: {
+    fontSize: 15,
+    color: "#555",
+    marginBottom: 2,
+  },
+  approveBtn: {
+    flex: 1,
+    backgroundColor: "#4CAF50",
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: "center",
+  },
+  rejectBtn: {
+    flex: 1,
+    backgroundColor: "#D32F2F",
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: "center",
+  },
+  btnText: {
+    color: "#fff",
+    fontWeight: "700",
+    fontSize: 15,
+  },
+  empty: {
+    marginTop: 40,
+    textAlign: "center",
+    fontSize: 16,
+    color: "#777",
+  },
+  loading: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+});-e \n\n=== ./(coach-manage)/attendance.tsx ===\n
+import { useEffect, useState } from "react";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  ActivityIndicator,
+  ScrollView,
+  Alert,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import api from "../../utils/api";
+import { useAuth } from "../../context/auth";
+import { useRouter } from "expo-router";
+
+const DAYS = ["Day 1", "Day 2", "Day 3"] as const;
+type DayType = typeof DAYS[number];
+
+export default function WeeklyAttendance() {
+  const { user } = useAuth();
+  const router = useRouter();
+  const [selectedDay, setSelectedDay] = useState<DayType>("Day 1");
+  const [loading, setLoading] = useState(true);
+  const [attendance, setAttendance] = useState<any[]>([]);
+  const [sessionDates, setSessionDates] = useState<string[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchSessionDates = async () => {
+    try {
+      const res = await api.get(`/attendance/branch/${user.branch_id}/session-dates`);
+      setSessionDates(res.data); // Example: ["2025-05-25", "2025-05-27", "2025-05-29"]
+    } catch (err) {
+      console.error("❌ Failed to load session dates", err);
+      setError("Failed to load session dates");
+    }
+  };
+
+  const getDateForSelectedDay = (): string => {
+    const index = DAYS.indexOf(selectedDay);
+    return sessionDates[index] || "";
+  };
+
+  const fetchAttendance = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      if (!user?.branch_id) throw new Error("No branch assigned to your account");
+      const date = getDateForSelectedDay();
+      if (!date) throw new Error("Session date not available for selected day");
+
+      const res = await api.get(`/attendance/branch/${user.branch_id}/day/${date}`);
+      console.log("📦 Attendance API Response:", res.data);
+      setAttendance(res.data);
+    } catch (err: any) {
+      const message = err.response?.data?.detail || err.message || "Fetch error";
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const markAttendance = async (athlete_id: number, status: string) => {
+    try {
+      const date = getDateForSelectedDay();
+      await api.post("/attendance/mark", {
+        athlete_id,
+        session_date: date,
+        status,
+      });
+      await fetchAttendance();
+    } catch (err) {
+      Alert.alert("Error", "Failed to update attendance");
+    }
+  };
+
+  useEffect(() => {
+    if (user?.branch_id) {
+      fetchSessionDates();
+    }
+  }, [user?.branch_id]);
+
+  useEffect(() => {
+    if (sessionDates.length === 3) {
+      fetchAttendance();
+    }
+  }, [selectedDay, sessionDates]);
+
+  if (!user?.branch_id) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.errorText}>No branch assigned to your account</Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()}>
+          <Ionicons name="chevron-back" size={24} color="#007AFF" />
+        </TouchableOpacity>
+        <Text style={[styles.title, { flex: 1, textAlign: "center" }]}>🏊 Weekly Attendance</Text>
+        <TouchableOpacity onPress={() => router.push("/summary")}>
+          <Ionicons name="list" size={24} color="#007AFF" />
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.tabs}>
+        {DAYS.map((day) => (
+          <TouchableOpacity
+            key={day}
+            style={[styles.tab, selectedDay === day && styles.activeTab]}
+            onPress={() => setSelectedDay(day)}
+          >
+            <Text style={[styles.tabText, selectedDay === day && styles.activeTabText]}>
+              {day}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      {error && <Text style={styles.errorText}>{error}</Text>}
+
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#007AFF" />
+          <Text style={styles.loadingText}>Loading attendance...</Text>
+        </View>
+      ) : (
+        <ScrollView contentContainerStyle={styles.scrollContainer}>
+          {attendance.map((item) => (
+            <View key={`${item.athlete_id}-${item.session_date}`} style={styles.card}>
+              <Text style={styles.name}>{item.athlete_name}</Text>
+              <View style={styles.actions}>
+                <TouchableOpacity
+                  style={[styles.statusBtn, item.status === "present" && styles.presentActive]}
+                  onPress={() => markAttendance(item.athlete_id, "present")}
+                >
+                  <Text style={styles.statusText}>✅</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.statusBtn, item.status === "absent" && styles.absentActive]}
+                  onPress={() => markAttendance(item.athlete_id, "absent")}
+                >
+                  <Text style={styles.statusText}>❌</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ))}
+        </ScrollView>
+      )}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, paddingTop: 40, paddingHorizontal: 20 },
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  title: { fontSize: 22, fontWeight: "bold" },
+  tabs: { flexDirection: "row", justifyContent: "space-between", marginBottom: 20 },
+  tab: {
+    flex: 1,
+    padding: 12,
+    borderBottomWidth: 2,
+    borderBottomColor: "transparent",
+    alignItems: "center",
+    backgroundColor: "#f8f9fa",
+    borderRadius: 8,
+    marginHorizontal: 4,
+  },
+  activeTab: {
+    borderBottomColor: "#007AFF",
+    backgroundColor: "#e3f2fd",
+  },
+  tabText: {
+    fontSize: 14,
+    color: "#555",
+    fontWeight: "500",
+  },
+  activeTabText: {
+    color: "#007AFF",
+    fontWeight: "600",
+  },
+  card: {
+    backgroundColor: "#fff",
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  name: { fontSize: 16, fontWeight: "600", color: "#2d3748" },
+  actions: { flexDirection: "row", gap: 12 },
+  statusBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#f0f4f8",
+  },
+  presentActive: { backgroundColor: "#48bb78" },
+  absentActive: { backgroundColor: "#f56565" },
+  statusText: { fontSize: 18 },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 12,
+  },
+  loadingText: { color: "#718096", fontSize: 14 },
+  errorText: {
+    color: "#e53e3e",
+    textAlign: "center",
+    marginVertical: 16,
+    fontWeight: "500",
+  },
+  scrollContainer: { paddingBottom: 24 },
+});-e \n\n=== ./(coach-manage)/payment.tsx ===\n
+import { useEffect, useState } from "react";
+import {
+  View,
+  Text,
+  FlatList,
+  TouchableOpacity,
+  ActivityIndicator,
+  Alert,
+  StyleSheet,
+  TextInput,
+  SafeAreaView,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
+import api from "../../utils/api";
+
+export default function CoachPayments() {
+  const [records, setRecords] = useState<any[]>([]);
+  const [sessionDates, setSessionDates] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const router = useRouter();
+
+  const fetchSummary = async () => {
+    try {
+      const me = await api.get("/users/me");
+      const branchId = me.data.branch_id;
+      const res = await api.get(`/payments/summary/${branchId}`);
+      setRecords(res.data.records ?? []);
+      setSessionDates(res.data.session_dates ?? []);
+    } catch (err) {
+      console.error("Error loading payment summary", err);
+      Alert.alert("Error", "Could not load payment summary.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const markPayment = async (athleteId: number, date: string, status: string) => {
+    try {
+      await api.post(`/payments/mark`, {
+        athlete_id: athleteId,
+        session_date: date,
+        status,
+      });
+      fetchSummary();
+    } catch (err) {
+      console.error("Failed to update payment", err);
+      Alert.alert("Error", "Could not update payment status.");
+    }
+  };
+
+  useEffect(() => {
+    fetchSummary();
+  }, []);
+
+  const sorted = records.sort((a, b) => a.athlete_name.localeCompare(b.athlete_name));
+
+  if (loading) {
+    return (
+      <View style={styles.loading}>
+        <ActivityIndicator size="large" color="#007AFF" />
+      </View>
+    );
+  }
+
+  return (
+    <SafeAreaView style={styles.page}>
+      <TouchableOpacity onPress={() => router.push("/(coach-tabs)/home")} style={styles.backButton}>
+        <Ionicons name="arrow-back" size={26} color="#007AFF" />
+      </TouchableOpacity>
+
+      <Text style={styles.title}>💵 Payment Tracking</Text>
+
+      <TouchableOpacity
+        style={styles.summaryButton}
+        onPress={() => router.push("/(coach-manage)/payment-summary")}
+      >
+        <Text style={styles.summaryButtonText}>📊 View Payment Summary</Text>
+      </TouchableOpacity>
+
+      <TextInput
+        placeholder="Search athlete..."
+        value={search}
+        onChangeText={setSearch}
+        style={styles.search}
+      />
+
+      <FlatList
+        data={sorted.filter((item: any) =>
+          item.athlete_name.toLowerCase().includes(search.toLowerCase())
+        )}
+        keyExtractor={(item) => item.athlete_id.toString()}
+        ListEmptyComponent={<Text style={styles.empty}>No athletes found.</Text>}
+        renderItem={({ item }) => (
+          <View style={styles.card}>
+            <Text style={styles.name}>{item.athlete_name}</Text>
+            {sessionDates.map((date) => {
+              const currentStatus = item.statuses?.[date] ?? "pending";
+              return (
+                <View key={date} style={styles.row}>
+                  <Text style={styles.date}>{date}</Text>
+                  <View style={styles.statusRow}>
+                    {[
+                      { status: "paid", icon: "✅" },
+                      { status: "pending", icon: "❌" },
+                      { status: "late", icon: "⚠️" },
+                    ].map(({ status, icon }) => (
+                      <TouchableOpacity
+                        key={status}
+                        style={[
+                          styles.statusBtn,
+                          currentStatus === status && styles.activeStatus,
+                        ]}
+                        onPress={() => markPayment(item.athlete_id, date, status)}
+                      >
+                        <Text style={styles.statusText}>{icon}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        )}
+      />
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  page: {
+    flex: 1,
+    backgroundColor: "#f5f9ff",
+    paddingTop: 60,
+    paddingHorizontal: 20,
+  },
+  backButton: {
+    marginBottom: 10,
+    alignSelf: "flex-start",
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: "700",
+    marginBottom: 15,
+    color: "#1a1a1a",
+    textAlign: "center",
+  },
+  summaryButton: {
+    backgroundColor: "#FFD700",
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  summaryButtonText: {
+    color: "#333",
+    fontWeight: "600",
+    fontSize: 16,
+  },
+  search: {
+    backgroundColor: "#fff",
+    padding: 10,
+    borderRadius: 10,
+    borderColor: "#ccc",
+    borderWidth: 1,
+    marginBottom: 15,
+  },
+  card: {
+    backgroundColor: "#fff",
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowOffset: { width: 0, height: 2 },
+  },
+  name: {
+    fontWeight: "600",
+    fontSize: 16,
+    marginBottom: 8,
+  },
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 8,
+  },
+  date: {
+    fontSize: 14,
+    color: "#555",
+  },
+  statusRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  statusBtn: {
+    backgroundColor: "#eee",
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    minWidth: 40,
+  },
+  activeStatus: {
+    backgroundColor: "#007AFF",
+  },
+  statusText: {
+    fontSize: 18,
+    color: "#fff",
+  },
+  empty: {
+    textAlign: "center",
+    color: "#999",
+    fontSize: 16,
+    marginTop: 20,
+  },
+  loading: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+});-e \n\n=== ./(coach-manage)/coach-requests.tsx ===\n
+// FILE: app/(coach-tabs)/coach-requests.tsx
+import { useEffect, useState } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  Button,
+  ScrollView,
+  ActivityIndicator,
+  Alert,
+} from "react-native";
+import api from "../../utils/api";
+
+export default function CoachRequests() {
+  const [requests, setRequests] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchRequests = async () => {
+    try {
+      const res = await api.get("/users/requests");
+      setRequests(res.data);
+    } catch (err: any) {
+      Alert.alert("Error", err.response?.data?.detail || "Failed to load requests");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleApprove = async (email: string) => {
+    try {
+      await api.post("/users/approve", { email });
+      Alert.alert("Approved", `${email} has been approved.`);
+      fetchRequests();
+    } catch (err: any) {
+      Alert.alert("Error", err.response?.data?.detail || "Approval failed");
+    }
+  };
+
+  useEffect(() => {
+    fetchRequests();
+  }, []);
+
+  if (loading) {
+    return (
+      <View style={styles.loading}>
+        <ActivityIndicator size="large" color="#007AFF" />
+      </View>
+    );
+  }
+
+  return (
+    <ScrollView contentContainerStyle={styles.page}>
+      <Text style={styles.title}>📝 Pending Registration Requests</Text>
+      {requests.length === 0 ? (
+        <Text>No pending requests.</Text>
+      ) : (
+        requests.map((req, idx) => (
+          <View key={idx} style={styles.card}>
+            <Text style={styles.label}>📧 {req.email}</Text>
+            <Text style={styles.label}>📱 {req.phone}</Text>
+            <Text style={styles.label}>🧍 {req.athlete_name}</Text>
+            <Button title="Approve" onPress={() => handleApprove(req.email)} />
+          </View>
+        ))
+      )}
+    </ScrollView>
+  );
+}
+
+const styles = StyleSheet.create({
+  page: { padding: 20, paddingTop: 60 },
+  title: { fontSize: 20, fontWeight: "bold", marginBottom: 20 },
+  card: {
+    backgroundColor: "#fff",
+    padding: 16,
+    borderRadius: 10,
+    marginBottom: 16,
+    elevation: 2,
+  },
+  label: { marginBottom: 6, fontSize: 14 },
+  loading: { flex: 1, justifyContent: "center", alignItems: "center" },
+});-e \n\n=== ./(coach-manage)/my-branch.tsx ===\n
+// FILE: app/(coach-tabs)/my-branch.tsx
+import { useEffect, useState } from "react";
+import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
+import api from "../../utils/api";
+
+export default function MyBranch() {
+  const [branch, setBranch] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
+
+  useEffect(() => {
+    const loadBranch = async () => {
+      try {
+        const userRes = await api.get("/users/me");
+        const branchId = userRes.data.branch_id;
+
+        const branchRes = await api.get(`/branches/${branchId}`);
+        setBranch(branchRes.data);
+      } catch (err) {
+        console.error("Error loading branch info", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadBranch();
+  }, []);
+
+  if (loading) {
+    return (
+      <View style={styles.loading}>
+        <ActivityIndicator size="large" color="#007AFF" />
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.container}>
+      {/* 🔙 Back Button */}
+      <TouchableOpacity onPress={() => router.push("/(coach-tabs)/home")} style={styles.backButton}>
+        <Ionicons name="arrow-back" size={24} color="#007AFF" />
+      </TouchableOpacity>
+
+      <Text style={styles.title}>🏢 My Branch</Text>
+      <Text style={styles.item}>Name: {branch.name}</Text>
+      <Text style={styles.item}>Phone: {branch.phone}</Text>
+      <Text style={styles.item}>Address: {branch.address}</Text>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, padding: 20, paddingTop: 60 },
+  backButton: {
+    marginBottom: 10,
+    alignSelf: "flex-start",
+  },
+  title: { fontSize: 22, fontWeight: "bold", marginBottom: 10 },
+  item: { fontSize: 16, marginBottom: 5 },
+  loading: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+});-e \n\n=== ./(coach-manage)/notifications.tsx ===\n
+// FILE: app/(coach-manage)/notifications.tsx
+import { useEffect, useState } from "react";
+import {
+  View,
+  Text,
+  TextInput,
+  Button,
+  Alert,
+  FlatList,
+  ActivityIndicator,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
+import api from "../../utils/api";
+
+export default function CoachNotifications() {
+  const [athletes, setAthletes] = useState<any[]>([]);
+  const [message, setMessage] = useState("");
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
+
+  const fetchAthletes = async () => {
+    try {
+      const res = await api.get("/users/athletes");
+      setAthletes(res.data);
+    } catch (err) {
+      Alert.alert("Error", "Failed to load athletes");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const sendNotification = async () => {
+    if (!message || !selectedId) {
+      Alert.alert("Missing data", "Select athlete and enter a message");
+      return;
+    }
+
+    try {
+      await api.post("/notifications", {
+        user_id: selectedId,
+        message,
+      });
+
+      Alert.alert("Success", "Notification sent");
+      setMessage("");
+    } catch (err: any) {
+      Alert.alert("Error", err.response?.data?.detail || "Failed to send notification");
+    }
+  };
+
+  useEffect(() => {
+    fetchAthletes();
+  }, []);
+
+  if (loading) {
+    return (
+      <View style={styles.loading}>
+        <ActivityIndicator size="large" color="#007AFF" />
+      </View>
+    );
+  }
+
+  return (
+    <ScrollView contentContainerStyle={styles.page}>
+      {/* 🔙 Back Button */}
+      <TouchableOpacity onPress={() => router.push("/(coach-tabs)/home")} style={styles.backButton}>
+        <Ionicons name="arrow-back" size={24} color="#007AFF" />
+      </TouchableOpacity>
+
+      <Text style={styles.title}>📣 Send Notification</Text>
+
+      <Text style={styles.label}>Select Athlete:</Text>
+      <FlatList
+        data={athletes}
+        keyExtractor={(item) => item.id.toString()}
+        horizontal
+        renderItem={({ item }) => (
+          <Button
+            title={item.name}
+            color={selectedId === item.id ? "#007AFF" : "#ccc"}
+            onPress={() => setSelectedId(item.id)}
+          />
+        )}
+        contentContainerStyle={{ gap: 10, marginBottom: 20 }}
+      />
+
+      <TextInput
+        placeholder="Enter your message"
+        value={message}
+        onChangeText={setMessage}
+        multiline
+        style={styles.input}
+      />
+
+      <Button title="Send Notification" onPress={sendNotification} />
+    </ScrollView>
+  );
+}
+
+const styles = StyleSheet.create({
+  page: { padding: 20, paddingTop: 60 },
+  backButton: {
+    marginBottom: 10,
+    alignSelf: "flex-start",
+  },
+  title: { fontSize: 22, fontWeight: "bold", marginBottom: 20 },
+  label: { marginBottom: 10, fontSize: 14 },
+  input: {
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 10,
+    padding: 12,
+    backgroundColor: "#fff",
+    marginBottom: 20,
+    minHeight: 100,
+    textAlignVertical: "top",
+  },
+  loading: { flex: 1, justifyContent: "center", alignItems: "center" },
+});-e \n\n=== ./(coach-manage)/_layout.tsx ===\n
+import { Stack } from "expo-router";
+
+export default function ManageLayout() {
+  return <Stack screenOptions={{ headerShown: true }} />;
+}-e \n\n=== ./(coach-manage)/branches.tsx ===\n
+import { useEffect, useState } from "react";
+import {
+  View,
+  Text,
+  FlatList,
+  StyleSheet,
+  TouchableOpacity,
+  ActivityIndicator,
+  TextInput,
+  Alert,
+} from "react-native";
+import axios from "axios";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
+export default function ManageBranches() {
+  const [branches, setBranches] = useState<any[]>([]);
+  const [coachEmail, setCoachEmail] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  const fetchBranches = async () => {
+    try {
+      const storedUser = await AsyncStorage.getItem("authUser");
+      const token = storedUser ? JSON.parse(storedUser).token : null;
+      const headers = { Authorization: `Bearer ${token}` };
+
+      const res = await axios.get("http://localhost:8000/branches", { headers });
+      setBranches(res.data);
+    } catch (err) {
+      console.error("Error fetching branches", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const assignCoach = async (branchId: number) => {
+    try {
+      const storedUser = await AsyncStorage.getItem("authUser");
+      const token = storedUser ? JSON.parse(storedUser).token : null;
+      const headers = { Authorization: `Bearer ${token}` };
+
+      await axios.post(
+        `http://localhost:8000/users/assign-coach`,
+        { email: coachEmail, branch_id: branchId },
+        { headers }
+      );
+
+      Alert.alert("Success", `Assigned ${coachEmail} to branch`);
+      setCoachEmail("");
+    } catch (err) {
+      console.error("Error assigning coach", err);
+      Alert.alert("Error", "Failed to assign coach");
+    }
+  };
+
+  useEffect(() => {
+    fetchBranches();
+  }, []);
+
+  if (loading) {
+    return (
+      <View style={styles.loading}>
+        <ActivityIndicator size="large" color="#007AFF" />
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.title}>🏢 Manage Branches</Text>
+      <FlatList
+        data={branches}
+        keyExtractor={(item) => item.id.toString()}
+        renderItem={({ item }) => (
+          <View style={styles.card}>
+            <Text style={styles.branchName}>{item.name}</Text>
+            <Text>{item.address || "No address listed"}</Text>
+
+            <TextInput
+              value={coachEmail}
+              onChangeText={setCoachEmail}
+              placeholder="Coach Email to Assign"
+              style={styles.input}
+            />
+
+            <TouchableOpacity
+              style={styles.button}
+              onPress={() => assignCoach(item.id)}
+            >
+              <Text style={styles.buttonText}>Assign Coach</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      />
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, paddingTop: 60, paddingHorizontal: 20 },
+  title: { fontSize: 22, fontWeight: "bold", marginBottom: 20 },
+  card: {
+    backgroundColor: "#fff",
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 16,
+    elevation: 2,
+  },
+  branchName: {
+    fontSize: 16,
+    fontWeight: "bold",
+    marginBottom: 4,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 8,
+    padding: 8,
+    marginVertical: 10,
+  },
+  button: {
+    backgroundColor: "#007AFF",
+    padding: 10,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  buttonText: { color: "#fff", fontWeight: "bold" },
+  loading: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+});-e \n\n=== ./(coach-manage)/summary.tsx ===\n
+import { useEffect, useState } from "react";
+import { View, Text, ScrollView, StyleSheet, ActivityIndicator } from "react-native";
+import api from "../../utils/api";
+import { useAuth } from "../../context/auth";
+
+export default function AttendanceSummary() {
+  const { user } = useAuth();
+  const [data, setData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [sessionDates, setSessionDates] = useState<string[]>([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [summaryRes, sessionDaysRes] = await Promise.all([
+          api.get(`/attendance/branch/${user.branch_id}/summary`),
+          api.get(`/attendance/branch/${user.branch_id}/session-dates`),
+        ]);
+
+        setData(summaryRes.data.records);
+        setSessionDates(sessionDaysRes.data);
+      } catch (e) {
+        console.error("Failed to load summary or session days", e);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  const groupByAthlete = () => {
+    const grouped: { [athlete: string]: { [date: string]: string | null } } = {};
+    for (let row of data) {
+      if (!grouped[row.athlete_name]) grouped[row.athlete_name] = {};
+      grouped[row.athlete_name][row.session_date] = row.status;
+    }
+    return grouped;
+  };
+
+  if (loading) return <ActivityIndicator size="large" />;
+
+  const grouped = groupByAthlete();
+
+  return (
+    <ScrollView style={styles.container}>
+      <Text style={styles.title}>📊 Attendance Summary</Text>
+
+      {Object.entries(grouped).map(([name, records]) => (
+        <View key={name} style={styles.card}>
+          <Text style={styles.name}>{name}</Text>
+          {sessionDates.map((date, idx) => (
+            <Text key={date} style={styles.record}>
+              Day {idx + 1} ({date}): {records[date] ?? "—"}
+            </Text>
+          ))}
+        </View>
+      ))}
+    </ScrollView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { padding: 20 },
+  title: { fontSize: 20, fontWeight: "bold", marginBottom: 12 },
+  card: {
+    backgroundColor: "#f8f9fa",
+    padding: 16,
+    borderRadius: 10,
+    marginBottom: 16,
+  },
+  name: { fontSize: 16, fontWeight: "600", marginBottom: 6 },
+  record: { fontSize: 14, color: "#333" },
+});-e \n\n=== ./index.tsx ===\n
+// ✅ FILE: app/index.tsx
+import { useEffect } from "react";
+import { useRouter } from "expo-router";
+import { View, Text, StyleSheet } from "react-native";
+import '../utils/i18n'; // ⬅️ relative path, must be top-most import
+
+
+export default function Index() {
+  const router = useRouter();
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      router.replace("/guest-home"); 
+    }, 2000);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.title}>Welcome to HFA</Text>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, justifyContent: "center", alignItems: "center" },
+  title: { fontSize: 24, fontWeight: "bold" },
+});-e \n\n=== ./(coach-tabs)/home.tsx ===\n
+import { useEffect, useState } from "react";
+import { useRouter } from "expo-router";
+import {
+  View,
+  Text,
+  StyleSheet,
+  Alert,
+  TouchableOpacity,
+  ActivityIndicator,
+  ScrollView,
+} from "react-native";
+import { useAuth } from "../../context/auth";
+import api from "../../utils/api";
+
+export default function CoachHome() {
+  const { user } = useAuth();
+  const router = useRouter();
+  const [name, setName] = useState("");
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const res = await api.get("/users/me");
+        setName(res.data.name);
+      } catch (err) {
+        console.error("❌ Error loading /me user:", err);
+        Alert.alert("Error", "Failed to load user data");
+      }
+    };
+
+    fetchUser();
+  }, []);
+
+  const tools = [
+    { title: "📝 Registration Requests", route: "/(coach-manage)/register-requests" },
+    { title: "📣 Threads", route: "/(coach-tabs)/coach-threads" },
+    { title: "🎒 Gear Updates", route: "/(coach-tabs)/coach-gear" },
+    { title: "💳 Payments", route: "/(coach-manage)/payment" },
+    { title: "📊 Attendance", route: "/(coach-manage)/attendance" },
+  ];
+
+  if (!name) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#007AFF" />
+      </View>
+    );
+  }
+
+  return (
+    <ScrollView contentContainerStyle={styles.container}>
+      <Text style={styles.title}>👋 Welcome, Coach {name}</Text>
+      <Text style={styles.subtitle}>Your coach dashboard</Text>
+
+      <View style={styles.grid}>
+        {tools.map((tool, idx) => (
+          <TouchableOpacity
+            key={idx}
+            style={styles.card}
+            onPress={() => router.push(tool.route as any)}
+          >
+            <Text style={styles.cardText}>{tool.title}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    </ScrollView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    paddingTop: 60,
+    paddingHorizontal: 16,
+    paddingBottom: 30,
+    backgroundColor: "#f9f9f9",
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: "700",
+    textAlign: "center",
+    marginBottom: 6,
+  },
+  subtitle: {
+    fontSize: 15,
+    color: "#666",
+    textAlign: "center",
+    marginBottom: 25,
+  },
+  grid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+  },
+  card: {
+    width: "48%",
+    backgroundColor: "#fff",
+    padding: 20,
+    borderRadius: 14,
+    marginBottom: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.06,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  cardText: {
+    fontSize: 15,
+    fontWeight: "600",
+    textAlign: "center",
+    color: "#333",
+  },
+  loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
+});-e \n\n=== ./(coach-tabs)/coach-gear.tsx ===\n
+import { useEffect, useState } from "react";
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  ActivityIndicator,
+  Alert,
+  StyleSheet,
+  ScrollView,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import api from "../../utils/api";
+import { useRouter } from "expo-router";
+
+export default function CoachGear() {
+  const [branch, setBranch] = useState<{ id: number; name: string } | null>(null);
+  const [gearText, setGearText] = useState("");
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
+
+  useEffect(() => {
+    const fetchGear = async () => {
+      try {
+        const userRes = await api.get("/users/me");
+        const branchId = userRes.data.branch_id;
+        const branchRes = await api.get(`/branches/${branchId}`);
+        setBranch({ id: branchId, name: branchRes.data.name });
+
+        const gearRes = await api.get(`/gear/${branchId}`);
+        if (gearRes.data.message) setGearText(gearRes.data.message);
+      } catch (err) {
+        Alert.alert("Error", "Failed to load gear info.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchGear();
+  }, []);
+
+  const handleUpdateGear = async () => {
+    try {
+      await api.post(`/gear/${branch?.id}`, { content: gearText });
+      Alert.alert("Success", "Gear info updated.");
+    } catch (err: any) {
+      Alert.alert("Error", err.response?.data?.detail || "Failed to update gear.");
+    }
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.loading}>
+        <ActivityIndicator size="large" color="#007AFF" />
+      </View>
+    );
+  }
+
+  return (
+    <ScrollView contentContainerStyle={styles.page}>
+      <TouchableOpacity style={styles.backButton} onPress={() => router.push("/(coach-tabs)/home")}>
+        <Ionicons name="arrow-back" size={26} color="#007AFF" />
+      </TouchableOpacity>
+
+      <Text style={styles.title}>🎒 Gear Poster</Text>
+      <Text style={styles.branch}>Branch: {branch?.name}</Text>
+
+      <View style={styles.poster}>
+        <Text style={styles.posterTitle}>Current Gear Info</Text>
+        <Text style={styles.posterContent}>{gearText || "No gear info posted yet."}</Text>
+      </View>
+
+      <Text style={styles.editLabel}>✏️ Edit Gear Info</Text>
+      <TextInput
+        placeholder="Update gear instructions..."
+        value={gearText}
+        onChangeText={setGearText}
+        multiline
+        style={styles.input}
+      />
+
+      <TouchableOpacity style={styles.button} onPress={handleUpdateGear}>
+        <Text style={styles.buttonText}>Update Poster</Text>
+      </TouchableOpacity>
+    </ScrollView>
+  );
+}
+
+const styles = StyleSheet.create({
+  page: {
+    paddingTop: 60,
+    paddingHorizontal: 20,
+    backgroundColor: "#f9f9f9",
+    flexGrow: 1,
+  },
+  backButton: { marginBottom: 20 },
+  title: {
+    fontSize: 26,
+    fontWeight: "700",
+    marginBottom: 6,
+    textAlign: "center",
+    color: "#1a1a1a",
+  },
+  branch: {
+    fontSize: 16,
+    color: "#555",
+    textAlign: "center",
+    marginBottom: 20,
+  },
+  poster: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 30,
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 4,
+  },
+  posterTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    marginBottom: 12,
+    color: "#007AFF",
+  },
+  posterContent: {
+    fontSize: 16,
+    lineHeight: 24,
+    color: "#333",
+  },
+  editLabel: {
+    fontSize: 16,
+    fontWeight: "600",
+    marginBottom: 10,
+    color: "#444",
+  },
+  input: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    borderColor: "#ccc",
+    borderWidth: 1,
+    padding: 15,
+    fontSize: 15,
+    minHeight: 100,
+    textAlignVertical: "top",
+    marginBottom: 20,
+  },
+  button: {
+    backgroundColor: "#007AFF",
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: "center",
+  },
+  buttonText: {
+    color: "#fff",
+    fontWeight: "600",
+    fontSize: 16,
+  },
+  loading: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+});-e \n\n=== ./(coach-tabs)/coach-threads.tsx ===\n
+import { useEffect, useState, useRef } from "react";
+import {
+  View,
+  Text,
+  TextInput,
+  StyleSheet,
+  FlatList,
+  TouchableOpacity,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  SafeAreaView,
+} from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Ionicons } from "@expo/vector-icons";
+import api from "../../utils/api";
+import moment from "moment";
+import { useRouter } from "expo-router";
+
+export default function CoachThreadsScreenUpdated() {
+  const [user, setUser] = useState<any>(null);
+  const [messages, setMessages] = useState<any[]>([]);
+  const [messageInput, setMessageInput] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [threadId, setThreadId] = useState<number | null>(null);
+  const flatListRef = useRef<FlatList>(null);
+  const router = useRouter();
+
+  const loadThread = async () => {
+    setLoading(true);
+    try {
+      const stored = await AsyncStorage.getItem("authUser");
+      const parsed = stored ? JSON.parse(stored) : null;
+      setUser(parsed);
+      console.log("🧑‍🏫 Authenticated coach:", parsed);
+      const me = await api.get("/users/me");
+      const branchId = me.data.branch_id;
+
+      const threads = await api.get(`/threads/branch/${branchId}`);
+      if (threads.data.length > 0) {
+        const currentThreadId = threads.data[0].id;
+        setThreadId(currentThreadId);
+        const posts = await api.get(`/threads/${currentThreadId}/posts`);
+        const sortedMessages = posts.data.sort((a: any, b: any) =>
+          new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        );
+        setMessages(sortedMessages);
+      } else {
+        setMessages([]);
+      }
+    } catch (e) {
+      console.error("Thread loading failed", e);
+    } finally {
+      setLoading(false);
+      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: false }), 100);
+    }
+  };
+
+  const postMessage = async () => {
+    if (!messageInput.trim() || !threadId || !user) return;
+
+    const optimisticMessage = {
+      id: Date.now(),
+      user_id: user.id,
+      message: messageInput,
+      created_at: new Date().toISOString(),
+      sent: false,
+    };
+
+    setMessages(prev => [...prev, optimisticMessage]);
+    setMessageInput("");
+    flatListRef.current?.scrollToEnd({ animated: true });
+
+    try {
+      const res = await api.post(`/threads/${threadId}/post`, { message: optimisticMessage.message });
+      console.log("✅ Message posted", res.data);
+      setMessages(prev =>
+        prev.map(msg =>
+          msg.id === optimisticMessage.id ? { ...msg, sent: true } : msg
+        )
+      );
+    } catch (e: any) {
+      console.error("❌ Message failed to send", e.response?.data || e.message);
+      setMessages(prev =>
+        prev.map(msg =>
+          msg.id === optimisticMessage.id ? { ...msg, sent: null } : msg
+        )
+      );
+    }
+  };
+
+  useEffect(() => {
+    loadThread();
+  }, []);
+
+  const renderItem = ({ item, index }: { item: any; index: number }) => {
+    if (!user) return null;
+
+    const isMine = item.user_id === user.id;
+    const showDateLabel = index === 0 ||
+      !moment(item.created_at).isSame(messages[index - 1]?.created_at, 'day');
+
+    let statusIndicator = "";
+    if (isMine) {
+      statusIndicator = item.sent === true ? "✓✓" : item.sent === false ? "✓" : "!";
+    }
+
+    return (
+      <View>
+        {showDateLabel && (
+          <Text style={styles.dateLabel}>{moment(item.created_at).format("dddd, MMM D")}</Text>
+        )}
+        <View style={[styles.bubble, isMine ? styles.mine : styles.theirs]}>
+          <Text style={styles.message}>{item.message}</Text>
+          <Text style={styles.meta}>
+            {moment(item.created_at).format("h:mm A")} {statusIndicator}
+          </Text>
+        </View>
+      </View>
+    );
+  };
+
+  if (loading) {
+    return <View style={styles.loading}><ActivityIndicator size="large" color="#007AFF" /></View>;
+  }
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <KeyboardAvoidingView
+        style={styles.innerContainer}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
+      >
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()}>
+            <Ionicons name="arrow-back" size={24} color="#007AFF" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Branch Group</Text>
+        </View>
+
+        <FlatList
+          ref={flatListRef}
+          data={messages}
+          keyExtractor={(item) => item.id.toString()}
+          renderItem={renderItem}
+          contentContainerStyle={styles.listContentContainer}
+          onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+          onLayout={() => flatListRef.current?.scrollToEnd({ animated: false })}
+        />
+
+        <View style={styles.inputContainer}>
+          <View style={styles.inputRow}>
+            <TextInput
+              style={styles.input}
+              placeholder="Type a message..."
+              value={messageInput}
+              onChangeText={setMessageInput}
+              multiline
+            />
+            <TouchableOpacity
+              onPress={postMessage}
+              style={[styles.sendBtn, { opacity: messageInput.trim().length > 0 ? 1 : 0.5 }]}
+              disabled={messageInput.trim().length === 0}
+            >
+              <Ionicons name="send" size={20} color="white" />
+            </TouchableOpacity>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: "#E5DDD5" },
+  innerContainer: { flex: 1 },
+  loading: { flex: 1, justifyContent: "center", alignItems: "center" },
+  flatList: { flex: 1 },
+  listContentContainer: { paddingTop: 10, paddingBottom: 10, flexGrow: 1 },
+  bubble: {
+    maxWidth: "75%",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginVertical: 4,
+    borderRadius: 18,
+    marginHorizontal: 12,
+  },
+  mine: {
+    backgroundColor: "#DCF8C6",
+    alignSelf: "flex-end",
+    borderBottomRightRadius: 4,
+  },
+  theirs: {
+    backgroundColor: "#FFFFFF",
+    alignSelf: "flex-start",
+    borderBottomLeftRadius: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 1,
+    elevation: 1,
+  },
+  message: { fontSize: 16, lineHeight: 21 },
+  meta: { fontSize: 11, color: "#667781", alignSelf: "flex-end", marginTop: 4, marginLeft: 8 },
+  dateLabel: {
+    textAlign: "center",
+    color: "#667781",
+    fontSize: 12,
+    marginVertical: 12,
+    backgroundColor: "rgba(0,0,0,0.05)",
+    alignSelf: "center",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingTop: Platform.OS === "ios" ? 50 : 16,
+    paddingBottom: 12,
+    backgroundColor: "#E5DDD5",
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "#ccc",
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    marginLeft: 12,
+    color: "#333",
+  },
+  inputContainer: {
+    backgroundColor: "#F0F0F0",
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: "#D1D1D1",
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+  },
+  inputRow: { flexDirection: "row", alignItems: "flex-end" },
+  input: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 16,
+    paddingTop: Platform.OS === 'ios' ? 10 : 8,
+    paddingBottom: Platform.OS === 'ios' ? 10 : 8,
+    borderRadius: 20,
+    fontSize: 16,
+    maxHeight: 100,
+    minHeight: 40,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "#D1D1D1",
+    marginRight: 8,
+  },
+  sendBtn: {
+    backgroundColor: "#007AFF",
+    borderRadius: 20,
+    width: 40,
+    height: 40,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#007AFF",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.3,
+    shadowRadius: 2,
+    elevation: 3,
+  },
+});-e \n\n=== ./(coach-tabs)/profile.tsx ===\n
+// FILE: app/(coach-tabs)/profile.tsx
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from "react-native";
+import { useAuth } from "../../context/auth";
+import { useRouter } from "expo-router";
+
+export default function CoachProfile() {
+  const { user } = useAuth();
+  const router = useRouter();
+
+  return (
+    <ScrollView style={styles.container}>
+      <Text style={styles.title}>👤 Coach Profile</Text>
+
+      <View style={styles.profileCard}>
+        <Text style={styles.name}>{user?.name || "Coach Name"}</Text>
+        <Text style={styles.info}>📍 {user?.branch_name || "Branch Name"}</Text>
+        <Text style={styles.info}>📧 {user?.email || "coach@email.com"}</Text>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>⚡ Quick Actions</Text>
+        <TouchableOpacity style={styles.button} onPress={() => router.push("/edit-profile")}>
+          <Text style={styles.buttonText}>Edit Profile</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.button} onPress={() => router.push("/change-password")}>
+          <Text style={styles.buttonText}>Change Password</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>📊 Attendance</Text>
+        <TouchableOpacity style={styles.button} onPress={() => router.push("/(coach-manage)/attendance")}>
+          <Text style={styles.buttonText}>Branch Attendance Summary</Text>
+        </TouchableOpacity>
+      </View>
+
+    </ScrollView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, paddingTop: 60, paddingHorizontal: 20 },
+  title: { fontSize: 24, fontWeight: "bold", marginBottom: 20, textAlign: "center" },
+  profileCard: {
+    backgroundColor: "#fff",
+    padding: 20,
+    borderRadius: 12,
+    marginBottom: 20,
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 3,
+    alignItems: "center",
+  },
+  name: { fontSize: 20, fontWeight: "bold", marginBottom: 4 },
+  info: { fontSize: 14, color: "#555" },
+  section: { marginBottom: 25 },
+  sectionTitle: { fontSize: 16, fontWeight: "bold", marginBottom: 10 },
+  button: {
+    backgroundColor: "#007AFF",
+    padding: 12,
+    borderRadius: 10,
+    marginBottom: 10,
+    alignItems: "center",
+  },
+  buttonText: { color: "white", fontWeight: "600" },
+});-e \n\n=== ./(coach-tabs)/_layout.tsx ===\n
+// ✅ FILE: app/(coach-tabs)/_layout.tsx
+import { Tabs } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
+
+export default function CoachTabLayout() {
+  return (
+    <Tabs screenOptions={{ headerShown: false }}>
+      <Tabs.Screen
+        name="home"
+        options={{
+          title: "Home",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="home-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="coach-threads"
+        options={{
+          title: "Groups",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="chatbubble-ellipses-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="coach-gear"
+        options={{
+          title: "Gear",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="briefcase-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: "Profile",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="person-outline" size={size} color={color} />
+          ),
+        }}
+      />
+    </Tabs>
+  );
+}-e \n\n=== ./athlete-home-test.tsx ===\n
+export { default } from "./(athlete-tabs)/home";
+-e \n\n=== ./login.tsx ===\n
+import { useState } from "react";
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, SafeAreaView } from "react-native";
+import { useRouter } from "expo-router";
+import { useAuth } from "../context/auth";
+import api from "../utils/api";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
+export default function AthleteLoginScreen() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
+  const { login } = useAuth();
+
+  const handleLogin = async () => {
+    if (!email || !password) {
+      Alert.alert("Error", "Please fill in all fields");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const res = await api.post("/auth/login", { email, password });
+      const { token } = res.data;
+      const userRes = await api.get("/users/me", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const user = userRes.data;
+      console.log("🧾 Athlete login - user.role is:", user.role);
+      
+      // ✅ Reject if not athlete
+      if (user.role !== "athlete") {
+        Alert.alert("Access Denied", "Only athletes can login here.");
+        return;
+      }
+
+      const isApproved = user.approved === true || user.approved === 1;
+      const authUser = {
+        ...user,
+        isLoggedIn: true,
+        isApproved,
+        token,
+      };
+      
+      await AsyncStorage.setItem("authUser", JSON.stringify(authUser));
+      login(authUser);
+      
+      // ✅ Redirect based on approval status
+      if (isApproved) {
+        router.replace("/(athlete-tabs)/home");
+      } else {
+        router.replace("/pending-home-test");
+      }
+    } catch (err: any) {
+      console.error("❌ Athlete Login error:", err);
+      Alert.alert("Login Failed", err.response?.data?.detail || "Server error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <SafeAreaView style={styles.container}>
+      {/* Background Overlay */}
+      <View style={styles.backgroundOverlay} />
+      
+      {/* Back Button */}
+      <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+        <Text style={styles.backBtnText}>←</Text>
+      </TouchableOpacity>
+
+      {/* Main Content */}
+      <View style={styles.contentContainer}>
+        {/* Header */}
+        <View style={styles.header}>
+          <View style={styles.logoContainer}>
+            <Text style={styles.logoIcon}>A</Text>
+          </View>
+          <Text style={styles.title}>Athlete Login</Text>
+          <Text style={styles.subtitle}>Welcome back, champion!</Text>
+        </View>
+
+        {/* Glass Card */}
+        <View style={styles.glassCard}>
+          <View style={styles.inputContainer}>
+            <Text style={styles.inputLabel}>Email Address</Text>
+            <TextInput
+              placeholder="Enter your email"
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              style={styles.input}
+              placeholderTextColor="#94a3b8"
+            />
+          </View>
+
+          <View style={styles.inputContainer}>
+            <Text style={styles.inputLabel}>Password</Text>
+            <TextInput
+              placeholder="Enter your password"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+              style={styles.input}
+              placeholderTextColor="#94a3b8"
+            />
+          </View>
+
+          <TouchableOpacity 
+            style={[styles.loginBtn, loading && styles.loginBtnDisabled]} 
+            onPress={handleLogin}
+            disabled={loading}
+          >
+            <Text style={styles.loginBtnText}>
+              {loading ? "Logging in..." : "Login"}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.forgotBtn}>
+            <Text style={styles.forgotBtnText}>Forgot Password?</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#e6f7ff",
+  },
+  backgroundOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0, 212, 255, 0.1)",
+  },
+  backBtn: {
+    position: "absolute",
+    top: 60,
+    left: 24,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#00d4ff",
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
+    zIndex: 1000,
+    borderWidth: 1,
+    borderColor: "rgba(0, 212, 255, 0.2)",
+  },
+  backBtnText: {
+    fontSize: 20,
+    color: "#00d4ff",
+    fontWeight: "600",
+  },
+  contentContainer: {
+    flex: 1,
+    paddingTop: 120,
+    paddingHorizontal: 24,
+    alignItems: "center",
+    justifyContent: "flex-start",
+  },
+  header: {
+    alignItems: "center",
+    marginBottom: 32,
+  },
+  logoContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 20,
+    shadowColor: "#00d4ff",
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 8,
+    borderWidth: 1,
+    borderColor: "rgba(0, 212, 255, 0.2)",
+  },
+  logoIcon: {
+    fontSize: 32,
+    color: "#00d4ff",
+    fontWeight: "800",
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: "800",
+    color: "#00d4ff",
+    marginBottom: 8,
+    textAlign: "center",
+    letterSpacing: -0.5,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: "#64748b",
+    textAlign: "center",
+    fontWeight: "500",
+  },
+  glassCard: {
+    backgroundColor: "rgba(255, 255, 255, 0.85)",
+    borderRadius: 24,
+    padding: 28,
+    width: "100%",
+    maxWidth: 400,
+    shadowColor: "#00d4ff",
+    shadowOpacity: 0.2,
+    shadowRadius: 30,
+    shadowOffset: { width: 0, height: 15 },
+    elevation: 10,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.3)",
+  },
+  inputContainer: {
+    marginBottom: 20,
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#475569",
+    marginBottom: 8,
+    marginLeft: 4,
+  },
+  input: {
+    backgroundColor: "rgba(248, 250, 252, 0.8)",
+    borderWidth: 1,
+    borderColor: "rgba(0, 212, 255, 0.2)",
+    padding: 16,
+    borderRadius: 12,
+    fontSize: 16,
+    color: "#1e293b",
+    fontWeight: "500",
+  },
+  loginBtn: {
+    backgroundColor: "#00d4ff",
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    borderRadius: 16,
+    alignItems: "center",
+    marginTop: 8,
+    marginBottom: 16,
+    shadowColor: "#00d4ff",
+    shadowOpacity: 0.4,
+    shadowRadius: 15,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 6,
+  },
+  loginBtnDisabled: {
+    backgroundColor: "#94a3b8",
+    shadowOpacity: 0.2,
+  },
+  loginBtnText: {
+    color: "#ffffff",
+    fontWeight: "700",
+    fontSize: 18,
+    letterSpacing: 0.5,
+  },
+  forgotBtn: {
+    alignSelf: "center",
+    padding: 8,
+  },
+  forgotBtnText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#00d4ff",
+  },
+});-e \n\n=== ./guest-home.tsx ===\n
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Image } from "react-native";
+import { useRouter } from "expo-router";
+import { useTranslation } from "react-i18next";
+import i18n from "../utils/i18n";
+
+export default function GuestHome() {
+  const router = useRouter();
+  const { t } = useTranslation();
+
+  const toggleLanguage = () => {
+    const nextLang = i18n.language === "en" ? "ar" : "en";
+    i18n.changeLanguage(nextLang);
+  };
+
+  return (
+    <SafeAreaView style={styles.page}>
+      {/* Gradient Background */}
+      <View style={styles.gradientBackground} />
+      <View style={styles.gradientOverlay} />
+
+      {/* Language Toggle - Bottom Left */}
+      <TouchableOpacity style={styles.langBtn} onPress={toggleLanguage}>
+        <Text style={styles.langText}>
+          {i18n.language === "en" ? "عربي" : "EN"}
+        </Text>
+      </TouchableOpacity>
+
+      {/* Admin Button - Bottom Right */}
+      <TouchableOpacity style={styles.adminBtn} onPress={() => router.push("../admin-login")}>
+        <Text style={styles.adminBtnText}>⚙️</Text>
+      </TouchableOpacity>
+
+      <View style={styles.contentContainer}>
+        {/* Elegant Header */}
+        <View style={styles.header}>
+          <View style={styles.brandContainer}>
+            <Image 
+              source={require('../assets/images/hfanew.png')} // ← Try with one dot
+              style={styles.logoImage}
+              resizeMode="contain"
+            />
+            <Text style={styles.brandName}></Text>
+            <Text style={styles.brandSubName}></Text>
+          </View>
+          <Text style={styles.title}>{t("welcome_title")}</Text>
+          <Text style={styles.subtitle}>{t("branch_count")}</Text>
+        </View>
+
+        {/* Modern Card */}
+        <View style={styles.mainCard}>
+          {/* Branch Info */}
+          <View style={styles.infoSection}>
+            <View style={styles.iconContainer}>
+              <Text style={styles.sectionIcon}>📍</Text>
+            </View>
+            <View style={styles.infoContent}>
+              <Text style={styles.infoTitle}>{t("nearest_branch")}</Text>
+              <Text style={styles.infoText}>{t("branch_name")}</Text>
+              <Text style={styles.infoTime}>{t("practice_time")}</Text>
+            </View>
+          </View>
+
+          {/* Action Buttons */}
+          <View style={styles.buttonGroup}>
+            <TouchableOpacity style={styles.primaryBtn} onPress={() => router.push("/login")}>
+              <Text style={styles.primaryBtnText}>{t("login")}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.secondaryBtn} onPress={() => router.push("/register")}>
+              <Text style={styles.secondaryBtnText}>{t("register")}</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Secondary Action */}
+          <TouchableOpacity style={styles.linkBtn} onPress={() => router.push("/(tabs)/branches")}>
+            <Text style={styles.linkBtnText}>{t("view_branches")}</Text>
+            <Text style={styles.linkArrow}>→</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  page: {
+    flex: 1,
+    backgroundColor: "#fafbfc",
+  },
+  gradientBackground: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "#f8fafc",
+  },
+  gradientOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    background: "linear-gradient(135deg, rgba(0, 212, 255, 0.03) 0%, rgba(59, 130, 246, 0.08) 100%)",
+    backgroundColor: "rgba(0, 212, 255, 0.02)",
+  },
+  contentContainer: {
+    flex: 1,
+    paddingTop: 60,
+    paddingHorizontal: 20,
+    alignItems: "center",
+    justifyContent: "flex-start",
+  },
+  header: {
+    alignItems: "center",
+    marginBottom: 32,
+  },
+  brandContainer: {
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  logoImage: {
+    width: 120,
+    height: 120,
+    marginBottom: 12,
+  },
+  brandName: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#1e40af",
+    letterSpacing: 0.5,
+    textTransform: "uppercase",
+  },
+  brandSubName: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#1e40af",
+    letterSpacing: 0.5,
+    textTransform: "uppercase",
+    marginTop: -2,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#1e293b",
+    marginBottom: 6,
+    textAlign: "center",
+    letterSpacing: -0.3,
+  },
+  subtitle: {
+    fontSize: 14,
+    color: "#64748b",
+    textAlign: "center",
+    fontWeight: "500",
+  },
+  mainCard: {
+    backgroundColor: "#ffffff",
+    borderRadius: 20,
+    padding: 24,
+    width: "100%",
+    maxWidth: 360,
+    shadowColor: "#0ea5e9",
+    shadowOpacity: 0.08,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 8,
+    borderWidth: 1,
+    borderColor: "rgba(226, 232, 240, 0.8)",
+  },
+  infoSection: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: 24,
+    padding: 16,
+    backgroundColor: "#f8fafc",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+  },
+  iconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(0, 212, 255, 0.1)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  sectionIcon: {
+    fontSize: 18,
+  },
+  infoContent: {
+    flex: 1,
+  },
+  infoTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#00d4ff",
+    marginBottom: 6,
+  },
+  infoText: {
+    fontSize: 13,
+    color: "#475569",
+    marginBottom: 2,
+    fontWeight: "500",
+  },
+  infoTime: {
+    fontSize: 12,
+    color: "#64748b",
+    fontWeight: "400",
+  },
+  buttonGroup: {
+    marginBottom: 20,
+  },
+  primaryBtn: {
+    backgroundColor: "#00d4ff",
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: "center",
+    marginBottom: 10,
+    shadowColor: "#00d4ff",
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
+  },
+  primaryBtnText: {
+    color: "#ffffff",
+    fontWeight: "600",
+    fontSize: 15,
+    letterSpacing: 0.3,
+  },
+  secondaryBtn: {
+    borderColor: "#00d4ff",
+    borderWidth: 1.5,
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: "center",
+    backgroundColor: "rgba(0, 212, 255, 0.04)",
+  },
+  secondaryBtnText: {
+    color: "#00d4ff",
+    fontWeight: "600",
+    fontSize: 15,
+    letterSpacing: 0.3,
+  },
+  linkBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: "#f1f5f9",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+  },
+  linkBtnText: {
+    color: "#475569",
+    fontWeight: "500",
+    fontSize: 13,
+    marginRight: 6,
+  },
+  linkArrow: {
+    color: "#64748b",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  langBtn: {
+    position: "absolute",
+    bottom: 32,
+    left: 20,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    backgroundColor: "#ffffff",
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    shadowColor: "#64748b",
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
+    zIndex: 1000,
+  },
+  langText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#475569",
+  },
+  adminBtn: {
+    position: "absolute",
+    bottom: 32,
+    right: 20,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "#ffffff",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    shadowColor: "#64748b",
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
+    zIndex: 1000,
+  },
+  adminBtnText: {
+    fontSize: 16,
+  },
+});-e \n\n=== ./change-password.tsx ===\n
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from "react-native";
+import { useState } from "react";
+import api from "../utils/api";
+import { useRouter } from "expo-router";
+
+export default function ChangePasswordScreen() {
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const router = useRouter();
+
+  const handleChangePassword = async () => {
+    try {
+      await api.post("/coach/change-password", {
+        old_password: currentPassword,
+        new_password: newPassword,
+      });
+      Alert.alert("Success", "Password changed successfully.");
+      router.back();
+    } catch (err) {
+      console.error("❌ Failed to change password", err);
+      Alert.alert("Error", "Failed to change password.");
+    }
+  };
+
+  return (
+    <View style={styles.container}>
+      <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+        <Text style={styles.backText}>← Back</Text>
+      </TouchableOpacity>
+
+      <Text style={styles.title}>Change Password</Text>
+      <TextInput
+        style={styles.input}
+        value={currentPassword}
+        onChangeText={setCurrentPassword}
+        placeholder="Current Password"
+        secureTextEntry
+      />
+      <TextInput
+        style={styles.input}
+        value={newPassword}
+        onChangeText={setNewPassword}
+        placeholder="New Password"
+        secureTextEntry
+      />
+      <TouchableOpacity style={styles.button} onPress={handleChangePassword}>
+        <Text style={styles.buttonText}>Update Password</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, paddingTop: 60, paddingHorizontal: 20 },
+  backButton: { marginBottom: 10 },
+  backText: { fontSize: 16, color: "#007AFF" },
+  title: { fontSize: 24, fontWeight: "bold", marginBottom: 20 },
+  input: {
+    backgroundColor: "#fff",
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 15,
+    borderColor: "#ccc",
+    borderWidth: 1,
+  },
+  button: {
+    backgroundColor: "#007AFF",
+    padding: 14,
+    borderRadius: 10,
+    alignItems: "center",
+  },
+  buttonText: { color: "white", fontWeight: "600" },
+});-e \n\n=== ./(tabs)/home.tsx ===\n
+// FILE: app/(tabs)/home.tsx
+import { useEffect, useState } from "react";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  Linking,
+  StyleSheet,
+  ScrollView,
+} from "react-native";
+import * as Location from "expo-location";
+import { Ionicons } from "@expo/vector-icons";
+import { getDistance } from "geolib";
+import { useRouter } from "expo-router";
+import { useAuth } from "../../context/auth";
+
+const branches = [
+  {
+    id: "1",
+    name: "Downtown Branch",
+    practiceTime: "Mon–Fri, 4PM–6PM",
+    phone: "0123456789",
+    location: { latitude: 30.0444, longitude: 31.2357 },
+    videoUrl: "https://example.com/video1.mp4",
+  },
+  {
+    id: "2",
+    name: "Hadayek Al Ahram Branch",
+    practiceTime: "Sat–Wed, 5PM–7PM",
+    phone: "0987654321",
+    location: { latitude: 30.0626, longitude: 31.2497 },
+    videoUrl: "https://example.com/video2.mp4",
+  },
+];
+
+export default function HomeScreen() {
+  const router = useRouter();
+  const { user } = useAuth();
+
+  const [nearest, setNearest] = useState<any>(null);
+  const [progressPercent, setProgressPercent] = useState<number>(0);
+
+  useEffect(() => {
+    (async () => {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") return;
+
+      const userLoc = await Location.getCurrentPositionAsync({});
+      const nearestBranch = branches.reduce((prev, curr) => {
+        const prevDist = getDistance(userLoc.coords, prev.location);
+        const currDist = getDistance(userLoc.coords, curr.location);
+        return currDist < prevDist ? curr : prev;
+      });
+
+      setNearest(nearestBranch);
+    })();
+  }, []);
+
+  useEffect(() => {
+    if (user?.isLoggedIn && !user.isApproved) {
+      setProgressPercent(66);
+    }
+  }, [user]);
+
+  return (
+    <ScrollView contentContainerStyle={styles.page}>
+      <Text style={styles.pageTitle}>🏠 Welcome to HFA</Text>
+
+      {user?.isLoggedIn && !user.isApproved && (
+        <View style={styles.card}>
+          <Text style={styles.title}>⏳ Verification Pending</Text>
+          <Text>Your account is being reviewed by a coach.</Text>
+          <View style={styles.progressBar}>
+            <View style={[styles.progressFill, { width: `${progressPercent}%` }]} />
+          </View>
+          <Text style={styles.percent}>{progressPercent}% complete</Text>
+        </View>
+      )}
+
+      {nearest && (
+        <View style={styles.card}>
+          <Text style={styles.title}>📍 Nearest Branch</Text>
+          <Text style={styles.branchName}>{nearest.name}</Text>
+          <Text>{nearest.practiceTime}</Text>
+          <TouchableOpacity onPress={() => Linking.openURL(`tel:${nearest.phone}`)}>
+            <Text style={styles.link}>📞 {nearest.phone}</Text>
+          </TouchableOpacity>
+          <Text style={styles.videoLabel}>🎥 Welcome Video</Text>
+          <Text>{nearest.videoUrl}</Text>
+        </View>
+      )}
+
+      <TouchableOpacity
+        style={styles.button}
+        onPress={() => router.push("/branches")}
+      >
+        <Text style={styles.buttonText}>🌍 View All Branches & Videos</Text>
+      </TouchableOpacity>
+
+      {!user?.isLoggedIn && (
+  <View style={styles.joinCard}>
+    <Text style={styles.joinTitle}>🏋️ Want to join the best fitness academy in Egypt?</Text>
+
+    {/* ✅ LOGIN Button */}
+    <TouchableOpacity
+      style={styles.loginBtn}
+      onPress={() => router.push("/login")} // Make sure /login.tsx exists in /app/
+    >
+      <Text style={styles.loginText}>Login</Text>
+    </TouchableOpacity>
+
+    {/* ✅ REGISTER Button */}
+    <TouchableOpacity
+      style={styles.registerBtn}
+      onPress={() => router.push("/register")} // Make sure /register.tsx exists in /app/
+    >
+      <Text style={styles.registerText}>Register</Text>
+    </TouchableOpacity>
+  </View>
+)
+      }
+    </ScrollView>
+  );
+}
+
+const styles = StyleSheet.create({
+  page: {
+    paddingTop: 60,
+    paddingHorizontal: 16,
+    paddingBottom: 30,
+  },
+  pageTitle: {
+    fontSize: 22,
+    fontWeight: "bold",
+    marginBottom: 20,
+    textAlign: "center",
+  },
+  card: {
+    backgroundColor: "#fff",
+    borderRadius: 10,
+    padding: 16,
+    marginBottom: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 6,
+  },
+  branchName: {
+    fontSize: 16,
+    fontWeight: "600",
+    marginBottom: 3,
+  },
+  link: {
+    marginTop: 5,
+    color: "#007AFF",
+    fontWeight: "600",
+  },
+  videoLabel: {
+    marginTop: 10,
+    fontWeight: "600",
+    color: "#333",
+  },
+  progressBar: {
+    height: 10,
+    backgroundColor: "#eee",
+    borderRadius: 5,
+    marginTop: 10,
+    overflow: "hidden",
+  },
+  progressFill: {
+    height: 10,
+    backgroundColor: "#007AFF",
+  },
+  percent: {
+    fontSize: 12,
+    color: "#666",
+    textAlign: "right",
+    marginTop: 4,
+  },
+  button: {
+    backgroundColor: "#28a745",
+    padding: 14,
+    borderRadius: 10,
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  buttonText: {
+    color: "#fff",
+    fontWeight: "600",
+    fontSize: 16,
+  },
+  joinCard: {
+    backgroundColor: "#fff",
+    borderRadius: 10,
+    padding: 16,
+    marginTop: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+    alignItems: "center",
+  },
+  joinTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    marginBottom: 12,
+    textAlign: "center",
+  },
+  loginBtn: {
+    backgroundColor: "#007AFF",
+    paddingVertical: 10,
+    paddingHorizontal: 30,
+    borderRadius: 8,
+    marginBottom: 10,
+  },
+  loginText: {
+    color: "#fff",
+    fontWeight: "bold",
+  },
+  registerBtn: {
+    borderColor: "#007AFF",
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 30,
+  },
+  registerText: {
+    color: "#007AFF",
+    fontWeight: "bold",
+  },
+});-e \n\n=== ./(tabs)/contact.tsx ===\n
+import { View, Text, StyleSheet } from "react-native";
+
+export default function ContactScreen() {
+  return (
+    <View style={styles.page}>
+      <Text style={styles.title}>📞 Contact Us</Text>
+      <Text>Email: contact@hfaacademy.com</Text>
+      <Text>Phone: 01000000000</Text>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  page: { flex: 1, justifyContent: "center", alignItems: "center", padding: 20 },
+  title: { fontSize: 20, fontWeight: "bold", marginBottom: 12 },
+});
+-e \n\n=== ./(tabs)/profile.tsx ===\n
+import { View, Text, StyleSheet, FlatList } from "react-native";
+import { Ionicons, FontAwesome5 } from "@expo/vector-icons";
+
+const mockUser = {
+  name: "Mohamed",
+  branch: "Downtown Branch",
+  practiceTime: "Mon, Wed, Fri — 4:00 PM to 6:00 PM",
+  attendanceThisWeek: [
+    { day: "Mon", present: true },
+    { day: "Wed", present: false },
+    { day: "Fri", present: true },
+  ],
+  paymentStatus: "✅ Paid for May 2025",
+  gear: "🎒 Speedo gear available at Elite Swim Shop (10% off!)",
+  lastThreadMessage: "Coach: Don’t forget your water bottle and fins on Friday!",
+};
+
+export default function DashboardScreen() {
+  return (
+    <View style={styles.container}>
+      <Text style={styles.greeting}>🎉 Welcome back, {mockUser.name}!</Text>
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>🏆 Attendance Tracker</Text>
+        <View style={styles.attendanceRow}>
+          {mockUser.attendanceThisWeek.map((item) => (
+            <View key={item.day} style={styles.attendanceBox}>
+              <Text style={styles.attendanceDay}>{item.day}</Text>
+              <Ionicons
+                name={item.present ? "checkmark-circle" : "close-circle"}
+                size={32}
+                color={item.present ? "green" : "red"}
+              />
+              <Text style={{ color: item.present ? "green" : "red", fontWeight: "600" }}>
+                {item.present ? "Present" : "Absent"}
+              </Text>
+            </View>
+          ))}
+        </View>
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>🕑 Practice Schedule</Text>
+        <Text style={styles.highlightText}>{mockUser.practiceTime}</Text>
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>🎒 Gear Perks</Text>
+        <Text style={styles.highlightText}>{mockUser.gear}</Text>
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>💬 Latest From Your Coach</Text>
+        <View style={styles.chatBubble}>
+          <Text>{mockUser.lastThreadMessage}</Text>
+        </View>
+      </View>
+
+      <View style={[styles.card, styles.paymentCard]}>
+        <Text style={styles.cardTitle}>💳 Payment Status</Text>
+        <Text style={styles.paid}>{mockUser.paymentStatus}</Text>
+      </View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, paddingTop: 60, paddingHorizontal: 20 },
+  greeting: { fontSize: 22, fontWeight: "bold", marginBottom: 20 },
+  card: {
+    backgroundColor: "#fff",
+    padding: 15,
+    borderRadius: 12,
+    marginBottom: 15,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  cardTitle: { fontSize: 16, fontWeight: "bold", marginBottom: 8 },
+  attendanceRow: { flexDirection: "row", justifyContent: "space-around" },
+  attendanceBox: { alignItems: "center", gap: 5 },
+  attendanceDay: { fontWeight: "bold", marginBottom: 2 },
+  highlightText: { fontWeight: "600", fontSize: 15, color: "#007AFF" },
+  chatBubble: {
+    backgroundColor: "#f1f1f1",
+    padding: 12,
+    borderRadius: 10,
+    borderLeftColor: "#007AFF",
+    borderLeftWidth: 4,
+  },
+  paymentCard: { marginTop: 30 },
+  paid: { fontWeight: "600", fontSize: 16, color: "green" },
+});
+-e \n\n=== ./(tabs)/_layout.tsx ===\n
+import { Tabs } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
+
+export default function TabsLayout() {
+  return (
+    <Tabs screenOptions={{ headerShown: false }}>
+      <Tabs.Screen name="home" options={{ title: "Home", tabBarIcon: ({ color, size }) => (
+        <Ionicons name="home-outline" size={size} color={color} />
+      ) }} />
+      <Tabs.Screen name="branches" options={{ title: "Branches", tabBarIcon: ({ color, size }) => (
+        <Ionicons name="business-outline" size={size} color={color} />
+      ) }} />
+      <Tabs.Screen name="contact" options={{ title: "Contact", tabBarIcon: ({ color, size }) => (
+        <Ionicons name="call-outline" size={size} color={color} />
+      ) }} />
+      <Tabs.Screen name="profile" options={{ title: "Profile", tabBarIcon: ({ color, size }) => (
+        <Ionicons name="person-outline" size={size} color={color} />
+      ) }} />
+    </Tabs>
+  );
+}
+-e \n\n=== ./(tabs)/branches.tsx ===\n
+import { useEffect, useState } from "react";
+import { useRouter } from "expo-router";
+import {
+  View,
+  Text,
+  FlatList,
+  TouchableOpacity,
+  Linking,
+  StyleSheet,
+  ScrollView,
+} from "react-native";
+import axios from "axios";
+import { Ionicons } from "@expo/vector-icons";
+
+// Define the structure of a branch
+interface Branch {
+  id: number;
+  name: string;
+  address: string;
+  phone: string;
+  video_url: string;
+  practice_days: string;
+}
+
+export default function BranchesScreen() {
+  const router = useRouter();
+  const [branches, setBranches] = useState<Branch[]>([]);
+
+  useEffect(() => {
+    const fetchBranches = async () => {
+      try {
+        const res = await axios.get("http://192.168.1.8:8000/branches/");
+        setBranches(res.data);
+      } catch (err) {
+        console.error("Failed to fetch branches", err);
+      }
+    };
+    fetchBranches();
+  }, []);
+
+  return (
+    <ScrollView contentContainerStyle={styles.page}>
+      <View style={styles.topBar}>
+        <Text style={styles.hfa}>HFA</Text>
+        <Ionicons name="notifications-outline" size={24} color="#333" />
+      </View>
+
+      <Text style={styles.sectionTitle}>🏢 Our Branches</Text>
+
+      <FlatList
+        data={branches}
+        keyExtractor={(item) => item.id.toString()}
+        scrollEnabled={false}
+        contentContainerStyle={{ gap: 20 }}
+        renderItem={({ item }) => (
+          <View style={styles.widget}>
+            <Text style={styles.widgetName}>{item.name}</Text>
+            <Text style={styles.widgetText}>{item.address}</Text>
+            <Text style={styles.widgetText}>Practice Schedule:</Text>
+            {item.practice_days.split(",").map((line, idx) => (
+              <Text key={idx} style={styles.practiceLine}>{line.trim()}</Text>
+            ))}
+            <TouchableOpacity onPress={() => Linking.openURL(`tel:${item.phone}`)}>
+              <Text style={styles.link}>📞 {item.phone}</Text>
+            </TouchableOpacity>
+            <Text style={styles.videoLabel}>🎥 Branch Tour</Text>
+            <Text style={styles.widgetText}>{item.video_url}</Text>
+          </View>
+        )}
+      />
+
+      <View style={styles.authCard}>
+        <Text style={styles.authText}>🚀 Ready to join HFA?</Text>
+        <TouchableOpacity style={styles.authBtn} onPress={() => router.push("/login")}>
+          <Text style={styles.authBtnText}>Login</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.authBtnAlt} onPress={() => router.push("/register")}>
+          <Text style={styles.authBtnAltText}>Don’t have an account? Register now</Text>
+        </TouchableOpacity>
+      </View>
+    </ScrollView>
+  );
+}
+
+const styles = StyleSheet.create({
+  page: { paddingTop: 60, paddingHorizontal: 15, paddingBottom: 30 },
+  topBar: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingBottom: 10,
+    marginBottom: 10,
+  },
+  hfa: {
+    fontSize: 22,
+    fontWeight: "bold",
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 10,
+    marginTop: 10,
+  },
+  widget: {
+    backgroundColor: "#fff",
+    padding: 15,
+    borderRadius: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  widgetName: {
+    fontSize: 16,
+    fontWeight: "600",
+    marginBottom: 3,
+  },
+  widgetText: {
+    fontSize: 14,
+    color: "#333",
+    marginBottom: 4,
+  },
+  practiceLine: {
+    fontSize: 14,
+    color: "#333",
+    marginLeft: 10,
+    marginBottom: 2,
+  },
+  link: {
+    color: "#007AFF",
+    marginTop: 5,
+  },
+  videoLabel: {
+    marginTop: 10,
+    fontWeight: "600",
+    color: "#333",
+  },
+  authCard: {
+    marginTop: 30,
+    backgroundColor: "#fff",
+    padding: 16,
+    borderRadius: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
+    alignItems: "center",
+    marginBottom: 30,
+  },
+  authText: {
+    fontSize: 16,
+    fontWeight: "600",
+    marginBottom: 12,
+  },
+  authBtn: {
+    backgroundColor: "#007AFF",
+    paddingVertical: 10,
+    paddingHorizontal: 24,
+    borderRadius: 10,
+    marginBottom: 10,
+  },
+  authBtnText: {
+    color: "#fff",
+    fontWeight: "bold",
+  },
+  authBtnAlt: {
+    paddingVertical: 8,
+  },
+  authBtnAltText: {
+    color: "#007AFF",
+    fontWeight: "600",
+  },
+});-e \n\n=== ./pending-home-test.tsx ===\n
+export { default } from "./pending-home";
+-e \n\n=== ./app-threads.tsx ===\n
+import { View, Text, StyleSheet } from 'react-native';
+
+export default function AppThreads() {
+  return (
+    <View style={styles.container}>
+      <Text style={styles.text}>App Threads Page</Text>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, justifyContent: "center", alignItems: "center" },
+  text: { fontSize: 20, fontWeight: "bold" },
+});
+-e \n\n=== ./services.tsx ===\n
+// app/guest-home-test.tsx
+export { default } from "./guest-home";-e \n\n=== ./register.tsx ===\n
+import { useState } from "react";
+import { 
+  View, 
+  Text, 
+  TextInput, 
+  StyleSheet, 
+  Alert, 
+  SafeAreaView, 
+  TouchableOpacity,
+  Image,
+  ScrollView
+} from "react-native";
+import { Picker } from "@react-native-picker/picker";
+import { useRouter } from "expo-router";
+import api from "../utils/api";
+
+export default function RegisterScreen() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [branchId, setBranchId] = useState("");
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
+  const branches = [
+    { label: "Maadi", value: "1" },
+    { label: "Hadayek Al-Ahram", value: "2" },
+    { label: "6th October", value: "3" },
+    { label: "Nasr City", value: "4" },
+    { label: "New Cairo", value: "5" },
+  ];
+
+  const getBranchLabel = (value: string) => {
+    const branch = branches.find(b => b.value === value);
+    return branch ? branch.label : "Select your branch";
+  };
+
+  const showBranchPicker = () => {
+    Alert.alert(
+      "Select Branch",
+      "Choose the branch you practice at:",
+      [
+        ...branches.map(branch => ({
+          text: branch.label,
+          onPress: () => setBranchId(branch.value)
+        })),
+        { text: "Cancel", style: "cancel" }
+      ]
+    );
+  };
+
+  const handleRegister = async () => {
+    if (!email || !password || !confirmPassword || !name || !phone || !branchId) {
+      Alert.alert("Missing Fields", "Please fill in all fields.");
+      return;
+    }
+    if (password !== confirmPassword) {
+      Alert.alert("Password Mismatch", "Passwords do not match.");
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      await api.post("/auth/register", {
+        email,
+        password,
+        name,
+        phone,
+        branch_id: parseInt(branchId),
+      });
+      Alert.alert("Registration Sent", "Your request will be reviewed by a coach.");
+    } catch (err: any) {
+      const errorMsg = err.response?.data?.message || err.response?.data?.detail;
+      Alert.alert(
+        "Registration Failed",
+        Array.isArray(errorMsg) ? errorMsg[0] : errorMsg || "Server error"
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <SafeAreaView style={styles.page}>
+      {/* Gradient Background */}
+      <View style={styles.gradientBackground} />
+      <View style={styles.gradientOverlay} />
+      
+      {/* Back Button */}
+      <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+        <Text style={styles.backBtnText}>←</Text>
+      </TouchableOpacity>
+
+      <ScrollView contentContainerStyle={styles.contentContainer} showsVerticalScrollIndicator={false}>
+        {/* Header */}
+        <View style={styles.header}>
+          <View style={styles.brandContainer}>
+            <Image 
+              source={require('../assets/images/hfanew.png')} 
+              style={styles.logoImage}
+              resizeMode="contain"
+            />
+          </View>
+          <Text style={styles.title}>Join Our Academy</Text>
+          <Text style={styles.subtitle}>Create your athlete account</Text>
+        </View>
+
+        {/* Main Card */}
+        <View style={styles.mainCard}>
+          <View style={styles.inputContainer}>
+            <Text style={styles.inputLabel}>Full Name</Text>
+            <TextInput
+              placeholder="Enter your full name"
+              value={name}
+              onChangeText={setName}
+              style={styles.input}
+              placeholderTextColor="#94a3b8"
+            />
+          </View>
+
+          <View style={styles.inputContainer}>
+            <Text style={styles.inputLabel}>Email Address</Text>
+            <TextInput
+              placeholder="Enter your email"
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              style={styles.input}
+              placeholderTextColor="#94a3b8"
+            />
+          </View>
+
+          <View style={styles.inputContainer}>
+            <Text style={styles.inputLabel}>Phone Number</Text>
+            <TextInput
+              placeholder="Enter your phone number"
+              value={phone}
+              onChangeText={setPhone}
+              keyboardType="phone-pad"
+              style={styles.input}
+              placeholderTextColor="#94a3b8"
+            />
+          </View>
+
+          <View style={styles.inputContainer}>
+            <Text style={styles.inputLabel}>Password</Text>
+            <TextInput
+              placeholder="Create a password"
+              value={password}
+              secureTextEntry
+              onChangeText={setPassword}
+              style={styles.input}
+              placeholderTextColor="#94a3b8"
+            />
+          </View>
+
+          <View style={styles.inputContainer}>
+            <Text style={styles.inputLabel}>Confirm Password</Text>
+            <TextInput
+              placeholder="Confirm your password"
+              value={confirmPassword}
+              secureTextEntry
+              onChangeText={setConfirmPassword}
+              style={styles.input}
+              placeholderTextColor="#94a3b8"
+            />
+          </View>
+
+          <View style={styles.inputContainer}>
+            <Text style={styles.inputLabel}>Select Branch</Text>
+            <TouchableOpacity style={styles.branchSelector} onPress={showBranchPicker}>
+              <Text style={[styles.branchText, !branchId && styles.placeholderText]}>
+                {getBranchLabel(branchId)}
+              </Text>
+              <Text style={styles.dropdownArrow}>▼</Text>
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity 
+            style={[styles.submitBtn, loading && styles.submitBtnDisabled]} 
+            onPress={handleRegister}
+            disabled={loading}
+          >
+            <Text style={styles.submitBtnText}>
+              {loading ? "Submitting..." : "Submit Request"}
+            </Text>
+          </TouchableOpacity>
+
+          <View style={styles.noteContainer}>
+            <Text style={styles.noteText}>
+              Your registration will be reviewed by our coaching team. You'll receive a confirmation email once approved.
+            </Text>
+          </View>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  page: {
+    flex: 1,
+    backgroundColor: "#fafbfc",
+  },
+  gradientBackground: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "#f8fafc",
+  },
+  gradientOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0, 212, 255, 0.02)",
+  },
+  backBtn: {
+    position: "absolute",
+    top: 60,
+    left: 20,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "#ffffff",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#64748b",
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
+    zIndex: 1000,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+  },
+  backBtnText: {
+    fontSize: 16,
+    color: "#475569",
+    fontWeight: "600",
+  },
+  contentContainer: {
+    paddingTop: 140,
+    paddingHorizontal: 20,
+    paddingBottom: 40,
+    alignItems: "center",
+  },
+  header: {
+    alignItems: "center",
+    marginBottom: 32,
+  },
+  brandContainer: {
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  logoImage: {
+    width: 120,
+    height: 120,
+    marginBottom: 12,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#1e293b",
+    marginBottom: 6,
+    textAlign: "center",
+    letterSpacing: -0.3,
+  },
+  subtitle: {
+    fontSize: 14,
+    color: "#64748b",
+    textAlign: "center",
+    fontWeight: "500",
+  },
+  mainCard: {
+    backgroundColor: "#ffffff",
+    borderRadius: 20,
+    padding: 24,
+    width: "100%",
+    maxWidth: 360,
+    shadowColor: "#0ea5e9",
+    shadowOpacity: 0.08,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 8,
+    borderWidth: 1,
+    borderColor: "rgba(226, 232, 240, 0.8)",
+  },
+  inputContainer: {
+    marginBottom: 20,
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#475569",
+    marginBottom: 8,
+    marginLeft: 4,
+  },
+  input: {
+    backgroundColor: "#f8fafc",
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    padding: 16,
+    borderRadius: 12,
+    fontSize: 16,
+    color: "#1e293b",
+    fontWeight: "500",
+  },
+  branchSelector: {
+    backgroundColor: "#f8fafc",
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    padding: 16,
+    borderRadius: 12,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    minHeight: 56,
+  },
+  branchText: {
+    fontSize: 16,
+    color: "#1e293b",
+    fontWeight: "500",
+    flex: 1,
+  },
+  placeholderText: {
+    color: "#94a3b8",
+    fontWeight: "400",
+  },
+  dropdownArrow: {
+    fontSize: 12,
+    color: "#64748b",
+    marginLeft: 8,
+  },
+  submitBtn: {
+    backgroundColor: "#00d4ff",
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: "center",
+    marginTop: 8,
+    marginBottom: 20,
+    shadowColor: "#00d4ff",
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
+  },
+  submitBtnDisabled: {
+    backgroundColor: "#94a3b8",
+    shadowOpacity: 0.1,
+  },
+  submitBtnText: {
+    color: "#ffffff",
+    fontWeight: "600",
+    fontSize: 15,
+    letterSpacing: 0.3,
+  },
+  noteContainer: {
+    backgroundColor: "#f8fafc",
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+  },
+  noteText: {
+    fontSize: 13,
+    color: "#64748b",
+    textAlign: "center",
+    lineHeight: 18,
+    fontWeight: "500",
+  },
+});-e \n\n=== ./+not-found.tsx ===\n
+import { Link, Stack } from 'expo-router';
+import { StyleSheet } from 'react-native';
+
+import { ThemedText } from '@/components/ThemedText';
+import { ThemedView } from '@/components/ThemedView';
+
+export default function NotFoundScreen() {
+  return (
+    <>
+      <Stack.Screen options={{ title: 'Oops!' }} />
+      <ThemedView style={styles.container}>
+        <ThemedText type="title">This screen does not exist.</ThemedText>
+        <Link href="/" style={styles.link}>
+          <ThemedText type="link">Go to home screen!</ThemedText>
+        </Link>
+      </ThemedView>
+    </>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  link: {
+    marginTop: 15,
+    paddingVertical: 15,
+  },
+});
+-e \n\n=== ./notifications.tsx ===\n
+import { useEffect, useState } from "react";
+import { View, Text, FlatList, StyleSheet } from "react-native";
+import api from "../utils/api";
+
+export default function NotificationsScreen() {
+  const [notifications, setNotifications] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      try {
+        const res = await api.get("/notifications");
+        setNotifications(res.data);
+      } catch (err) {
+        console.log("Error fetching notifications:", (err as Error).message);
+      }
+    };
+
+    fetchNotifications();
+  }, []);
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.title}>Notifications</Text>
+      <FlatList
+        data={notifications}
+        keyExtractor={(item) => item.id.toString()}
+        renderItem={({ item }) => (
+          <View style={styles.card}>
+            <Text>{item.message}</Text>
+          </View>
+        )}
+      />
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, paddingTop: 60, paddingHorizontal: 20 },
+  title: { fontSize: 24, fontWeight: "bold", marginBottom: 20 },
+  card: {
+    backgroundColor: "#fff",
+    padding: 15,
+    marginBottom: 12,
+    borderRadius: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+});-e \n\n=== ./edit-profile.tsx ===\n
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from "react-native";
+import { useEffect, useState } from "react";
+import { useRouter } from "expo-router";
+import api from "../utils/api";
+import { useAuth } from "../context/auth";
+
+export default function EditProfileScreen() {
+  const { user, refreshUser } = useAuth();
+  const [name, setName] = useState(user?.name || "");
+  const [email, setEmail] = useState(user?.email || "");
+  const router = useRouter();
+
+  const handleSave = async () => {
+    try {
+      await api.put("/coach/profile", { name, email });
+      Alert.alert("Success", "Profile updated successfully.");
+      refreshUser();
+      router.back();
+    } catch (err) {
+      console.error("❌ Failed to update profile", err);
+      Alert.alert("Error", "Failed to update profile.");
+    }
+  };
+
+  return (
+    <View style={styles.container}>
+      <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+        <Text style={styles.backText}>← Back</Text>
+      </TouchableOpacity>
+
+      <Text style={styles.title}>Edit Profile</Text>
+      <TextInput style={styles.input} value={name} onChangeText={setName} placeholder="Name" />
+      <TextInput style={styles.input} value={email} onChangeText={setEmail} placeholder="Email" keyboardType="email-address" />
+      <TouchableOpacity style={styles.button} onPress={handleSave}>
+        <Text style={styles.buttonText}>Save Changes</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, paddingTop: 60, paddingHorizontal: 20 },
+  backButton: { marginBottom: 10 },
+  backText: { fontSize: 16, color: "#007AFF" },
+  title: { fontSize: 24, fontWeight: "bold", marginBottom: 20 },
+  input: {
+    backgroundColor: "#fff",
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 15,
+    borderColor: "#ccc",
+    borderWidth: 1,
+  },
+  button: {
+    backgroundColor: "#007AFF",
+    padding: 14,
+    borderRadius: 10,
+    alignItems: "center",
+  },
+  buttonText: { color: "white", fontWeight: "600" },
+});-e \n\n=== ./profile-sections/swimmeet.tsx ===\n
+import React, { useState } from "react";
+import {
+  View,
+  Text,
+  TextInput,
+  Button,
+  StyleSheet,
+  Alert,
+} from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import axios from "axios";
+
+export default function SwimMeetsTab() {
+  const [events, setEvents] = useState([
+    { name: "", time: "" },
+    { name: "", time: "" },
+  ]);
+  const [meetName, setMeetName] = useState("");
+  const [meetDate, setMeetDate] = useState("");
+
+  const formatTime = (input: string): string => {
+    const parts = input.trim().split(/[\s:.,]+/).map((p) => p.padStart(2, "0"));
+
+    if (parts.length === 3) {
+      const [min, sec, hund] = parts;
+      return `${parseInt(min)}:${sec}.${hund}`;
+    }
+
+    if (parts.length === 2) {
+      const [sec, hund] = parts;
+      return `${parseInt(sec)}.${hund}`;
+    }
+
+    return input; // fallback
+  };
+
+  const updateEvent = (
+    index: number,
+    key: "name" | "time",
+    value: string
+  ) => {
+    const newEvents = [...events];
+    newEvents[index][key] = key === "time" ? formatTime(value) : value;
+    setEvents(newEvents);
+  };
+
+  const submit = async () => {
+    try {
+      const storedUser = await AsyncStorage.getItem("authUser");
+      if (!storedUser) throw new Error("User not authenticated");
+      const { token } = JSON.parse(storedUser);
+      const headers = { Authorization: `Bearer ${token}` };
+
+      if (!meetName || !meetDate) {
+        Alert.alert("Missing info", "Please enter the meet name and date.");
+        return;
+      }
+
+      let saved = false;
+      for (const e of events) {
+        if (!e.name || !e.time) continue;
+
+        await axios.post(
+          "http://192.168.1.8:8000/athlete/performance-log",
+          {
+            meet_name: meetName,
+            meet_date: meetDate,
+            event_name: e.name,
+            result_time: e.time,
+          },
+          { headers }
+        );
+        saved = true;
+      }
+
+      if (saved) Alert.alert("✅ Events saved successfully!");
+      else Alert.alert("No valid events to save");
+    } catch (err) {
+      console.error("❌ Error submitting performance logs:", err);
+      Alert.alert("Error", "Could not save events.");
+    }
+  };
+
+  return (
+    <View style={styles.container}>
+      <TextInput
+        style={styles.input}
+        placeholder="Meet Name"
+        value={meetName}
+        onChangeText={setMeetName}
+      />
+      <TextInput
+        style={styles.input}
+        placeholder="Meet Date (YYYY-MM-DD)"
+        value={meetDate}
+        onChangeText={setMeetDate}
+      />
+
+      {events.map((e, idx) => (
+        <View key={idx} style={styles.row}>
+          <TextInput
+            style={styles.input}
+            placeholder="Event Name"
+            value={e.name}
+            onChangeText={(val) => updateEvent(idx, "name", val)}
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="mm:ss.00"
+            value={e.time}
+            onChangeText={(val) => updateEvent(idx, "time", val)}
+            keyboardType="numeric"
+          />
+        </View>
+      ))}
+
+      {/* Removed the Add Event button */}
+      <Button title="Save Events" onPress={submit} />
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { padding: 20 },
+  row: { flexDirection: "row", marginBottom: 10 },
+  input: {
+    flex: 1,
+    borderBottomWidth: 1,
+    borderColor: "#ccc",
+    paddingVertical: 5,
+    marginHorizontal: 5,
+    fontSize: 16,
+  },
+});-e \n\n=== ./profile-sections/measurements.tsx ===\n
+import React, { useState } from "react";
+import { View, Text, TextInput, StyleSheet, Button, Alert } from "react-native";
+
+export default function MeasurementsTab() {
+  const [form, setForm] = useState({
+    height: "",
+    weight: "",
+    armLength: "",
+    legLength: "",
+    fatPercentage: "",
+    musclePercentage: "",
+  });
+
+  const handleChange = (field: string, value: string) => {
+    setForm(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleSubmit = () => {
+    Alert.alert("✅ Measurements saved!", JSON.stringify(form, null, 2));
+    // TODO: Send to backend
+  };
+
+  const fields = [
+    { key: "height", label: "Height (cm)", example: "e.g. 180" },
+    { key: "weight", label: "Weight (kg)", example: "e.g. 80" },
+    { key: "armLength", label: "Arm Length (cm)", example: "e.g. 60" },
+    { key: "legLength", label: "Leg Length (cm)", example: "e.g. 90" },
+    { key: "fatPercentage", label: "Body Fat %", example: "e.g. 15" },
+    { key: "musclePercentage", label: "Muscle %", example: "e.g. 45" },
+  ];
+
+  return (
+    <View style={styles.container}>
+      {fields.map(({ key, label, example }) => (
+        <View key={key} style={styles.inputWrapper}>
+          <Text style={styles.label}>{label}</Text>
+          <TextInput
+            placeholder={example}
+            value={form[key as keyof typeof form]}
+            onChangeText={(value) => handleChange(key, value)}
+            style={styles.input}
+            keyboardType="numeric"
+          />
+        </View>
+      ))}
+      <Button title="Save" onPress={handleSubmit} />
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { padding: 20 },
+  inputWrapper: { marginBottom: 15 },
+  label: { fontWeight: "600", marginBottom: 4 },
+  input: {
+    borderBottomWidth: 1,
+    borderColor: "#ccc",
+    paddingVertical: 6,
+    fontSize: 16,
+  },
+});-e \n\n=== ./profile-sections/language.tsx ===\n
+import React, { useState } from "react";
+import { View, Text, Switch, StyleSheet } from "react-native";
+
+export default function LanguageTab() {
+  const [isArabic, setIsArabic] = useState(false);
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.text}>
+        Language: {isArabic ? "Arabic" : "English"}
+      </Text>
+      <Switch value={isArabic} onValueChange={setIsArabic} />
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, justifyContent: "center", alignItems: "center" },
+  text: { fontSize: 20, marginBottom: 10 },
+});-e \n\n=== ./_layout.tsx ===\n
+import { Slot, useRouter, useSegments } from "expo-router";
+import { useEffect } from "react";
+import { View, ActivityIndicator } from "react-native";
+import { AuthProvider, useAuth } from "../context/auth";
+import '../utils/i18n'; // ⬅️ relative path, must be top-most import
+
+function InnerLayout() {
+  const { user, loading } = useAuth();
+  const router = useRouter();
+  const segments = useSegments();
+
+  useEffect(() => {
+    if (loading) return;
+
+    const group = segments[0]; // e.g., (coach-tabs), (coach-manage), etc.
+    const currentRoute = segments.join("/");
+
+    const isPublic = [
+      "guest-home",
+      "pending-home-test",
+      "athlete-home-test",
+      "services",
+      "login",
+      "register",
+      "admin-login",
+      "forgot-password",
+    ].includes(currentRoute);
+
+    const isCoachAllowedRoute = [
+      "edit-profile",
+      "change-password",
+    ].includes(currentRoute);
+
+    if (!user && !isPublic && group !== "(tabs)") {
+      router.replace("/guest-home");
+      return;
+    }
+
+    if (user?.isLoggedIn && !user.isApproved && group !== "(tabs)") {
+      router.replace("/pending-home-test");
+      return;
+    }
+
+    if (
+      user?.isLoggedIn &&
+      user.isApproved &&
+      (user.role === "coach" || user.role === "head_coach") &&
+      !["(coach-tabs)", "(coach-manage)"].includes(group) &&
+      !isCoachAllowedRoute
+    ) {
+      router.replace("/(coach-tabs)/home");
+      return;
+    }
+
+    if (
+      user?.isLoggedIn &&
+      user.isApproved &&
+      user.role === "athlete" &&
+      group !== "(athlete-tabs)"
+    ) {
+      router.replace("/(athlete-tabs)/home");
+      return;
+    }
+
+  }, [user, loading, segments]);
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
+
+  return <Slot />;
+}
+
+export default function RootLayout() {
+  return (
+    <AuthProvider>
+      <InnerLayout />
+    </AuthProvider>
+  );
+}-e \n\n=== ./(head-coach)/home.tsx ===\n
+// FILE: app/(headcoach-tabs)/home.tsx
+import { useEffect, useState } from "react";
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator } from "react-native";
+import { useRouter } from "expo-router";
+import api from "../../utils/api";
+
+export default function HeadCoachHome() {
+  const [branches, setBranches] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
+
+  useEffect(() => {
+    const fetchBranches = async () => {
+      try {
+        const res = await api.get("/headcoach/branches");
+        setBranches(res.data);
+      } catch (err) {
+        console.error("Failed to fetch branches", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchBranches();
+  }, []);
+
+  if (loading) {
+    return (
+      <View style={styles.loading}>
+        <ActivityIndicator size="large" color="#007AFF" />
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.title}>🏫 Branches You Manage</Text>
+
+      <FlatList
+        data={branches}
+        keyExtractor={(item) => item.id.toString()}
+        renderItem={({ item }) => (
+          <TouchableOpacity
+            style={styles.card}
+            onPress={() => router.push({ pathname: "/(coach-tabs)/home", params: { branchId: item.id } })}
+          >
+            <Text style={styles.branchName}>{item.name}</Text>
+          </TouchableOpacity>
+        )}
+      />
+
+      <TouchableOpacity
+        style={styles.assignButton}
+        onPress={() => router.push("/(head-coach)/assign-coaches")}
+      >
+        <Text style={styles.assignText}>🔧 Manage Coach Assignments</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, paddingTop: 60, paddingHorizontal: 20 },
+  title: { fontSize: 22, fontWeight: "bold", marginBottom: 20, textAlign: "center" },
+  card: {
+    backgroundColor: "#fff",
+    padding: 18,
+    borderRadius: 10,
+    marginBottom: 12,
+    elevation: 2,
+  },
+  branchName: { fontSize: 16, fontWeight: "600" },
+  assignButton: {
+    marginTop: 30,
+    padding: 14,
+    backgroundColor: "#007AFF",
+    borderRadius: 10,
+    alignItems: "center",
+  },
+  assignText: { color: "white", fontWeight: "600" },
+  loading: { flex: 1, justifyContent: "center", alignItems: "center" },
+});-e \n\n=== ./(head-coach)/assign-coaches.tsx ===\n
+import { useEffect, useState } from "react";
+import {
+  View,
+  Text,
+  ScrollView,
+  StyleSheet,
+  ActivityIndicator,
+  Alert,
+  TouchableOpacity,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import api from "../../utils/api";
+import { useRouter } from "expo-router";
+
+interface Branch {
+  id: number;
+  name: string;
+  coaches: Coach[];
+}
+
+interface Coach {
+  id: number;
+  name: string;
+}
+
+export default function AssignCoachesScreen() {
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
+
+  const fetchData = async () => {
+    try {
+      const res = await api.get("/headcoach/branches-coaches");
+      setBranches(res.data);
+    } catch (err) {
+      console.error("Failed to load data", err);
+      Alert.alert("Error", "Could not load data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const assignCoach = async (coachId: number, branchId: number) => {
+    try {
+      await api.post("/headcoach/assign", { coach_id: coachId, branch_id: branchId });
+      Alert.alert("✅ Assigned", "Coach assigned successfully.");
+      fetchData();
+    } catch (err) {
+      console.error("Assign error", err);
+      Alert.alert("Error", "Failed to assign coach");
+    }
+  };
+
+  const unassignCoach = async (coachId: number, branchId: number) => {
+    Alert.alert(
+      "Are you sure?",
+      "This will remove the coach from the branch.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Unassign",
+          onPress: async () => {
+            try {
+              await api.post("/headcoach/unassign", { coach_id: coachId, branch_id: branchId });
+              Alert.alert("✅ Unassigned", "Coach removed from branch.");
+              fetchData();
+            } catch (err) {
+              console.error("Unassign error", err);
+              Alert.alert("Error", "Failed to unassign coach");
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#007AFF" />
+      </View>
+    );
+  }
+
+  return (
+    <ScrollView style={styles.container}>
+      <Text style={styles.title}>👥 Assign Coaches</Text>
+      {branches.map((branch) => (
+        <View key={branch.id} style={styles.branchCard}>
+          <Text style={styles.branchName}>{branch.name}</Text>
+          <Text style={styles.label}>Assign to:</Text>
+          {branch.coaches.map((coach) => (
+            <View key={coach.id} style={styles.row}>
+              <Text style={styles.coachName}>{coach.name}</Text>
+              <View style={styles.actions}>
+                <TouchableOpacity
+                  style={styles.assignBtn}
+                  onPress={() => assignCoach(coach.id, branch.id)}
+                >
+                  <Ionicons name="add-circle-outline" size={20} color="#007AFF" />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.unassignBtn}
+                  onPress={() => unassignCoach(coach.id, branch.id)}
+                >
+                  <Ionicons name="remove-circle-outline" size={20} color="#FF3B30" />
+                </TouchableOpacity>
+              </View>
+            </View>
+          ))}
+        </View>
+      ))}
+    </ScrollView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, paddingTop: 60, paddingHorizontal: 20 },
+  title: { fontSize: 24, fontWeight: "bold", marginBottom: 20 },
+  branchCard: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+    elevation: 2,
+  },
+  branchName: { fontSize: 18, fontWeight: "600", marginBottom: 6 },
+  label: { fontSize: 14, color: "#555", marginBottom: 6 },
+  row: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  coachName: { fontSize: 15, color: "#333" },
+  actions: { flexDirection: "row", gap: 10 },
+  assignBtn: { padding: 4 },
+  unassignBtn: { padding: 4 },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+});-e \n\n=== ./(head-coach)/branch-selector.tsx ===\n
+import { useEffect, useState } from "react";
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from "react-native";
+import { useRouter } from "expo-router";
+import api from "../../utils/api";
+
+export default function HeadCoachDashboard() {
+  const [branches, setBranches] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
+
+  useEffect(() => {
+    const fetchBranches = async () => {
+      try {
+        const res = await api.get("/branches");
+        setBranches(res.data);
+      } catch (err) {
+        console.error("Failed to load branches", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchBranches();
+  }, []);
+
+  const handleBranchPress = (branchId: number) => {
+    router.push(`/home?branchId=${branchId}`);
+  };
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.title}>🏢 Manage Branches</Text>
+
+      {loading ? (
+        <ActivityIndicator size="large" color="#007AFF" />
+      ) : (
+        <FlatList
+          data={branches}
+          keyExtractor={(item) => item.id.toString()}
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              style={styles.branchCard}
+              onPress={() => handleBranchPress(item.id)}
+            >
+              <Text style={styles.branchName}>{item.name}</Text>
+            </TouchableOpacity>
+          )}
+        />
+      )}
+
+      <TouchableOpacity
+        style={styles.assignBtn}
+        onPress={() => router.push("/(head-coach)/assign-coaches")}
+      >
+        <Text style={styles.assignText}>👥 Assign/Unassign Coaches</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, paddingTop: 60, paddingHorizontal: 20 },
+  title: { fontSize: 22, fontWeight: "bold", marginBottom: 20, textAlign: "center" },
+  branchCard: {
+    backgroundColor: "#fff",
+    padding: 20,
+    borderRadius: 10,
+    marginBottom: 10,
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 2,
+  },
+  branchName: { fontSize: 16, fontWeight: "600" },
+  assignBtn: {
+    marginTop: 20,
+    backgroundColor: "#007AFF",
+    padding: 14,
+    borderRadius: 10,
+    alignItems: "center",
+  },
+  assignText: { color: "#fff", fontWeight: "bold", fontSize: 16 },
+});-e \n\n=== ./(head-coach)/branches.tsx ===\n
+// FILE: app/(head-coach)/branches.tsx
+import { useEffect, useState } from "react";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  ActivityIndicator,
+  FlatList,
+  Alert,
+} from "react-native";
+import { useRouter } from "expo-router";
+import api from "../../utils/api";
+
+export default function BranchListScreen() {
+  const [branches, setBranches] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
+
+  useEffect(() => {
+    const fetchBranches = async () => {
+      try {
+        const res = await api.get("/branches");
+        setBranches(res.data);
+      } catch (err) {
+        console.error("Failed to fetch branches", err);
+        Alert.alert("Error", "Could not load branches.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchBranches();
+  }, []);
+
+  const handleSelectBranch = (branch: any) => {
+    router.push({
+      pathname: "/(coach-tabs)/home",
+      params: { override_branch: branch.id },
+    });
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.loading}><ActivityIndicator size="large" color="#007AFF" /></View>
+    );
+  }
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.title}>🏢 Select a Branch</Text>
+      <FlatList
+        data={branches}
+        keyExtractor={(item) => item.id.toString()}
+        renderItem={({ item }) => (
+          <TouchableOpacity
+            style={styles.branchCard}
+            onPress={() => handleSelectBranch(item)}
+          >
+            <Text style={styles.branchName}>{item.name}</Text>
+          </TouchableOpacity>
+        )}
+      />
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, paddingTop: 60, paddingHorizontal: 20, backgroundColor: "#f9fafe" },
+  title: { fontSize: 22, fontWeight: "bold", marginBottom: 20, textAlign: "center" },
+  branchCard: {
+    backgroundColor: "#fff",
+    padding: 16,
+    borderRadius: 10,
+    marginBottom: 12,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowOffset: { width: 0, height: 2 },
+  },
+  branchName: { fontSize: 16, fontWeight: "600", color: "#1e1e1e" },
+  loading: { flex: 1, justifyContent: "center", alignItems: "center" },
+});-e \n\n=== ./forgot-password.tsx ===\n
+import { useState } from "react";
+import {
+  View,
+  Text,
+  TextInput,
+  Button,
+  Alert,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+} from "react-native";
+import { useRouter } from "expo-router";
+import api from "../utils/api";
+
+export default function ForgotPasswordScreen() {
+  const [email, setEmail] = useState("");
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
+
+  const handleSubmit = async () => {
+    if (!email.trim()) {
+      return Alert.alert("Missing Email", "Please enter your email address.");
+    }
+
+    setLoading(true);
+    try {
+      await api.post("/auth/forgot-password", { email });
+      Alert.alert("📬 Check Your Email", "If the email exists, a reset link has been sent.");
+      router.back();
+    } catch (err: any) {
+      console.error("❌ Forgot password error", err.message || err);
+      Alert.alert("Error", err?.response?.data?.detail || "Something went wrong. Try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      style={styles.container}
+    >
+      <Text style={styles.title}>Forgot Password</Text>
+      <TextInput
+        placeholder="Enter your email"
+        value={email}
+        onChangeText={setEmail}
+        autoCapitalize="none"
+        keyboardType="email-address"
+        style={styles.input}
+      />
+      <Button
+        title={loading ? "Sending..." : "Send Reset Link"}
+        onPress={handleSubmit}
+        disabled={loading}
+      />
+    </KeyboardAvoidingView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, justifyContent: "center", padding: 20 },
+  title: { fontSize: 22, fontWeight: "bold", marginBottom: 20, textAlign: "center" },
+  input: {
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 15,
+  },
+});-e \n\n=== ./admin-login.tsx ===\n
+import { useState } from "react";
+import {
+  View,
+  Text,
+  TextInput,
+  StyleSheet,
+  Alert,
+  TouchableOpacity,
+  SafeAreaView,
+  Image,
+} from "react-native";
+import { useRouter } from "expo-router";
+import { useAuth } from "../context/auth";
+import api from "../utils/api";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
+export default function AdminLoginScreen() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
+  const { login } = useAuth();
+
+  const handleLogin = async () => {
+    if (!email || !password) {
+      Alert.alert("Error", "Please fill in all fields");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const res = await api.post("/auth/login", { email, password });
+      const { token } = res.data;
+      const userRes = await api.get("/users/me", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const user = userRes.data;
+      
+      if (user.role !== "coach" && user.role !== "head_coach") {
+        Alert.alert("Access Denied", "Only coaches can access this page.");
+        return;
+      }
+      
+      const authUser = {
+        ...user,
+        isLoggedIn: true,
+        isApproved: Boolean(user.approved),
+        token,
+      };
+      
+      await AsyncStorage.removeItem("authUser");
+      login(authUser);
+      router.replace("/(coach-tabs)/home");
+    } catch (err: any) {
+      console.error("❌ Admin Login error:", err);
+      Alert.alert("Login Failed", err.response?.data?.detail || "Server error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <SafeAreaView style={styles.page}>
+      {/* Gradient Background */}
+      <View style={styles.gradientBackground} />
+      <View style={styles.gradientOverlay} />
+      
+      {/* Back Button */}
+      <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+        <Text style={styles.backBtnText}>←</Text>
+      </TouchableOpacity>
+
+      <View style={styles.contentContainer}>
+        {/* Header */}
+        <View style={styles.header}>
+          <View style={styles.brandContainer}>
+            <Image 
+              source={require('../assets/images/hfanew.png')} 
+              style={styles.logoImage}
+              resizeMode="contain"
+            />
+          </View>
+          <Text style={styles.title}>Coach Portal</Text>
+          <Text style={styles.subtitle}>Access your coaching dashboard</Text>
+        </View>
+
+        {/* Main Card */}
+        <View style={styles.mainCard}>
+          <View style={styles.inputContainer}>
+            <Text style={styles.inputLabel}>Email Address</Text>
+            <TextInput
+              placeholder="Enter your coach email"
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              style={styles.input}
+              placeholderTextColor="#94a3b8"
+            />
+          </View>
+
+          <View style={styles.inputContainer}>
+            <Text style={styles.inputLabel}>Password</Text>
+            <TextInput
+              placeholder="Enter your password"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+              style={styles.input}
+              placeholderTextColor="#94a3b8"
+            />
+          </View>
+
+          <TouchableOpacity 
+            style={[styles.loginBtn, loading && styles.loginBtnDisabled]} 
+            onPress={handleLogin}
+            disabled={loading}
+          >
+            <Text style={styles.loginBtnText}>
+              {loading ? "Signing in..." : "Sign In"}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={styles.forgotBtn}
+            onPress={() => router.push("/forgot-password")}
+          >
+            <Text style={styles.forgotBtnText}>Forgot Password?</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  page: {
+    flex: 1,
+    backgroundColor: "#fafbfc",
+  },
+  gradientBackground: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "#f8fafc",
+  },
+  gradientOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0, 212, 255, 0.02)",
+  },
+  backBtn: {
+    position: "absolute",
+    top: 60,
+    left: 20,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "#ffffff",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#64748b",
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
+    zIndex: 1000,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+  },
+  backBtnText: {
+    fontSize: 16,
+    color: "#475569",
+    fontWeight: "600",
+  },
+  contentContainer: {
+    flex: 1,
+    paddingTop: 120,
+    paddingHorizontal: 20,
+    alignItems: "center",
+    justifyContent: "flex-start",
+  },
+  header: {
+    alignItems: "center",
+    marginBottom: 32,
+  },
+  brandContainer: {
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  logoImage: {
+    width: 120,
+    height: 120,
+    marginBottom: 12,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#1e293b",
+    marginBottom: 6,
+    textAlign: "center",
+    letterSpacing: -0.3,
+  },
+  subtitle: {
+    fontSize: 14,
+    color: "#64748b",
+    textAlign: "center",
+    fontWeight: "500",
+  },
+  mainCard: {
+    backgroundColor: "#ffffff",
+    borderRadius: 20,
+    padding: 24,
+    width: "100%",
+    maxWidth: 360,
+    shadowColor: "#0ea5e9",
+    shadowOpacity: 0.08,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 8,
+    borderWidth: 1,
+    borderColor: "rgba(226, 232, 240, 0.8)",
+  },
+  inputContainer: {
+    marginBottom: 20,
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#475569",
+    marginBottom: 8,
+    marginLeft: 4,
+  },
+  input: {
+    backgroundColor: "#f8fafc",
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    padding: 16,
+    borderRadius: 12,
+    fontSize: 16,
+    color: "#1e293b",
+    fontWeight: "500",
+  },
+  loginBtn: {
+    backgroundColor: "#00d4ff",
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: "center",
+    marginTop: 8,
+    marginBottom: 20,
+    shadowColor: "#00d4ff",
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
+  },
+  loginBtnDisabled: {
+    backgroundColor: "#94a3b8",
+    shadowOpacity: 0.1,
+  },
+  loginBtnText: {
+    color: "#ffffff",
+    fontWeight: "600",
+    fontSize: 15,
+    letterSpacing: 0.3,
+  },
+  forgotBtn: {
+    alignSelf: "center",
+    padding: 8,
+  },
+  forgotBtnText: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#64748b",
+  },
+});-e \n\n=== ./(athlete-tabs)/threads.tsx ===\n
+import { useEffect, useRef, useState } from "react";
+import {
+  View,
+  Text,
+  FlatList,
+  StyleSheet,
+  ActivityIndicator,
+  SafeAreaView,
+  TouchableOpacity,
+  Alert,
+} from "react-native";
+import axios from "axios";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
+
+const BASE_URL = "http://192.168.1.8:8000";
+
+export default function AthleteThreadsScreen() {
+  const [threads, setThreads] = useState<any[]>([]);
+  const [posts, setPosts] = useState<any[]>([]);
+  const [selectedThread, setSelectedThread] = useState<any | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [postsLoading, setPostsLoading] = useState(false);
+  const flatListRef = useRef<FlatList>(null);
+  const router = useRouter();
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const storedUser = await AsyncStorage.getItem("authUser");
+      if (!storedUser) {
+        Alert.alert("Error", "No user data found. Please log in again.");
+        return;
+      }
+
+      const { token } = JSON.parse(storedUser);
+      const headers = { Authorization: `Bearer ${token}` };
+
+      const meRes = await axios.get(`${BASE_URL}/users/me`, { headers });
+      const branchId = meRes.data.branch_id;
+
+      const threadsRes = await axios.get(`${BASE_URL}/threads/branch/${branchId}`, { headers });
+      const allThreads = threadsRes.data;
+
+      const filtered = allThreads.filter((t: any) =>
+        !t.title.toLowerCase().includes("gear") &&
+        !t.title.toLowerCase().includes("equipment")
+      );
+
+      setThreads(filtered);
+
+      if (filtered.length > 0) {
+        await selectThread(filtered[0], headers);
+      }
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.detail || error.message || "Unknown error";
+      Alert.alert("Error", `Failed to load threads: ${errorMessage}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const selectThread = async (thread: any, headersOverride?: any) => {
+    try {
+      setPostsLoading(true);
+      setSelectedThread(thread);
+
+      const storedUser = await AsyncStorage.getItem("authUser");
+      const { token } = JSON.parse(storedUser || "{}");
+      const headers = headersOverride || { Authorization: `Bearer ${token}` };
+
+      const postsRes = await axios.get(`${BASE_URL}/threads/${thread.id}/posts`, { headers });
+
+      setPosts(postsRes.data);
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.detail || error.message || "Unknown error";
+      Alert.alert("Error", `Failed to load posts: ${errorMessage}`);
+    } finally {
+      setPostsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const formatDate = (iso: string) => {
+    try {
+      return new Date(iso).toLocaleDateString(undefined, {
+        weekday: "short",
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      });
+    } catch {
+      return "Invalid Date";
+    }
+  };
+
+  const formatTime = (iso: string) => {
+    try {
+      return new Date(iso).toLocaleTimeString(undefined, {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    } catch {
+      return "Invalid Time";
+    }
+  };
+
+  const groupedPosts = posts.reduceRight((acc: any[], post, i) => {
+    const date = formatDate(post.created_at);
+    const prevDate = i < posts.length - 1 ? formatDate(posts[i + 1]?.created_at) : null;
+
+    if (date !== prevDate) {
+      acc.push({ type: "date", id: `date-${i}`, date });
+    }
+
+    acc.push({ type: "message", ...post });
+    return acc;
+  }, []).reverse();
+
+  if (loading) {
+    return (
+      <View style={styles.loading}>
+        <View style={styles.loadingCard}>
+          <ActivityIndicator size="large" color="#00BCD4" />
+          <Text style={styles.loadingText}>Loading threads...</Text>
+        </View>
+      </View>
+    );
+  }
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={24} color="#ffffff" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>💬 Branch Threads</Text>
+      </View>
+
+      {threads.length === 0 ? (
+        <View style={styles.noThreads}>
+          <Text style={styles.noThreadsText}>No threads available</Text>
+        </View>
+      ) : (
+        <>
+          <View style={styles.threadList}>
+            {threads.map((thread) => (
+              <TouchableOpacity
+                key={thread.id}
+                style={[
+                  styles.threadButton,
+                  selectedThread?.id === thread.id && styles.threadButtonActive,
+                ]}
+                onPress={() => selectThread(thread)}
+              >
+                <Text style={[
+                  styles.threadButtonText,
+                  selectedThread?.id === thread.id && styles.threadButtonTextActive
+                ]}>
+                  {thread.title}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {postsLoading ? (
+            <View style={styles.postsLoading}>
+              <ActivityIndicator size="large" color="#00BCD4" />
+              <Text style={styles.loadingText}>Loading messages...</Text>
+            </View>
+          ) : posts.length === 0 ? (
+            <View style={styles.noPosts}>
+              <Text style={styles.noPostsText}>
+                {selectedThread ? `No messages in "${selectedThread.title}" yet` : "Select a thread to view messages"}
+              </Text>
+            </View>
+          ) : (
+            <FlatList
+              ref={flatListRef}
+              data={groupedPosts}
+              keyExtractor={(item) => item.id?.toString() || item.date}
+              renderItem={({ item }) =>
+                item.type === "date" ? (
+                  <View style={styles.dateHeader}>
+                    <Text style={styles.dateHeaderText}>{item.date}</Text>
+                  </View>
+                ) : (
+                  <View style={styles.bubble}>
+                    <Text style={styles.message}>{item.message}</Text>
+                    <Text style={styles.meta}>
+                      — {item.author} | {formatTime(item.created_at)}
+                    </Text>
+                  </View>
+                )
+              }
+              contentContainerStyle={{ paddingBottom: 80, paddingTop: 12, paddingHorizontal: 16 }}
+              inverted
+            />
+          )}
+        </>
+      )}
+    </SafeAreaView>
+  );
+}
+
+// ...same imports...
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#E6F2FF", // Light blue background
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingTop: 50,
+    paddingBottom: 20,
+    backgroundColor: "#3399FF",
+    borderBottomWidth: 1,
+    borderBottomColor: "#2b89e0",
+  },
+  backButton: {
+    padding: 8,
+    borderRadius: 12,
+    backgroundColor: "#5aaeff",
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    marginLeft: 16,
+    color: "#ffffff",
+    letterSpacing: -0.3,
+  },
+  threadList: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    padding: 16,
+    backgroundColor: "#D0E7FF",
+    borderBottomWidth: 1,
+    borderBottomColor: "#99ccff",
+  },
+  threadButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 25,
+    backgroundColor: "#99ccff",
+    margin: 6,
+  },
+  threadButtonActive: {
+    backgroundColor: "#3399FF",
+    shadowColor: "#1a73e8",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  threadButtonText: {
+    color: "#003366",
+    fontWeight: "600",
+    fontSize: 14,
+  },
+  threadButtonTextActive: {
+    color: "#ffffff",
+    fontWeight: "700",
+  },
+  bubble: {
+    backgroundColor: "#CDE7FF",
+    padding: 16,
+    borderRadius: 16,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: "#99cfff",
+  },
+  message: {
+    fontSize: 16,
+    color: "#003366",
+    fontWeight: "500",
+    lineHeight: 22,
+  },
+  meta: {
+    fontSize: 13,
+    color: "#336699",
+    marginTop: 8,
+    textAlign: "left",
+    fontWeight: "500",
+  },
+  dateHeader: {
+    alignSelf: "center",
+    backgroundColor: "#99ccff",
+    borderRadius: 12,
+    paddingVertical: 6,
+    paddingHorizontal: 16,
+    marginTop: 20,
+  },
+  dateHeaderText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#003366",
+  },
+  loading: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#E6F2FF",
+  },
+  loadingCard: {
+    backgroundColor: "#ffffff",
+    borderRadius: 24,
+    padding: 40,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#3399FF",
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: "#1a73e8",
+    fontWeight: "600",
+  },
+  postsLoading: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  noThreads: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  noThreadsText: {
+    fontSize: 18,
+    color: "#005580",
+    textAlign: "center",
+    fontWeight: "600",
+  },
+  noPosts: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 20,
+  },
+  noPostsText: {
+    fontSize: 16,
+    color: "#003366",
+    textAlign: "center",
+    fontWeight: "500",
+    lineHeight: 24,
+  },
+});-e \n\n=== ./(athlete-tabs)/gear.tsx ===\n
+import { useEffect, useState } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  ActivityIndicator,
+  ScrollView,
+  SafeAreaView,
+} from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import axios from "axios";
+
+export default function GearScreen() {
+  const [gearMessage, setGearMessage] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchGear = async () => {
+      try {
+        const storedUser = await AsyncStorage.getItem("authUser");
+        if (!storedUser) throw new Error("No stored user");
+
+        const parsedUser = JSON.parse(storedUser);
+        const headers = { Authorization: `Bearer ${parsedUser.token}` };
+
+        const branchId = parsedUser.branch_id;
+        if (!branchId) throw new Error("Branch ID missing");
+
+        const res = await axios.get(`http://192.168.1.8:8000/gear/${branchId}`, { headers });
+
+        if (res.data?.message && res.data?.thread_title?.toLowerCase() === "gear") {
+          setGearMessage(res.data.message);
+        } else {
+          setGearMessage("No gear updates yet.");
+        }
+
+      } catch (err) {
+        console.error("❌ Error loading gear", err);
+        setGearMessage("Error loading gear information.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchGear();
+  }, []);
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#3399FF" />
+        <Text style={styles.loadingText}>Loading gear info...</Text>
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#E6F2FF" }}>
+      <ScrollView contentContainerStyle={styles.page}>
+        <View style={styles.card}>
+          <Text style={styles.title}>🎒 Gear Update</Text>
+          <View style={styles.widgetBox}>
+            <Text style={styles.message}>{gearMessage}</Text>
+          </View>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  page: {
+    flexGrow: 1,
+    padding: 24,
+  },
+  card: {
+    backgroundColor: "#3399FF",
+    borderRadius: 20,
+    padding: 20,
+    elevation: 4,
+  },
+  title: {
+    fontSize: 22,
+    fontWeight: "bold",
+    color: "#fff",
+    marginBottom: 16,
+  },
+  widgetBox: {
+    backgroundColor: "#D0E7FF",
+    padding: 18,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#A4D3FF",
+    shadowColor: "#3399FF",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  message: {
+    fontSize: 16,
+    color: "#003366",
+    lineHeight: 22,
+    fontWeight: "500",
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#E6F2FF",
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 14,
+    color: "#1a73e8",
+  },
+});-e \n\n=== ./(athlete-tabs)/home.tsx ===\n
+import { useEffect, useState } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  ActivityIndicator,
+  ScrollView,
+  TouchableOpacity,
+} from "react-native";
+import axios from "axios";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useRouter } from "expo-router";
+
+export default function AthleteHome() {
+  const router = useRouter();
+  const [attendance, setAttendance] = useState<any[]>([]);
+  const [gearMessage, setGearMessage] = useState("Loading...");
+  const [lastThreadMessage, setLastThreadMessage] = useState("Loading...");
+  const [paymentStatus, setPaymentStatus] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const getCurrentDueDateKey = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, "0");
+    return `${year}-${month}-01`;
+  };
+
+  const getCurrentMonthName = () => {
+    const today = new Date();
+    return today.toLocaleString("default", { month: "long", year: "numeric" });
+  };
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const storedUser = await AsyncStorage.getItem("authUser");
+        if (!storedUser) return;
+        const user = JSON.parse(storedUser);
+        const headers = { Authorization: `Bearer ${user.token}` };
+
+        const attendanceRes = await axios.get(
+          `http://192.168.1.8:8000/attendance/athlete/${user.id}/week`,
+          { headers }
+        );
+        setAttendance(attendanceRes.data || []);
+
+        const gearRes = await axios.get(
+          `http://192.168.1.8:8000/gear/${user.branch_id}`,
+          { headers }
+        );
+        setGearMessage(gearRes.data?.message || "No recent gear update.");
+
+        const threadsRes = await axios.get(
+          `http://192.168.1.8:8000/threads/branch/${user.branch_id}`,
+          { headers }
+        );
+        const threads = threadsRes.data.filter(
+          (t: any) => t.title.toLowerCase() !== "gear"
+        );
+        if (threads.length > 0) {
+          const postsRes = await axios.get(
+            `http://192.168.1.8:8000/threads/${threads[0].id}/posts`,
+            { headers }
+          );
+          setLastThreadMessage(postsRes.data?.[0]?.message || "No posts yet.");
+        } else {
+          setLastThreadMessage("No threads available.");
+        }
+
+        const payRes = await axios.get(
+          `http://192.168.1.8:8000/payments/${user.id}/status`,
+          { headers }
+        );
+        const paymentData = payRes.data || {};
+        setPaymentStatus(paymentData[getCurrentDueDateKey()] || "pending");
+      } catch (err) {
+        console.error("❌ Error fetching home data", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  const getStatusIcon = (status: string | null) => {
+    switch (status) {
+      case "present": return "✅";
+      case "absent": return "❌";
+      case "excused": return "🟡";
+      default: return "—";
+    }
+  };
+
+  const getPaymentIcon = (status: string | null) => {
+    switch (status) {
+      case "paid": return "✅";
+      case "late": return "⚠️";
+      case "pending": return "⏳";
+      case "error": return "❓";
+      default: return "❌";
+    }
+  };
+
+  const getPaymentLabel = (status: string | null) => {
+    switch (status) {
+      case "paid": return "Paid";
+      case "late": return "Late";
+      case "pending": return "Pending";
+      case "error": return "Error";
+      default: return "Unknown";
+    }
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <View style={styles.loadingCard}>
+          <ActivityIndicator size="large" color="#3399FF" />
+          <Text style={styles.loadingText}>Loading...</Text>
+        </View>
+      </View>
+    );
+  }
+
+  return (
+    <ScrollView contentContainerStyle={styles.page}>
+      <View style={styles.header}>
+        <Text style={styles.welcomeText}>Dashboard</Text>
+        <Text style={styles.dateText}>{new Date().toLocaleDateString()}</Text>
+      </View>
+
+      {/* Attendance */}
+      <View style={[styles.card, { backgroundColor: "#3399FF" }]}>
+        <Text style={styles.sectionTitle}>📆 Weekly Attendance</Text>
+        {["Day 1", "Day 2", "Day 3"].map((label, i) => {
+          const record = attendance.find((d) => d.day_number === i + 1);
+          return (
+            <View key={i} style={[styles.row, { backgroundColor: "#CCE5FF" }]}>
+              <Text style={styles.label}>{label}</Text>
+              <Text style={styles.status}>{getStatusIcon(record?.status ?? null)}</Text>
+            </View>
+          );
+        })}
+      </View>
+
+      {/* Threads */}
+      <TouchableOpacity
+        style={[styles.card, { backgroundColor: "#3399FF" }]}
+        onPress={() => router.push("/(athlete-tabs)/threads")}
+      >
+        <Text style={styles.sectionTitle}>💬 Latest Thread</Text>
+        <Text style={[styles.threadPreview, { backgroundColor: "#D6ECFF" }]}>{lastThreadMessage}</Text>
+      </TouchableOpacity>
+
+      {/* Gear */}
+      <TouchableOpacity
+        style={[styles.card, { backgroundColor: "#3399FF" }]}
+        onPress={() => router.push("/(athlete-tabs)/gear")}
+      >
+        <Text style={styles.sectionTitle}>🎒 Gear Check</Text>
+        <Text style={[styles.threadPreview, { backgroundColor: "#D0F0FF" }]}>{gearMessage}</Text>
+      </TouchableOpacity>
+
+      {/* Payment */}
+      <View style={[styles.card, { backgroundColor: "#3399FF" }]}>
+        <Text style={styles.sectionTitle}>💰 Payment – {getCurrentMonthName()}</Text>
+        <View style={[styles.row, { backgroundColor: "#F0F9FF" }]}>
+          <Text style={styles.label}>Status</Text>
+          <Text style={styles.status}>
+            {getPaymentIcon(paymentStatus)} {getPaymentLabel(paymentStatus)}
+          </Text>
+        </View>
+      </View>
+    </ScrollView>
+  );
+}
+
+const styles = StyleSheet.create({
+  page: {
+    flexGrow: 1,
+    paddingTop: 60,
+    paddingHorizontal: 20,
+    paddingBottom: 30,
+    backgroundColor: "#f5f5f5",
+  },
+  header: {
+    marginBottom: 32,
+    alignItems: "center",
+  },
+  welcomeText: {
+    fontSize: 32,
+    fontWeight: "800",
+    color: "#00796B",
+    textAlign: "center",
+  },
+  dateText: {
+    fontSize: 16,
+    color: "#555",
+    marginTop: 8,
+    fontWeight: "500",
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#3399FF",
+  },
+  loadingCard: {
+    backgroundColor: "#ffffff",
+    borderRadius: 24,
+    padding: 40,
+    alignItems: "center",
+  },
+  loadingText: {
+    color: "#00796B",
+    fontSize: 16,
+    fontWeight: "600",
+    marginTop: 16,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    marginBottom: 16,
+    color: "#ffffff",
+  },
+  row: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 10,
+  },
+  label: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#37474F",
+  },
+  status: {
+    fontSize: 20,
+  },
+  threadPreview: {
+    padding: 16,
+    borderRadius: 12,
+    fontSize: 15,
+    color: "#37474F",
+    lineHeight: 22,
+    marginTop: 4,
+  },
+  card: {
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 20,
+    elevation: 4,
+  },
+});-e \n\n=== ./(athlete-tabs)/profile.tsx ===\n
+import { useEffect, useState } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TextInput,
+  Switch,
+  Button,
+  Platform,
+  KeyboardAvoidingView,
+  Alert,
+  SafeAreaView,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import axios from "axios";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
+export default function ProfileTab() {
+  const [user, setUser] = useState<any>(null);
+  const [attendance, setAttendance] = useState<any[]>([]);
+  const [branchName, setBranchName] = useState<string>("");
+  const [labels, setLabels] = useState<string[]>(["Day 1", "Day 2", "Day 3"]);
+  const [measurements, setMeasurements] = useState({
+    height: "",
+    weight: "",
+    arm: "",
+    leg: "",
+    fat: "",
+    muscle: "",
+  });
+  const [isArabic, setIsArabic] = useState(false);
+  const [events, setEvents] = useState([{ name: "", time: "" }]);
+  const [editable, setEditable] = useState(true);
+  const [eventsEditable, setEventsEditable] = useState(true); // New state for events editing
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const storedUser = await AsyncStorage.getItem("authUser");
+      if (!storedUser) return;
+      const parsed = JSON.parse(storedUser);
+      setUser(parsed);
+      const headers = { Authorization: `Bearer ${parsed.token}` };
+
+      try {
+        // First fetch the basic data
+        const [attRes, branchRes, sessionDaysRes, measurementsRes] = await Promise.all([
+          axios.get(`http://192.168.1.8:8000/attendance/athlete/${parsed.id}/week`, { headers }),
+          axios.get(`http://192.168.1.8:8000/branches/${parsed.branch_id}`, { headers }),
+          axios.get(`http://192.168.1.8:8000/attendance/branch/${parsed.branch_id}/session-dates`, { headers }),
+          axios.get(`http://192.168.1.8:8000/athlete/measurements`, { headers }),
+        ]);
+
+        // Try to fetch events separately to handle potential errors
+        let eventsRes = null;
+        try {
+          eventsRes = await axios.get(`http://192.168.1.8:8000/athlete/performance-logs`, { headers });
+        } catch (eventsError: any) {
+          console.log("⚠️ Could not fetch existing events - they may not exist yet or endpoint not available");
+          console.log("Error details:", eventsError.response?.data || eventsError.message);
+        }
+
+        setAttendance(attRes.data);
+        setBranchName(branchRes.data.name);
+        if (Array.isArray(sessionDaysRes.data)) {
+          setLabels(sessionDaysRes.data.map((_, i) => `Day ${i + 1}`));
+        }
+        if (measurementsRes.data) {
+          // Handle both single object and array responses
+          const measurementData = Array.isArray(measurementsRes.data) 
+            ? measurementsRes.data[0] 
+            : measurementsRes.data;
+          
+          if (measurementData) {
+            setMeasurements({
+              height: measurementData.height?.toString() || "",
+              weight: measurementData.weight?.toString() || "",
+              arm: measurementData.arm?.toString() || "",
+              leg: measurementData.leg?.toString() || "",
+              fat: measurementData.fat?.toString() || "",
+              muscle: measurementData.muscle?.toString() || "",
+            });
+            setEditable(false); // Set to non-editable since data exists
+          }
+        }
+        
+        // Load existing swim events if available
+        if (eventsRes && eventsRes.data && Array.isArray(eventsRes.data) && eventsRes.data.length > 0) {
+          const loadedEvents = eventsRes.data.map(event => ({
+            name: event.event_name || "",
+            time: event.result_time || "", // This will now be the formatted time string from backend
+          }));
+          setEvents(loadedEvents);
+          setEventsEditable(false); // Set to non-editable since data exists
+        }
+      } catch (e) {
+        console.error("❌ Error loading profile data", e);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  const normalizeTime = (input: string): string => {
+    const parts = input.trim().split(/[\s:.,]+/).map(p => p.padStart(2, "0")).filter(Boolean);
+    if (parts.length === 3) {
+      const [min, sec, frac] = parts;
+      return `${parseInt(min)}:${sec}.${frac}`;
+    } else if (parts.length === 2) {
+      const [sec, frac] = parts;
+      return `${parseInt(sec)}.${frac}`;
+    } else if (parts.length === 1) {
+      return parts[0];
+    }
+    return input;
+  };
+
+  const timeToSeconds = (timeString: string): number => {
+    const normalized = normalizeTime(timeString);
+    
+    // Handle different time formats and convert to seconds
+    if (normalized.includes(':')) {
+      // Format: "2:13.50" (minutes:seconds.milliseconds)
+      const [minutes, secondsPart] = normalized.split(':');
+      const seconds = parseFloat(secondsPart);
+      return parseInt(minutes) * 60 + seconds;
+    } else if (normalized.includes('.')) {
+      // Format: "13.50" (seconds.milliseconds)
+      return parseFloat(normalized);
+    } else {
+      // Format: "13" (seconds only)
+      return parseFloat(normalized);
+    }
+  };
+
+  const saveMeasurements = async () => {
+    try {
+      const storedUser = await AsyncStorage.getItem("authUser");
+      if (!storedUser) throw new Error("Not logged in");
+      const { token } = JSON.parse(storedUser);
+      
+      // Format measurements according to the MeasurementInput model (no athlete_id needed)
+      const formattedMeasurements = {
+        height: parseFloat(measurements.height) || 0,
+        weight: parseFloat(measurements.weight) || 0,
+        arm: parseFloat(measurements.arm) || 0,
+        leg: parseFloat(measurements.leg) || 0,
+        fat: parseFloat(measurements.fat) || 0,
+        muscle: parseFloat(measurements.muscle) || 0,
+      };
+      
+      await axios.post("http://192.168.1.8:8000/athlete/measurements", formattedMeasurements, { 
+        headers: { Authorization: `Bearer ${token}` } 
+      });
+      Alert.alert("✅ Measurements saved!");
+      setEditable(false);
+    } catch (err) {
+      console.error("❌ Failed to save measurements", err);
+      Alert.alert("Error", "Could not save measurements");
+    }
+  };
+
+  const saveSwimEvents = async () => {
+    try {
+      const storedUser = await AsyncStorage.getItem("authUser");
+      if (!storedUser) throw new Error("Not logged in");
+      const { token } = JSON.parse(storedUser);
+      const headers = { Authorization: `Bearer ${token}` };
+      
+      // Filter out empty events
+      const validEvents = events.filter(e => e.name && e.time);
+      
+      if (validEvents.length === 0) {
+        Alert.alert("No valid events to save");
+        return;
+      }
+
+      // Step 1: Delete all existing performance logs for this athlete
+      try {
+        await axios.delete("http://192.168.1.8:8000/athlete/performance-logs", { headers });
+      } catch (deleteError) {
+        console.log("⚠️ Could not delete existing events (they may not exist)");
+      }
+
+      // Step 2: Insert all current events
+      let saved = false;
+      for (const e of validEvents) {
+        const timeInSeconds = timeToSeconds(e.time);
+        await axios.post("http://192.168.1.8:8000/athlete/performance-log", {
+          meet_name: "Top Swim Event",
+          meet_date: new Date().toISOString().split("T")[0],
+          event_name: e.name,
+          result_time: timeInSeconds, // Send as number (seconds)
+        }, { headers });
+        saved = true;
+      }
+      
+      if (saved) {
+        Alert.alert("✅ Events saved successfully!");
+        setEventsEditable(false);
+      }
+    } catch (err) {
+      console.error("❌ Error saving events:", err);
+      Alert.alert("Error", "Could not save events.");
+    }
+  };
+
+  const renderAttendance = () =>
+    labels.map((label, idx) => {
+      const record = attendance.find((r) => r.day_number === idx + 1);
+      const status = record?.status;
+      return (
+        <View key={label} style={styles.attendanceBox}>
+          <Text style={styles.attendanceDay}>{label}</Text>
+          {status ? (
+            <>
+              <Ionicons
+                name={status === "present" ? "checkmark-circle" : "close-circle"}
+                size={24}
+                color={status === "present" ? "green" : "red"}
+              />
+              <Text style={{ color: status === "present" ? "green" : "red" }}>
+                {status.charAt(0).toUpperCase() + status.slice(1)}
+              </Text>
+            </>
+          ) : (
+            <>
+              <Ionicons name="remove-circle-outline" size={24} color="#ccc" />
+              <Text style={{ color: "#999" }}>—</Text>
+            </>
+          )}
+        </View>
+      );
+    });
+
+  const renderMeasurementInputs = () => {
+    const labels: { [key: string]: string } = {
+      height: "Height (cm)",
+      weight: "Weight (kg)",
+      arm: "Arm Length (cm)",
+      leg: "Leg Length",
+      fat: "Fat Percentage %",
+      muscle: "Muscle Percentage %",
+    };
+    return Object.entries(measurements).map(([key, val]) => (
+      <View key={key} style={{ marginBottom: 10 }}>
+        <Text style={styles.label}>{labels[key]}</Text>
+        <TextInput
+          value={val?.toString()}
+          onChangeText={(t) => setMeasurements((prev) => ({ ...prev, [key]: t }))}
+          style={styles.input}
+          keyboardType="numeric"
+          editable={editable}
+        />
+      </View>
+    ));
+  };
+
+  const renderEvents = () =>
+    events.map((e, idx) => (
+      <View key={idx} style={{ flexDirection: "row", gap: 10, marginBottom: 8 }}>
+        <TextInput
+          placeholder="Event Name"
+          value={e.name}
+          onChangeText={(val) => {
+            const newEvents = [...events];
+            newEvents[idx].name = val;
+            setEvents(newEvents);
+          }}
+          style={[styles.input, { flex: 1 }]}
+          editable={eventsEditable}
+        />
+        <TextInput
+          placeholder="Time"
+          value={e.time}
+          onChangeText={(val) => {
+            const newEvents = [...events];
+            newEvents[idx].time = val;
+            setEvents(newEvents);
+          }}
+          style={[styles.input, { flex: 1 }]}
+          editable={eventsEditable}
+        />
+      </View>
+    ));
+
+  if (!user) return null;
+
+  return (
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 0}
+    >
+      <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
+        <Text style={styles.header}>🎉 Welcome back, {user.name}!</Text>
+        <Text style={styles.subHeader}>🏢 Branch: {branchName}</Text>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>🏆 Attendance Tracker</Text>
+          <View style={styles.attendanceRow}>{renderAttendance()}</View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>📏 Measurements</Text>
+          {renderMeasurementInputs()}
+          <Button title="Save Measurements" onPress={saveMeasurements} />
+          {editable ? null : <Button title="Edit Measurements" onPress={() => setEditable(true)} />}
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>🌐 Language</Text>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+            <Text>Current: {isArabic ? "Arabic" : "English"}</Text>
+            <Switch value={isArabic} onValueChange={setIsArabic} />
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>🏊 Top Swim Events</Text>
+          {renderEvents()}
+          {events.length < 5 && eventsEditable && (
+            <Button title="Add Event" onPress={() => setEvents([...events, { name: "", time: "" }])} />
+          )}
+          <Button title="Save Events" onPress={saveSwimEvents} />
+          {eventsEditable ? null : <Button title="Edit Events" onPress={() => setEventsEditable(true)} />}
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, padding: 20 },
+  header: { fontSize: 22, fontWeight: "bold", marginBottom: 4 },
+  subHeader: { fontSize: 16, fontWeight: "500", color: "#555", marginBottom: 20 },
+  section: {
+    backgroundColor: "#3399FF",
+    padding: 15,
+    borderRadius: 12,
+    marginBottom: 20,
+    elevation: 2,
+  },
+  sectionTitle: { fontSize: 16, fontWeight: "bold", marginBottom: 10, color: "#fff" },
+  attendanceRow: { flexDirection: "row", justifyContent: "space-around", flexWrap: "wrap", gap: 10 },
+  attendanceBox: { alignItems: "center", width: 70, gap: 4 },
+  attendanceDay: { fontWeight: "bold", marginBottom: 2, color: "#fff" },
+  input: {
+    borderBottomWidth: 1,
+    borderColor: "#ccc",
+    paddingVertical: 4,
+    marginBottom: 10,
+    backgroundColor: "#E0F2F1",
+    borderRadius: 6,
+    paddingHorizontal: 8,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: "600",
+    marginBottom: 4,
+    color: "#fff",
+  },
+});-e \n\n=== ./(athlete-tabs)/_layout.tsx ===\n
+import { Tabs } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
+
+export default function AthleteTabLayout() {
+  return (
+    <Tabs screenOptions={{ headerShown: false }}>
+      <Tabs.Screen
+        name="home"
+        options={{
+          title: "Home",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="home-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="threads"
+        options={{
+          title: "Threads",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="chatbubble-ellipses-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="gear"
+        options={{
+          title: "Gear",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="briefcase-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: "Profile",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="person-outline" size={size} color={color} />
+          ),
+        }}
+      />
+    </Tabs>
+  );
+}-e \n\n=== ./massage-page.tsx ===\n
+import { View, Text, StyleSheet, Button, Alert } from "react-native";
+
+export default function MassagePage() {
+  const handleBook = () => {
+    Alert.alert("Booked!", "Your massage session has been requested.");
+  };
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.header}>💆 Massage Services</Text>
+
+      <View style={styles.card}>
+        <Text style={styles.title}>Pre-Meet Massage</Text>
+        <Text style={styles.description}>
+          Book a massage session 24-48 hours before your next meet to help with muscle recovery and preparation.
+        </Text>
+        <Button title="Book Session" onPress={handleBook} />
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.title}>💡 What to Expect</Text>
+        <Text style={styles.description}>
+          Our certified staff provide recovery-focused massage based on swimmer needs and timing before performance.
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, padding: 20 },
+  header: {
+    fontSize: 24,
+    fontWeight: "bold",
+    marginBottom: 20,
+    textAlign: "center",
+  },
+  card: {
+    backgroundColor: "#f9f9f9",
+    padding: 16,
+    borderRadius: 10,
+    marginBottom: 20,
+    elevation: 2,
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: "600",
+    marginBottom: 6,
+  },
+  description: {
+    fontSize: 14,
+    color: "#555",
+    marginBottom: 10,
+  },
+});-e \n\n=== ./pending-home.tsx ===\n
+import { View, Text, StyleSheet, TouchableOpacity, Linking } from "react-native";
+import { useEffect, useState } from "react";
+import { useRouter } from "expo-router";
+import * as Location from "expo-location";
+
+const branches = [
+  {
+    id: "1",
+    name: "Downtown Branch",
+    practiceTime: "Mon–Fri, 4PM–6PM",
+    phone: "0123456789",
+    location: { latitude: 30.0444, longitude: 31.2357 },
+  },
+  {
+    id: "2",
+    name: "Hadayek Al Ahram Branch",
+    practiceTime: "Sat–Wed, 5PM–7PM",
+    phone: "0987654321",
+    location: { latitude: 30.0626, longitude: 31.2497 },
+  },
+];
+
+export default function PendingHome() {
+  const progressPercent = 66;
+  const router = useRouter();
+  const [nearest, setNearest] = useState<any>(null);
+
+  useEffect(() => {
+    (async () => {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") return;
+
+      const userLoc = await Location.getCurrentPositionAsync({});
+      const nearestBranch = branches.reduce((prev, curr) => {
+        const prevDist = Math.abs(userLoc.coords.latitude - prev.location.latitude) +
+                         Math.abs(userLoc.coords.longitude - prev.location.longitude);
+        const currDist = Math.abs(userLoc.coords.latitude - curr.location.latitude) +
+                         Math.abs(userLoc.coords.longitude - curr.location.longitude);
+        return currDist < prevDist ? curr : prev;
+      });
+
+      setNearest(nearestBranch);
+    })();
+  }, []);
+
+  return (
+    <View style={styles.page}>
+      <View style={styles.card}>
+        <Text style={styles.title}>⏳ Waiting for Approval</Text>
+        <Text style={styles.subtext}>Your account is under review by the coach.</Text>
+        <View style={styles.progressBar}>
+          <View style={[styles.progressFill, { width: `${progressPercent}%` }]} />
+        </View>
+        <Text style={styles.progressText}>{progressPercent}% complete</Text>
+      </View>
+
+      {nearest && (
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>📍 Nearest Branch</Text>
+          <Text style={styles.branchText}>{nearest.name}</Text>
+          <Text style={styles.branchDetail}>{nearest.practiceTime}</Text>
+          <Text
+            style={styles.link}
+            onPress={() => Linking.openURL(`tel:${nearest.phone}`)}
+          >
+            📞 {nearest.phone}
+          </Text>
+        </View>
+      )}
+
+      <TouchableOpacity
+        style={styles.ctaButton}
+        onPress={() => router.push("/branches")}
+      >
+        <Text style={styles.ctaButtonText}>📽️ View All Branches & Videos</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  page: {
+    flex: 1,
+    padding: 20,
+    backgroundColor: "#f5f9ff",
+  },
+  card: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: "700",
+    marginBottom: 6,
+    color: "#333",
+  },
+  subtext: {
+    fontSize: 14,
+    marginBottom: 10,
+    color: "#555",
+  },
+  progressBar: {
+    height: 10,
+    backgroundColor: "#eee",
+    borderRadius: 5,
+    overflow: "hidden",
+  },
+  progressFill: {
+    height: 10,
+    backgroundColor: "#007AFF",
+  },
+  progressText: {
+    marginTop: 6,
+    fontSize: 12,
+    color: "#888",
+    textAlign: "right",
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    marginBottom: 6,
+    color: "#333",
+  },
+  branchText: {
+    fontSize: 15,
+    fontWeight: "500",
+    color: "#222",
+  },
+  branchDetail: {
+    fontSize: 13,
+    color: "#555",
+    marginTop: 2,
+  },
+  ctaButton: {
+    backgroundColor: "#34a853",
+    paddingVertical: 14,
+    borderRadius: 10,
+    alignItems: "center",
+  },
+  ctaButtonText: {
+    color: "#fff",
+    fontWeight: "600",
+    fontSize: 16,
+  },
+  link: {
+    color: "#007AFF",
+    marginTop: 4,
+  },
+});

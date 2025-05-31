@@ -1,0 +1,217 @@
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.concurrency import run_in_threadpool
+from app.deps import get_current_user
+from app.database import get_connection
+from app.utils.auth_utils import can_access_branch
+from pydantic import BaseModel
+from datetime import date, timedelta
+import traceback
+import json
+
+router = APIRouter()
+
+WEEKDAY_MAP = {
+    "Mon": 0,
+    "Tue": 1,
+    "Wed": 2,
+    "Thu": 3,
+    "Fri": 4,
+    "Sat": 5,
+    "Sun": 6,
+}
+
+def get_branch_session_dates(practice_days_str: str) -> list[str]:
+    today = date.today()
+    offset = (today.weekday() - 4) % 7  # Last Friday
+    last_friday = today - timedelta(days=offset)
+
+    # Safely split by commas to extract day names
+    extracted_days = []
+    for entry in practice_days_str.split(","):
+        parts = entry.strip().split(":")
+        if parts:
+            weekday_part = parts[0].strip()
+            # Match day names to known weekday map (e.g., Sat, Mon, etc.)
+            for key in WEEKDAY_MAP:
+                if key.lower() in weekday_part.lower():
+                    extracted_days.append(key)
+                    break
+
+    session_dates = []
+    for day in extracted_days[:3]:  # limit to 3
+        weekday_num = WEEKDAY_MAP[day]
+        delta = (weekday_num - 4) % 7
+        session_date = last_friday + timedelta(days=delta)
+        session_dates.append(session_date.isoformat())
+
+    return session_dates
+    return dates
+
+class AttendanceMark(BaseModel):
+    athlete_id: int
+    session_date: str
+    status: str
+
+def _fetch_attendance_sync(branch_id: int, session_date: str, user_id: int):
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute("""SELECT a.id as athlete_id, u.name as athlete_name
+                      FROM athletes a
+                      JOIN users u ON a.user_id = u.id
+                      WHERE u.branch_id = %s ORDER BY u.name""", (branch_id,))
+    athletes = cursor.fetchall()
+
+    cursor.execute("SELECT athlete_id, status FROM attendance WHERE session_date = %s AND branch_id = %s", (session_date, branch_id))
+    existing = cursor.fetchall()
+    existing_map = {x["athlete_id"]: x["status"] for x in existing}
+
+    to_seed = [(a["athlete_id"], session_date, branch_id, user_id) for a in athletes if a["athlete_id"] not in existing_map]
+    if to_seed:
+        for record in to_seed:
+            cursor.execute("""INSERT INTO attendance (athlete_id, session_date, status, branch_id, recorded_by)
+                              VALUES (%s, %s, NULL, %s, %s)
+                              ON DUPLICATE KEY UPDATE status = status""", record)
+
+    cursor.execute("""SELECT a.id AS athlete_id, u.name AS athlete_name, att.status
+                      FROM athletes a
+                      JOIN users u ON a.user_id = u.id
+                      LEFT JOIN attendance att ON att.athlete_id = a.id AND att.session_date = %s AND att.branch_id = %s
+                      WHERE u.branch_id = %s ORDER BY u.name""",
+                   (session_date, branch_id, branch_id))
+    result = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return result
+
+@router.get("/branch/{branch_id}/session-dates")
+def get_branch_session_dates_api(branch_id: int, user=Depends(get_current_user)):
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT practice_days FROM branches WHERE id = %s", (branch_id,))
+    row = cursor.fetchone()
+    cursor.close()
+    conn.close()
+
+    if not row or not row["practice_days"]:
+        raise HTTPException(status_code=404, detail="Practice days not set")
+
+    return get_branch_session_dates(row["practice_days"])
+
+@router.get("/branch/{branch_id}/day/{session_date}")
+async def get_attendance_by_day(branch_id: int, session_date: str, user=Depends(get_current_user)):
+    return await run_in_threadpool(_fetch_attendance_sync, branch_id, session_date, user["id"])
+
+def _mark_attendance_sync(data: AttendanceMark, user: dict):
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute("""SELECT u.branch_id FROM athletes a JOIN users u ON a.user_id = u.id WHERE a.id = %s""", (data.athlete_id,))
+    res = cursor.fetchone()
+    if not res:
+        raise HTTPException(status_code=404, detail="Athlete not found")
+    if int(res["branch_id"]) != int(user["branch_id"]):
+        raise HTTPException(status_code=403, detail="You can only mark attendance for athletes in your branch")
+
+    cursor.execute("""INSERT INTO attendance (athlete_id, session_date, status, branch_id, recorded_by)
+                      VALUES (%s, %s, %s, %s, %s)
+                      ON DUPLICATE KEY UPDATE status = VALUES(status), recorded_by = VALUES(recorded_by)""",
+                   (data.athlete_id, data.session_date, data.status, user["branch_id"], user["id"]))
+
+    conn.commit()
+    cursor.close()
+    conn.close()
+    return {"message": "Attendance updated successfully"}
+
+@router.post("/mark")
+async def mark_attendance(data: AttendanceMark, user=Depends(get_current_user)):
+    if user["role"] not in ["coach", "head_coach"]:
+        raise HTTPException(status_code=403, detail="Only coaches can mark attendance")
+    return await run_in_threadpool(_mark_attendance_sync, data, user)
+
+@router.get("/athlete/{user_id}/week")
+def get_athlete_weekly_attendance(user_id: int, user=Depends(get_current_user)):
+    if user["id"] != user_id and user["role"] != "coach":
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    try:
+        cursor.execute("""
+            SELECT a.id AS athlete_id, u.branch_id
+            FROM athletes a
+            JOIN users u ON a.user_id = u.id
+            WHERE u.id = %s
+        """, (user_id,))
+        result = cursor.fetchone()
+
+        if not result:
+            raise HTTPException(status_code=404, detail="Athlete profile not found")
+
+        athlete_id = result["athlete_id"]
+        branch_id = result["branch_id"]
+
+        cursor.execute("SELECT practice_days FROM branches WHERE id = %s", (branch_id,))
+        branch = cursor.fetchone()
+
+        if not branch or not branch["practice_days"]:
+            raise HTTPException(status_code=400, detail="Branch has no practice days configured")
+
+        session_dates = get_branch_session_dates(branch["practice_days"])
+
+        records = []
+        for i, session_date in enumerate(session_dates):
+            cursor.execute("""
+                SELECT status
+                FROM attendance
+                WHERE athlete_id = %s AND session_date = %s
+            """, (athlete_id, session_date))
+            row = cursor.fetchone()
+            records.append({"day_number": i + 1, "status": row["status"] if row else None})
+
+        return records
+
+    finally:
+        cursor.close()
+        conn.close()
+
+@router.get("/branch/{branch_id}/summary")
+def get_attendance_summary(branch_id: int, user=Depends(get_current_user)):
+    can_access_branch(user, branch_id)
+
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    try:
+        cursor.execute("SELECT practice_days FROM branches WHERE id = %s", (branch_id,))
+        branch = cursor.fetchone()
+        if not branch or not branch["practice_days"]:
+            raise HTTPException(status_code=404, detail="Practice days not set")
+
+        session_dates = get_branch_session_dates(branch["practice_days"])
+
+        query = """
+            SELECT 
+                a.id AS athlete_id,
+                u.name AS athlete_name,
+                at.session_date,
+                at.status
+            FROM athletes a
+            JOIN users u ON a.user_id = u.id
+            LEFT JOIN attendance at
+              ON at.athlete_id = a.id AND at.branch_id = %s AND at.session_date IN (%s, %s, %s)
+            WHERE u.branch_id = %s
+            ORDER BY u.name, at.session_date
+        """
+        cursor.execute(query, (branch_id, *session_dates, branch_id))
+        rows = cursor.fetchall()
+
+        return {
+            "records": rows,
+            "session_dates": session_dates
+        }
+
+    finally:
+        cursor.close()
+        conn.close()

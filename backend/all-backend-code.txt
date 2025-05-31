@@ -1,0 +1,1630 @@
+-e \n=== ./app/middleware/logging.py ===\n
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
+import traceback
+
+class LoggingMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        print(f"\u27a1\ufe0f Incoming request: {request.method} {request.url}")
+        try:
+            response = await call_next(request)
+            print(f"\u2b05\ufe0f Response: {response.status_code}")
+            return response
+        except Exception as e:
+            print(f"\u274c Exception during request: {str(e)}")
+            traceback.print_exc()
+            raise e-e \n=== ./app/auth.py ===\n
+from fastapi import APIRouter, HTTPException, status
+from pydantic import BaseModel, EmailStr
+from app.database import get_connection
+from app.schemas import UserCreate, UserLogin
+from passlib.hash import bcrypt
+from jose import jwt
+from app.config import settings
+from app.utils.email import send_reset_email
+from app.utils.tokens import create_reset_token
+from app.utils.db_helpers import get_user_by_email  # ✅ avoids circular import
+
+router = APIRouter()
+
+# =========================
+# ✅ Registration Endpoint
+# =========================
+@router.post("/register")
+def register(user: UserCreate):
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute("SELECT id FROM registration_requests WHERE email = %s", (user.email,))
+    if cursor.fetchone():
+        raise HTTPException(status_code=400, detail="Email already submitted")
+
+    # 🔍 Lookup branch name
+    cursor.execute("SELECT name FROM branches WHERE id = %s", (user.branch_id,))
+    branch = cursor.fetchone()
+    if not branch:
+        raise HTTPException(status_code=400, detail="Branch not found")
+
+    branch_name = branch["name"]
+
+    # 📝 Save registration request
+    cursor.execute(
+        "INSERT INTO registration_requests (athlete_name, phone, email, password_hash, branch_name) VALUES (%s, %s, %s, %s, %s)",
+        (user.name, user.phone, user.email, bcrypt.hash(user.password), branch_name)
+    )
+    conn.commit()
+
+    # 🔔 Notify the assigned coach
+    cursor.execute("SELECT id FROM users WHERE role = 'coach' AND branch_id = %s LIMIT 1", (user.branch_id,))
+    coach = cursor.fetchone()
+    if coach:
+        cursor.execute(
+            "INSERT INTO notifications (user_id, message, type) VALUES (%s, %s, 'alert')",
+            (coach["id"], f"New registration request for {branch_name}")
+        )
+        conn.commit()
+
+    return {"message": "Request submitted. A coach will review and approve it."}
+
+
+# =====================
+# ✅ Login Endpoint
+# =====================
+@router.post("/login")
+def login(user: UserLogin):
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    print("🧪 Attempting login for:", user.email)
+
+    cursor.execute("SELECT * FROM users WHERE email = %s", (user.email,))
+    db_user = cursor.fetchone()
+
+    if not db_user or not bcrypt.verify(user.password, db_user["password_hash"]):
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+
+    # ✅ Auto-insert into athletes table if role is athlete and approved
+    if db_user["role"] == "athlete" and db_user.get("approved", False):
+        cursor.execute("SELECT 1 FROM athletes WHERE user_id = %s", (db_user["id"],))
+        if not cursor.fetchone():
+            cursor.execute("INSERT INTO athletes (id, user_id) VALUES (%s, %s)", (db_user["id"], db_user["id"]))
+            conn.commit()
+
+    token = jwt.encode(
+        {"sub": str(db_user["id"])},
+        settings.JWT_SECRET,
+        algorithm=settings.JWT_ALGORITHM,
+    )
+
+    return {
+        "token": token,
+        "user": {
+            "id": db_user["id"],
+            "name": db_user["name"],
+            "email": db_user["email"],
+            "phone": db_user["phone"],
+            "role": db_user["role"],
+            "approved": db_user.get("approved", False),
+        },
+    }
+
+
+# ===============================
+# ✅ Forgot Password Endpoint
+# ===============================
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+@router.post("/forgot-password", status_code=status.HTTP_200_OK)
+async def forgot_password(data: ForgotPasswordRequest):
+    user = get_user_by_email(data.email)
+
+    if not user:
+        return {"detail": "If the account exists, a reset link will be sent."}
+
+    token = create_reset_token(user["id"])
+    send_reset_email(data.email, token)
+    return {"detail": "Reset email sent"}-e \n=== ./app/db.py ===\n
+from app.utils.tokens import create_reset_token as token_creator
+
+def get_user_by_email(email: str):
+    # Dummy user DB — replace this with real database query logic
+    user_db = {"coach@example.com": {"id": 42, "email": "coach@example.com"}}
+    return user_db.get(email)
+
+def create_reset_token(user_id: int):
+    return token_creator(user_id)-e \n=== ./app/deps.py ===\n
+from fastapi import Depends, HTTPException, Header
+from jose import jwt
+from app.config import settings
+from app.database import get_connection
+
+# app/deps.py
+def get_current_user(authorization: str = Header(...)):
+    if not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    token = authorization[7:]
+    try:
+        payload = jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
+        user_id = payload.get("sub")
+    except:
+        raise HTTPException(status_code=401, detail="Could not validate token")
+
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT * FROM users WHERE id = %s", (user_id,))
+    user = cursor.fetchone()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user-e \n=== ./app/coach.py ===\n
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, EmailStr
+from app.deps import get_current_user
+from app.database import get_connection
+from passlib.hash import bcrypt
+
+router = APIRouter()
+
+class CoachProfile(BaseModel):
+    name: str
+    email: EmailStr
+    branch: str
+
+@router.get("/coach/profile", response_model=CoachProfile)
+def get_coach_profile(user=Depends(get_current_user)):
+    if user["role"] not in ["coach", "head_coach"]:
+        raise HTTPException(status_code=403, detail="Only coaches can access this")
+
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute("""
+        SELECT u.name, u.email, b.name AS branch
+        FROM users u
+        LEFT JOIN branches b ON u.branch_id = b.id
+        WHERE u.id = %s
+    """, (user["id"],))
+    result = cursor.fetchone()
+
+    cursor.close()
+    conn.close()
+
+    if not result:
+        raise HTTPException(status_code=404, detail="Coach profile not found")
+    return result
+
+# ✅ Update Profile
+class UpdateCoachProfile(BaseModel):
+    name: str
+    email: EmailStr
+
+@router.put("/coach/profile")
+def update_coach_profile(data: UpdateCoachProfile, user=Depends(get_current_user)):
+    if user["role"] not in ["coach", "head_coach"]:
+        raise HTTPException(status_code=403, detail="Only coaches can update profile")
+
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute("""
+        UPDATE users SET name = %s, email = %s WHERE id = %s
+    """, (data.name, data.email, user["id"]))
+    conn.commit()
+
+    cursor.close()
+    conn.close()
+
+    return {"message": "Profile updated successfully"}
+
+# ✅ Change Password
+class ChangePasswordRequest(BaseModel):
+    old_password: str
+    new_password: str
+
+@router.post("/coach/change-password")
+def change_password(data: ChangePasswordRequest, user=Depends(get_current_user)):
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute("SELECT password_hash FROM users WHERE id = %s", (user["id"],))
+    row = cursor.fetchone()
+
+    if not row or not bcrypt.verify(data.old_password, row["password_hash"]):
+        raise HTTPException(status_code=401, detail="Old password is incorrect")
+
+    new_hash = bcrypt.hash(data.new_password)
+
+    cursor.execute("UPDATE users SET password_hash = %s WHERE id = %s", (new_hash, user["id"]))
+    conn.commit()
+
+    cursor.close()
+    conn.close()
+
+    return {"message": "Password changed successfully"}
+
+
+@router.post("/coach/assign")
+def assign_coach_to_branch(coach_id: int, branch_id: int, user=Depends(get_current_user)):
+    if user["role"] != "head_coach":
+        raise HTTPException(status_code=403)
+    # assign coach logic
+
+@router.post("/coach/deassign")
+def remove_coach_from_branch(coach_id: int, branch_id: int, user=Depends(get_current_user)):
+    if user["role"] != "head_coach":
+        raise HTTPException(status_code=403)
+    # remove coach logic-e \n=== ./app/payments.py ===\n
+from fastapi import APIRouter, Depends, HTTPException
+from app.database import get_connection
+from app.deps import get_current_user
+from app.utils.auth_utils import can_access_branch
+from pydantic import BaseModel
+from datetime import datetime
+
+router = APIRouter()
+
+class PaymentMark(BaseModel):
+    athlete_id: int
+    session_date: str
+    status: str
+
+@router.get("/summary/{branch_id}")
+def get_payment_summary(branch_id: int, user=Depends(get_current_user)):
+    can_access_branch(user, branch_id)
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True, buffered=True)
+
+    cursor.execute("""
+        SELECT a.id AS athlete_id, u.name AS athlete_name
+        FROM athletes a
+        JOIN users u ON a.user_id = u.id
+        WHERE u.branch_id = %s AND u.role = 'athlete' AND u.approved = 1
+        ORDER BY u.name
+    """, (branch_id,))
+    athletes = cursor.fetchall()
+
+    cursor.execute("SELECT * FROM payments WHERE branch_id = %s", (branch_id,))
+    payments = cursor.fetchall()
+
+    session_dates = sorted({str(p["due_date"]) for p in payments})
+
+    summary = []
+    for athlete in athletes:
+        athlete_id = athlete["athlete_id"]
+        statuses = {date: "pending" for date in session_dates}
+        for payment in payments:
+            if payment["athlete_id"] == athlete_id:
+                statuses[str(payment["due_date"])] = payment["status"]
+        summary.append({
+            "athlete_id": athlete_id,
+            "athlete_name": athlete["athlete_name"],
+            "statuses": statuses,
+        })
+
+    return {
+        "records": summary,
+        "session_dates": session_dates,
+    }
+
+@router.post("/mark")
+def mark_payment(data: PaymentMark, user=Depends(get_current_user)):
+    if user["role"] not in ["coach", "head_coach"]:
+        raise HTTPException(status_code=403, detail="Only coaches can update payments")
+
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True, buffered=True)
+
+    try:
+        session_dt = datetime.strptime(data.session_date, "%Y-%m-%d").date()
+        due_date = session_dt.replace(day=1)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD.")
+
+    print(f"🔍 DEBUG - Marking payment:")
+    print(f"   - athlete_id: {data.athlete_id}")
+    print(f"   - session_date: {data.session_date}")
+    print(f"   - session_dt: {session_dt}")
+    print(f"   - due_date: {due_date}")
+    print(f"   - status: {data.status}")
+    print(f"   - branch_id: {user['branch_id']}")
+
+    # Check athlete exists
+    cursor.execute("SELECT * FROM athletes WHERE id = %s", (data.athlete_id,))
+    athlete_check = cursor.fetchone()
+    if not athlete_check:
+        raise HTTPException(status_code=404, detail="Athlete not found")
+    print(f"🔍 Athlete exists: {athlete_check}")
+
+    # ✅ Delete any existing record for that month
+    cursor.execute("""
+        DELETE FROM payments 
+        WHERE athlete_id = %s AND due_date = %s
+    """, (data.athlete_id, due_date))
+
+    # ✅ Insert the new payment record
+    cursor.execute("""
+        INSERT INTO payments (
+            athlete_id, session_date, due_date, branch_id, status, confirmed_by_coach
+        ) VALUES (%s, %s, %s, %s, %s, TRUE)
+    """, (
+        data.athlete_id,
+        session_dt,
+        due_date,
+        user["branch_id"],
+        data.status,
+    ))
+
+    conn.commit()
+
+    print(f"✅ Payment recorded successfully for athlete {data.athlete_id} on {due_date}")
+    return {
+        "message": "Payment status updated",
+        "debug": {
+            "athlete_id": data.athlete_id,
+            "due_date": str(due_date),
+            "status": data.status
+        }
+    }
+
+@router.get("/{athlete_id}/status")
+def get_athlete_payment_status(athlete_id: int, user=Depends(get_current_user)):
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True, buffered=True)
+
+    print(f"🔍 DEBUG - Getting payment status for user_id: {athlete_id}")
+
+    cursor.execute("""
+        SELECT id FROM athletes 
+        WHERE user_id = %s
+    """, (athlete_id,))
+    athlete_record = cursor.fetchone()
+
+    if not athlete_record:
+        raise HTTPException(status_code=404, detail="Athlete not found")
+
+    actual_athlete_id = athlete_record["id"]
+
+    cursor.execute("""
+        SELECT due_date, status, session_date, confirmed_by_coach FROM payments
+        WHERE athlete_id = %s
+        ORDER BY due_date DESC, id DESC
+    """, (actual_athlete_id,))
+    rows = cursor.fetchall()
+
+    result = {}
+    for row in rows:
+        key = row["due_date"].strftime("%Y-%m-%d")
+        result[key] = row["status"]  # always overwrite with latest record
+
+    print(f"🔍 Final payment status result: {result}")
+    return result-e \n=== ./app/config.py ===\n
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+class Settings:
+    DB_HOST = os.getenv("DB_HOST")
+    DB_USER = os.getenv("DB_USER")
+    DB_PASSWORD = os.getenv("DB_PASSWORD")
+    DB_NAME = os.getenv("DB_NAME")
+    JWT_SECRET = os.getenv("JWT_SECRET")
+    JWT_ALGORITHM = os.getenv("JWT_ALGORITHM")
+
+    # ✅ SendGrid config
+    SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY")
+    FROM_EMAIL = os.getenv("FROM_EMAIL")
+
+settings = Settings()-e \n=== ./app/branches.py ===\n
+from fastapi import APIRouter
+from app.database import get_connection
+
+router = APIRouter()
+
+@router.get("/")
+def list_branches():
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("""
+        SELECT id, name, address, phone, video_url, practice_days 
+        FROM branches
+    """)
+    branches = cursor.fetchall()
+    return branches
+
+@router.get("/{branch_id}")
+def get_branch(branch_id: int):
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT * FROM branches WHERE id = %s", (branch_id,))
+    branch = cursor.fetchone()
+    if not branch:
+        return {"detail": "Branch not found"}
+    return branch-e \n=== ./app/models.py ===\n
+from pydantic import BaseModel
+
+class User(BaseModel):
+    id: int
+    name: str
+    phone: str
+    role: str
+    approved: bool-e \n=== ./app/users.py ===\n
+from fastapi import APIRouter, Depends, HTTPException
+from app.database import get_connection
+from app.deps import get_current_user
+from passlib.hash import bcrypt
+from datetime import date, datetime
+import json
+from pydantic import BaseModel
+
+router = APIRouter()
+
+class PaymentMark(BaseModel):
+    athlete_id: int
+    session_date: str  # actual training session
+    status: str  # 'paid', 'pending', 'late'
+
+@router.get("/me")
+def get_current_user_details(user=Depends(get_current_user)):
+    return {
+        "id": user["id"],
+        "name": user["name"],
+        "email": user["email"],
+        "phone": user["phone"],
+        "role": user["role"],
+        "approved": bool(user.get("approved", False)),
+        "branch_id": user.get("branch_id"),
+    }
+
+@router.get("/requests")
+def get_registration_requests(user=Depends(get_current_user)):
+    if user["role"] not in ["coach", "head_coach"]:
+        raise HTTPException(status_code=403, detail="Only coaches can view registration requests")
+
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("""
+        SELECT id, athlete_name, phone, email, submitted_at, approved
+        FROM registration_requests
+        WHERE approved = 0
+        ORDER BY submitted_at DESC
+    """)
+    return cursor.fetchall()
+
+@router.post("/approve/{request_id}")
+def approve_registration_request(request_id: int, user=Depends(get_current_user)):
+    if user["role"] not in ["coach", "head_coach"]:
+        raise HTTPException(status_code=403, detail="Only coaches can approve registrations")
+
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    # Step 1: Fetch registration request
+    cursor.execute("SELECT * FROM registration_requests WHERE id = %s", (request_id,))
+    request = cursor.fetchone()
+    if not request:
+        raise HTTPException(status_code=404, detail="Request not found")
+
+    # Step 2: Check if user already exists
+    cursor.execute("SELECT * FROM users WHERE email = %s", (request["email"],))
+    existing_user = cursor.fetchone()
+
+    if existing_user:
+        user_id = existing_user["id"]
+        if existing_user["approved"]:
+            return {"message": "User already approved"}
+
+        cursor.execute("""
+            UPDATE users
+            SET approved = 1, branch_id = %s
+            WHERE id = %s
+        """, (user["branch_id"], user_id))
+    else:
+        cursor.execute("""
+            INSERT INTO users (name, email, phone, password_hash, role, approved, branch_id)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+        """, (
+            request["athlete_name"],
+            request["email"],
+            request["phone"],
+            request["password_hash"],
+            "athlete",
+            True,
+            user["branch_id"]
+        ))
+        user_id = cursor.lastrowid
+
+    # Insert into athletes table if not already
+    cursor.execute("INSERT IGNORE INTO athletes (user_id) VALUES (%s)", (user_id,))
+
+    # Step 3: Add initial payment row for current month
+    cursor.execute("SELECT id FROM athletes WHERE user_id = %s", (user_id,))
+    athlete = cursor.fetchone()
+    if athlete:
+        athlete_id = athlete["id"]
+        first_of_month = date.today().replace(day=1)
+
+        cursor.execute("""
+            INSERT INTO payments (athlete_id, session_date, due_date, branch_id, status, confirmed_by_coach)
+            VALUES (%s, %s, %s, %s, %s, %s)
+            ON DUPLICATE KEY UPDATE status = VALUES(status)
+        """, (
+            athlete_id,
+            first_of_month,
+            first_of_month,
+            user["branch_id"],
+            "pending",
+            False
+        ))
+
+    # Step 4: Approve the request
+    if not request["approved"]:
+        cursor.execute("""
+            UPDATE registration_requests
+            SET approved = 1, approved_by = %s
+            WHERE id = %s
+        """, (user["id"], request_id))
+
+    conn.commit()
+    return {"message": "Registration approved"}
+
+@router.post("/payments/mark")
+def mark_payment(data: PaymentMark, user=Depends(get_current_user)):
+    if user["role"] not in ["coach", "head_coach"]:
+        raise HTTPException(status_code=403, detail="Only coaches can update payments")
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+        session_dt = datetime.strptime(data.session_date, "%Y-%m-%d").date()
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid session_date format")
+
+    due_date = session_dt.replace(day=1)
+
+    cursor.execute("""
+        INSERT INTO payments (athlete_id, session_date, due_date, branch_id, status, confirmed_by_coach)
+        VALUES (%s, %s, %s, %s, %s, TRUE)
+        ON DUPLICATE KEY UPDATE status = VALUES(status), confirmed_by_coach = TRUE
+    """, (
+        data.athlete_id,
+        session_dt,
+        due_date,
+        user["branch_id"],
+        data.status,
+    ))
+
+    conn.commit()
+    return {"message": "Payment status updated"}
+
+@router.post("/reject/{request_id}")
+def reject_registration_request(request_id: int, user=Depends(get_current_user)):
+    if user["role"] not in ["coach", "head_coach"]:
+        raise HTTPException(status_code=403, detail="Only coaches can reject registrations")
+
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    # Step 1: Confirm the request exists
+    cursor.execute("SELECT * FROM registration_requests WHERE id = %s", (request_id,))
+    request = cursor.fetchone()
+    if not request:
+        raise HTTPException(status_code=404, detail="Request not found")
+
+    # Step 2: Delete the request
+    cursor.execute("DELETE FROM registration_requests WHERE id = %s", (request_id,))
+    conn.commit()
+
+    return {"message": "Registration request rejected successfully"}-e \n=== ./app/gear.py ===\n
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
+from app.database import get_connection
+from app.deps import get_current_user
+
+router = APIRouter()
+
+class GearPost(BaseModel):
+    content: str
+
+@router.get("/{branch_id}")
+def get_gear(branch_id: int, user=Depends(get_current_user)):
+    if user["role"] not in ["coach", "head_coach", "athlete"]:
+        raise HTTPException(status_code=403, detail="Not authorized to view gear")
+
+    if str(user.get("branch_id")) != str(branch_id):
+        raise HTTPException(status_code=403, detail="You can only view gear for your branch")
+
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    # ✅ Join with threads to return title
+    cursor.execute("""
+        SELECT p.message, t.title as thread_title
+        FROM posts p
+        JOIN threads t ON p.thread_id = t.id
+        WHERE t.branch_id = %s AND t.title = 'gear'
+        ORDER BY p.created_at DESC LIMIT 1
+    """, (branch_id,))
+
+    post = cursor.fetchone()
+    cursor.close()
+    conn.close()
+
+    return post or {"message": "No gear updates posted yet", "thread_title": "gear"}
+
+@router.post("/{branch_id}")
+def post_gear(branch_id: int, data: GearPost, user=Depends(get_current_user)):
+    if user["role"] not in ["coach", "head_coach"]:
+        raise HTTPException(status_code=403, detail="Only coaches can post gear")
+
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute("SELECT id FROM threads WHERE branch_id = %s AND title = 'gear'", (branch_id,))
+    thread = cursor.fetchone()
+
+    if not thread:
+        cursor.execute("INSERT INTO threads (branch_id, title) VALUES (%s, %s)", (branch_id, "gear"))
+        thread_id = cursor.lastrowid
+    else:
+        thread_id = thread["id"]
+
+    cursor.execute(
+        "INSERT INTO posts (thread_id, user_id, message) VALUES (%s, %s, %s)",
+        (thread_id, user["id"], data.content)
+    )
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+    return {"message": "Gear update posted"}
+-e \n=== ./app/head_coach.py ===\n
+# FILE: app/headcoach.py
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
+from app.database import get_connection
+from app.deps import get_current_user
+
+router = APIRouter()
+
+class CoachAssignmentInput(BaseModel):
+    coach_id: int
+    branch_id: int
+
+def verify_head_coach(user):
+    if user["role"] != "head_coach":
+        raise HTTPException(status_code=403, detail="Only head coaches can manage assignments")
+
+@router.get("/headcoach/branches")
+def get_all_branches(user=Depends(get_current_user)):
+    verify_head_coach(user)
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT id, name FROM branches ORDER BY name")
+    result = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return result
+
+@router.get("/headcoach/coaches")
+def get_all_coaches(user=Depends(get_current_user)):
+    verify_head_coach(user)
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("""
+        SELECT id, name FROM users 
+        WHERE role = 'coach'
+        ORDER BY name
+    """)
+    coaches = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return coaches
+
+@router.get("/headcoach/assignments")
+def get_assignments(user=Depends(get_current_user)):
+    verify_head_coach(user)
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("""
+        SELECT ca.id, ca.branch_id, ca.coach_id, u.name AS coach_name
+        FROM coach_assignments ca
+        JOIN users u ON ca.coach_id = u.id
+    """)
+    data = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return data
+
+@router.post("/headcoach/assign")
+def assign_coach(data: CoachAssignmentInput, user=Depends(get_current_user)):
+    verify_head_coach(user)
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        INSERT IGNORE INTO coach_assignments (branch_id, coach_id)
+        VALUES (%s, %s)
+    """, (data.branch_id, data.coach_id))
+    conn.commit()
+    cursor.close()
+    conn.close()
+    return {"message": "Coach assigned to branch."}
+
+@router.post("/headcoach/unassign")
+def unassign_coach(data: CoachAssignmentInput, user=Depends(get_current_user)):
+    verify_head_coach(user)
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        DELETE FROM coach_assignments 
+        WHERE branch_id = %s AND coach_id = %s
+    """, (data.branch_id, data.coach_id))
+    conn.commit()
+    cursor.close()
+    conn.close()
+    return {"message": "Coach unassigned from branch."}-e \n=== ./app/attendance.py ===\n
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.concurrency import run_in_threadpool
+from app.deps import get_current_user
+from app.database import get_connection
+from app.utils.auth_utils import can_access_branch
+from pydantic import BaseModel
+from datetime import date, timedelta
+import traceback
+import json
+
+router = APIRouter()
+
+WEEKDAY_MAP = {
+    "Mon": 0,
+    "Tue": 1,
+    "Wed": 2,
+    "Thu": 3,
+    "Fri": 4,
+    "Sat": 5,
+    "Sun": 6,
+}
+
+def get_branch_session_dates(practice_days_str: str) -> list[str]:
+    today = date.today()
+    offset = (today.weekday() - 4) % 7  # Last Friday
+    last_friday = today - timedelta(days=offset)
+
+    # Safely split by commas to extract day names
+    extracted_days = []
+    for entry in practice_days_str.split(","):
+        parts = entry.strip().split(":")
+        if parts:
+            weekday_part = parts[0].strip()
+            # Match day names to known weekday map (e.g., Sat, Mon, etc.)
+            for key in WEEKDAY_MAP:
+                if key.lower() in weekday_part.lower():
+                    extracted_days.append(key)
+                    break
+
+    session_dates = []
+    for day in extracted_days[:3]:  # limit to 3
+        weekday_num = WEEKDAY_MAP[day]
+        delta = (weekday_num - 4) % 7
+        session_date = last_friday + timedelta(days=delta)
+        session_dates.append(session_date.isoformat())
+
+    return session_dates
+    return dates
+
+class AttendanceMark(BaseModel):
+    athlete_id: int
+    session_date: str
+    status: str
+
+def _fetch_attendance_sync(branch_id: int, session_date: str, user_id: int):
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute("""SELECT a.id as athlete_id, u.name as athlete_name
+                      FROM athletes a
+                      JOIN users u ON a.user_id = u.id
+                      WHERE u.branch_id = %s ORDER BY u.name""", (branch_id,))
+    athletes = cursor.fetchall()
+
+    cursor.execute("SELECT athlete_id, status FROM attendance WHERE session_date = %s AND branch_id = %s", (session_date, branch_id))
+    existing = cursor.fetchall()
+    existing_map = {x["athlete_id"]: x["status"] for x in existing}
+
+    to_seed = [(a["athlete_id"], session_date, branch_id, user_id) for a in athletes if a["athlete_id"] not in existing_map]
+    if to_seed:
+        for record in to_seed:
+            cursor.execute("""INSERT INTO attendance (athlete_id, session_date, status, branch_id, recorded_by)
+                              VALUES (%s, %s, NULL, %s, %s)
+                              ON DUPLICATE KEY UPDATE status = status""", record)
+
+    cursor.execute("""SELECT a.id AS athlete_id, u.name AS athlete_name, att.status
+                      FROM athletes a
+                      JOIN users u ON a.user_id = u.id
+                      LEFT JOIN attendance att ON att.athlete_id = a.id AND att.session_date = %s AND att.branch_id = %s
+                      WHERE u.branch_id = %s ORDER BY u.name""",
+                   (session_date, branch_id, branch_id))
+    result = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return result
+
+@router.get("/branch/{branch_id}/session-dates")
+def get_branch_session_dates_api(branch_id: int, user=Depends(get_current_user)):
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT practice_days FROM branches WHERE id = %s", (branch_id,))
+    row = cursor.fetchone()
+    cursor.close()
+    conn.close()
+
+    if not row or not row["practice_days"]:
+        raise HTTPException(status_code=404, detail="Practice days not set")
+
+    return get_branch_session_dates(row["practice_days"])
+
+@router.get("/branch/{branch_id}/day/{session_date}")
+async def get_attendance_by_day(branch_id: int, session_date: str, user=Depends(get_current_user)):
+    return await run_in_threadpool(_fetch_attendance_sync, branch_id, session_date, user["id"])
+
+def _mark_attendance_sync(data: AttendanceMark, user: dict):
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute("""SELECT u.branch_id FROM athletes a JOIN users u ON a.user_id = u.id WHERE a.id = %s""", (data.athlete_id,))
+    res = cursor.fetchone()
+    if not res:
+        raise HTTPException(status_code=404, detail="Athlete not found")
+    if int(res["branch_id"]) != int(user["branch_id"]):
+        raise HTTPException(status_code=403, detail="You can only mark attendance for athletes in your branch")
+
+    cursor.execute("""INSERT INTO attendance (athlete_id, session_date, status, branch_id, recorded_by)
+                      VALUES (%s, %s, %s, %s, %s)
+                      ON DUPLICATE KEY UPDATE status = VALUES(status), recorded_by = VALUES(recorded_by)""",
+                   (data.athlete_id, data.session_date, data.status, user["branch_id"], user["id"]))
+
+    conn.commit()
+    cursor.close()
+    conn.close()
+    return {"message": "Attendance updated successfully"}
+
+@router.post("/mark")
+async def mark_attendance(data: AttendanceMark, user=Depends(get_current_user)):
+    if user["role"] not in ["coach", "head_coach"]:
+        raise HTTPException(status_code=403, detail="Only coaches can mark attendance")
+    return await run_in_threadpool(_mark_attendance_sync, data, user)
+
+@router.get("/athlete/{user_id}/week")
+def get_athlete_weekly_attendance(user_id: int, user=Depends(get_current_user)):
+    if user["id"] != user_id and user["role"] != "coach":
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    try:
+        cursor.execute("""
+            SELECT a.id AS athlete_id, u.branch_id
+            FROM athletes a
+            JOIN users u ON a.user_id = u.id
+            WHERE u.id = %s
+        """, (user_id,))
+        result = cursor.fetchone()
+
+        if not result:
+            raise HTTPException(status_code=404, detail="Athlete profile not found")
+
+        athlete_id = result["athlete_id"]
+        branch_id = result["branch_id"]
+
+        cursor.execute("SELECT practice_days FROM branches WHERE id = %s", (branch_id,))
+        branch = cursor.fetchone()
+
+        if not branch or not branch["practice_days"]:
+            raise HTTPException(status_code=400, detail="Branch has no practice days configured")
+
+        session_dates = get_branch_session_dates(branch["practice_days"])
+
+        records = []
+        for i, session_date in enumerate(session_dates):
+            cursor.execute("""
+                SELECT status
+                FROM attendance
+                WHERE athlete_id = %s AND session_date = %s
+            """, (athlete_id, session_date))
+            row = cursor.fetchone()
+            records.append({"day_number": i + 1, "status": row["status"] if row else None})
+
+        return records
+
+    finally:
+        cursor.close()
+        conn.close()
+
+@router.get("/branch/{branch_id}/summary")
+def get_attendance_summary(branch_id: int, user=Depends(get_current_user)):
+    can_access_branch(user, branch_id)
+
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    try:
+        cursor.execute("SELECT practice_days FROM branches WHERE id = %s", (branch_id,))
+        branch = cursor.fetchone()
+        if not branch or not branch["practice_days"]:
+            raise HTTPException(status_code=404, detail="Practice days not set")
+
+        session_dates = get_branch_session_dates(branch["practice_days"])
+
+        query = """
+            SELECT 
+                a.id AS athlete_id,
+                u.name AS athlete_name,
+                at.session_date,
+                at.status
+            FROM athletes a
+            JOIN users u ON a.user_id = u.id
+            LEFT JOIN attendance at
+              ON at.athlete_id = a.id AND at.branch_id = %s AND at.session_date IN (%s, %s, %s)
+            WHERE u.branch_id = %s
+            ORDER BY u.name, at.session_date
+        """
+        cursor.execute(query, (branch_id, *session_dates, branch_id))
+        rows = cursor.fetchall()
+
+        return {
+            "records": rows,
+            "session_dates": session_dates
+        }
+
+    finally:
+        cursor.close()
+        conn.close()-e \n=== ./app/database.py ===\n
+import mysql.connector
+from app.config import settings
+
+def get_connection():
+    return mysql.connector.connect(
+        host=settings.DB_HOST,
+        user=settings.DB_USER,
+        password=settings.DB_PASSWORD,
+        database=settings.DB_NAME
+    )-e \n=== ./app/utils/db_helpers.py ===\n
+# Use this file to avoid circular import from db.py
+from app.database import get_connection
+
+def get_user_by_email(email: str):
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT id, email FROM users WHERE email = %s", (email,))
+    return cursor.fetchone()-e \n=== ./app/utils/auth_utils.py ===\n
+from fastapi import HTTPException
+
+def can_access_branch(user, branch_id: int):
+    if user["role"] == "head_coach":
+        return
+    if user["role"] == "coach" and user.get("branch_id") == branch_id:
+        return
+    raise HTTPException(status_code=403, detail="Access denied for this branch.")
+-e \n=== ./app/utils/tokens.py ===\n
+from fastapi import Depends, HTTPException
+from fastapi.security import OAuth2PasswordBearer
+from jose import jwt, JWTError
+from app.config import settings
+from app.database import get_connection
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
+
+from jose import jwt
+from datetime import datetime, timedelta
+from app.config import settings
+
+def create_reset_token(user_id: int):
+    expire = datetime.utcnow() + timedelta(hours=1)
+    to_encode = {"sub": str(user_id), "exp": expire}
+    return jwt.encode(to_encode, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
+
+def get_current_user(token: str = Depends(oauth2_scheme)):
+    try:
+        payload = jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
+        user_id: str = payload.get("sub")
+        if user_id is None:
+            raise HTTPException(status_code=401, detail="Invalid token")
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT * FROM users WHERE id = %s", (user_id,))
+    user = cursor.fetchone()
+
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+
+    return user-e \n=== ./app/utils/email.py ===\n
+import sendgrid
+from sendgrid.helpers.mail import Mail
+from app.config import settings
+
+def send_reset_email(to_email: str, token: str):
+    reset_url = f"https://yourapp.com/reset-password?token={token}"
+
+    message = Mail(
+        from_email=settings.FROM_EMAIL,
+        to_emails=to_email,
+        subject="🔐 Reset Your HFA Password",
+        html_content=f"""
+        <p>Hi there,</p>
+        <p>You requested to reset your password. Click the link below:</p>
+        <a href="{reset_url}">Reset Password</a>
+        <p>If you didn’t request this, you can ignore this email.</p>
+        """
+    )
+
+    try:
+        print(f"🔑 Using SendGrid API key: {settings.SENDGRID_API_KEY}")
+        sg = sendgrid.SendGridAPIClient(api_key=settings.SENDGRID_API_KEY)
+        response = sg.send(message)
+        print(f"✅ Email sent to {to_email} | Status: {response.status_code}")
+    except Exception as e:
+        print(f"❌ Failed to send email: {e}")-e \n=== ./app/threads.py ===\n
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
+from app.database import get_connection
+from app.deps import get_current_user
+from app.utils.auth_utils import can_access_branch
+
+router = APIRouter()
+
+class ThreadCreate(BaseModel):
+    title: str
+
+class MessageCreate(BaseModel):
+    message: str
+
+@router.get("/branch/{branch_id}")
+def get_branch_threads(branch_id: int):
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT * FROM threads WHERE branch_id = %s AND title != 'gear'", (branch_id,))
+    return cursor.fetchall()
+
+@router.get("/{thread_id}/posts")
+def get_posts(thread_id: int):
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("""
+        SELECT p.id, p.message, u.name AS author, p.created_at
+        FROM posts p
+        JOIN users u ON p.user_id = u.id
+        WHERE p.thread_id = %s
+        ORDER BY p.created_at DESC
+    """, (thread_id,))
+    return cursor.fetchall()
+
+@router.post("/branch/{branch_id}/create")
+def create_thread(branch_id: int, data: ThreadCreate, user=Depends(get_current_user)):
+    can_access_branch(user, branch_id)
+
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("INSERT INTO threads (branch_id, title) VALUES (%s, %s)", (branch_id, data.title))
+    conn.commit()
+    return {"message": "Thread created"}
+
+@router.post("/{thread_id}/post")
+def post_message(thread_id: int, data: MessageCreate, user=Depends(get_current_user)):
+    if user["role"] not in ["coach", "head_coach"]:
+        raise HTTPException(status_code=403, detail="Only coaches can post to threads")
+
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "INSERT INTO posts (thread_id, user_id, message) VALUES (%s, %s, %s)",
+        (thread_id, user["id"], data.message)
+    )
+    conn.commit()
+    return {"message": "Post added"}
+-e \n=== ./app/get.schema.py ===\n
+import mysql.connector
+
+# Replace with your actual database credentials
+DB_CONFIG = {
+    "host": "localhost",
+    "user": "root",
+    "password": "MmmM12345!",
+    "database": "hfa"
+}
+
+def get_database_schema():
+    conn = mysql.connector.connect(**DB_CONFIG)
+    cursor = conn.cursor()
+
+    print("=== DATABASE SCHEMA ===\n")
+
+    cursor.execute("SHOW TABLES")
+    tables = cursor.fetchall()
+
+    for (table_name,) in tables:
+        print(f"\n=== {table_name.upper()} ===")
+        cursor.execute(f"DESCRIBE {table_name}")
+        columns = cursor.fetchall()
+
+        for column in columns:
+            field, col_type, nullable, key, default, extra = column
+            print(f"{field:<20} {col_type:<20} {nullable:<8} {key:<5} {default if default is not None else 'NULL'} {extra}")
+
+    cursor.close()
+    conn.close()
+
+if __name__ == "__main__":
+    get_database_schema()-e \n=== ./app/schemas.py ===\n
+from pydantic import BaseModel, EmailStr
+
+from pydantic import BaseModel, EmailStr
+
+class UserCreate(BaseModel):
+    name: str
+    phone: str
+    email: EmailStr
+    password: str
+    branch_id: int  # ✅ Now expecting numeric branch_id
+
+class UserLogin(BaseModel):
+    email: EmailStr
+    password: str
+
+class UserOut(BaseModel):
+    id: int
+    name: str
+    phone: str
+    email: str
+    role: str
+    approved: bool-e \n=== ./app/notifications.py ===\n
+from fastapi import APIRouter, Depends, HTTPException
+from app.database import get_connection
+from app.deps import get_current_user
+
+router = APIRouter()
+
+@router.get("/")
+def get_notifications(user=Depends(get_current_user)):
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT * FROM notifications WHERE user_id = %s ORDER BY created_at DESC", (user["id"],))
+    return cursor.fetchall()
+
+@router.post("/")
+def send_notification(user_id: int, message: str, user=Depends(get_current_user)):
+    if user["role"] not in ["coach", "head_coach"]:
+        raise HTTPException(status_code=403, detail="Only coaches can send notifications")
+
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("INSERT INTO notifications (user_id, message) VALUES (%s, %s)", (user_id, message))
+    conn.commit()
+    return {"message": "Notification sent"}
+
+@router.post("/read/{notification_id}")
+def mark_as_read(notification_id: int, user=Depends(get_current_user)):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "UPDATE notifications SET read_status = TRUE WHERE id = %s AND user_id = %s",
+        (notification_id, user["id"])
+    )
+    conn.commit()
+    return {"message": "Notification marked as read"}-e \n=== ./app/main.py ===\n
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from app import auth, users, branches, gear, threads, payments, notifications, attendance
+from app.middleware.logging import LoggingMiddleware
+from app import athlete
+from app import performance  # ⬅️ Make sure this import is there
+from app import measurements
+from app import coach
+from app import head_coach
+
+
+
+
+
+app = FastAPI()
+
+# ✅ Enable CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Replace with specific origin(s) in production
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# ✅ Add custom logging middleware
+app.add_middleware(LoggingMiddleware)
+
+
+
+# ✅ Register routers
+
+app.include_router(head_coach.router, tags=["headcoach"])
+app.include_router(coach.router)
+app.include_router(measurements.router)
+app.include_router(performance.router, tags=["performance"])  # ⬅️ Register the router
+app.include_router(auth.router, prefix="/auth", tags=["auth"])
+app.include_router(users.router, prefix="/users", tags=["users"])
+app.include_router(branches.router, prefix="/branches", tags=["branches"])
+app.include_router(gear.router, prefix="/gear", tags=["gear"])
+app.include_router(threads.router, prefix="/threads", tags=["threads"])
+app.include_router(payments.router, prefix="/payments", tags=["payments"])
+app.include_router(notifications.router, prefix="/notifications", tags=["notifications"])
+app.include_router(attendance.router, prefix="/attendance", tags=["attendance"])
+app.include_router(athlete.router, tags=["athlete"])
+
+@app.get("/")
+def root():
+    return {"message": "HFA API is running"}-e \n=== ./app/performance.py ===\n
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
+from app.database import get_connection
+from app.deps import get_current_user
+
+router = APIRouter()
+
+class PerformanceLogInput(BaseModel):
+    meet_name: str
+    meet_date: str
+    event_name: str
+    result_time: float  # Changed from str to float
+
+@router.post("/athlete/performance-log")
+def create_performance_log(data: PerformanceLogInput, user=Depends(get_current_user)):
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    try:
+        # Get athlete ID from user
+        cursor.execute("SELECT id FROM athletes WHERE user_id = %s", (user["id"],))
+        athlete = cursor.fetchone()
+        if not athlete:
+            raise HTTPException(status_code=404, detail="Athlete not found")
+
+        # Insert performance log
+        cursor.execute("""
+            INSERT INTO performance_logs (athlete_id, meet_name, meet_date, event_name, result_time)
+            VALUES (%s, %s, %s, %s, %s)
+        """, (
+            athlete["id"], data.meet_name, data.meet_date, 
+            data.event_name, data.result_time
+        ))
+
+        conn.commit()
+        return {"message": "Performance log saved"}
+
+    except Exception as e:
+        print("❌ DB Insert Error:", e)
+        raise HTTPException(status_code=500, detail="Failed to save performance log")
+    finally:
+        cursor.close()
+        conn.close()
+
+def seconds_to_time_string(seconds: float) -> str:
+    """Convert seconds to readable time format"""
+    try:
+        if seconds >= 60:
+            minutes = int(seconds // 60)
+            remaining_seconds = seconds % 60
+            return f"{minutes}:{remaining_seconds:05.2f}"
+        else:
+            return f"{seconds:.2f}"
+    except (TypeError, ValueError):
+        return str(seconds)  # Return as string if conversion fails
+
+@router.get("/athlete/performance-logs")
+def get_athlete_performance_logs(user=Depends(get_current_user)):
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    try:
+        # Get athlete ID from user
+        cursor.execute("SELECT id FROM athletes WHERE user_id = %s", (user["id"],))
+        athlete = cursor.fetchone()
+        if not athlete:
+            raise HTTPException(status_code=404, detail="Athlete not found")
+
+        # Get all performance logs for this athlete
+        cursor.execute("""
+            SELECT id, meet_name, meet_date, event_name, result_time
+            FROM performance_logs
+            WHERE athlete_id = %s
+            ORDER BY id DESC
+        """, (athlete["id"],))
+
+        logs = cursor.fetchall()
+        
+        # Convert result_time back to readable format
+        for log in logs:
+            if log['result_time'] is not None:
+                log['result_time'] = seconds_to_time_string(float(log['result_time']))
+        
+        return logs if logs else []  # Return empty array if no logs
+
+    except Exception as e:
+        print("❌ DB Query Error:", e)
+        raise HTTPException(status_code=500, detail=f"Failed to fetch performance logs: {str(e)}")
+    finally:
+        cursor.close()
+        conn.close()
+
+@router.delete("/athlete/performance-logs")
+def delete_all_athlete_performance_logs(user=Depends(get_current_user)):
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    try:
+        # Get athlete ID from user
+        cursor.execute("SELECT id FROM athletes WHERE user_id = %s", (user["id"],))
+        athlete = cursor.fetchone()
+        if not athlete:
+            raise HTTPException(status_code=404, detail="Athlete not found")
+
+        # Delete all performance logs for this athlete
+        cursor.execute("""
+            DELETE FROM performance_logs
+            WHERE athlete_id = %s
+        """, (athlete["id"],))
+
+        conn.commit()
+        deleted_count = cursor.rowcount
+        return {"message": f"Deleted {deleted_count} performance logs"}
+
+    except Exception as e:
+        print("❌ DB Delete Error:", e)
+        raise HTTPException(status_code=500, detail="Failed to delete performance logs")
+    finally:
+        cursor.close()
+        conn.close()-e \n=== ./app/schema_dump.py ===\n
+import mysql.connector
+import os
+
+# --- Configuration ---
+DB_CONFIG = {
+    'host': 'localhost',
+    'port': 3306,
+    'user': 'root',
+    'password': 'MmmM12345!',
+    'database': 'hfa' # You can comment this out to get all databases
+}
+
+OUTPUT_FILE = 'database_schema.sql'
+# -------------------
+
+def get_mysql_schema(config, output_file):
+    """
+    Connects to a MySQL database and extracts the schema (DDL for tables)
+    for the specified database or all databases if 'database' is not in config.
+    Writes the schema to the given output file.
+    """
+    try:
+        conn = mysql.connector.connect(**config)
+        cursor = conn.cursor()
+
+        schema_content = []
+
+        if 'database' in config and config['database']:
+            databases_to_process = [config['database']]
+        else:
+            # Get all user databases (excluding system databases)
+            cursor.execute("SHOW DATABASES;")
+            all_databases = [db[0] for db in cursor if db[0] not in ('information_schema', 'mysql', 'performance_schema', 'sys')]
+            databases_to_process = all_databases
+
+        for db_name in databases_to_process:
+            print(f"Extracting schema for database: {db_name}")
+            schema_content.append(f"-- Schema for database: {db_name}\n")
+            cursor.execute(f"USE {db_name};")
+
+            # Get table DDL
+            cursor.execute("SHOW TABLES;")
+            tables = [table[0] for table in cursor]
+
+            if not tables:
+                schema_content.append(f"-- No tables found in database: {db_name}\n\n")
+                continue
+
+            for table_name in tables:
+                cursor.execute(f"SHOW CREATE TABLE `{table_name}`;")
+                create_table_statement = cursor.fetchone()[1]
+                schema_content.append(f"{create_table_statement};\n\n")
+
+        with open(output_file, 'w', encoding='utf-8') as f:
+            f.writelines(schema_content)
+
+        print(f"Successfully extracted schema to '{output_file}'")
+
+    except mysql.connector.Error as err:
+        print(f"Error: {err}")
+    finally:
+        if 'conn' in locals() and conn.is_connected():
+            cursor.close()
+            conn.close()
+            print("Database connection closed.")
+
+if __name__ == "__main__":
+    # Ensure the output directory exists if specified
+    output_dir = os.path.dirname(OUTPUT_FILE)
+    if output_dir and not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    get_mysql_schema(DB_CONFIG, OUTPUT_FILE)-e \n=== ./app/athlete.py ===\n
+from fastapi import APIRouter, Depends
+from app.deps import get_current_user
+from app.database import get_connection
+
+router = APIRouter()
+
+@router.get("/athlete/home")
+def get_athlete_dashboard(user=Depends(get_current_user)):
+    if user["role"] != "athlete":
+        return {"detail": "Access denied"}, 403
+
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    try:
+        # Attendance (most recent)
+        cursor.execute("""
+            SELECT status, session_date
+            FROM attendance
+            WHERE athlete_id = (
+                SELECT id FROM athletes WHERE user_id = %s
+            )
+            ORDER BY session_date DESC
+            LIMIT 1
+        """, (user["id"],))
+        attendance = cursor.fetchone()
+
+        # Gear
+        cursor.execute("""
+            SELECT p.message
+            FROM posts p
+            JOIN threads t ON p.thread_id = t.id
+            WHERE t.branch_id = %s AND t.title = 'gear'
+            ORDER BY p.created_at DESC
+            LIMIT 1
+        """, (user["branch_id"],))
+        gear = cursor.fetchone()
+
+        # Latest thread
+        cursor.execute("""
+            SELECT title FROM threads WHERE branch_id = %s
+            ORDER BY id DESC LIMIT 1
+        """, (user["branch_id"],))
+        thread = cursor.fetchone()
+
+        return {
+            "attendance": attendance or {},
+            "gear": gear["message"] if gear else None,
+            "latest_thread": thread["title"] if thread else "No threads yet"
+        }
+
+    finally:
+        cursor.close()
+        conn.close()-e \n=== ./app/measurements.py ===\n
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
+from app.database import get_connection
+from app.deps import get_current_user
+
+router = APIRouter()
+
+class MeasurementInput(BaseModel):
+    height: float
+    weight: float
+    arm: float
+    leg: float
+    fat: float
+    muscle: float
+
+@router.post("/athlete/measurements")
+def save_measurements(data: MeasurementInput, user=Depends(get_current_user)):
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)  # Added dictionary=True here
+
+    try:
+        cursor.execute("SELECT id FROM athletes WHERE user_id = %s", (user["id"],))
+        athlete = cursor.fetchone()
+        if not athlete:
+            raise HTTPException(status_code=404, detail="Athlete not found")
+
+        cursor.execute("""
+            INSERT INTO measurement_logs (athlete_id, height, weight, arm, leg, fat, muscle)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+        """, (
+            athlete["id"], data.height, data.weight,
+            data.arm, data.leg, data.fat, data.muscle
+        ))
+
+        conn.commit()
+        return {"message": "Measurements saved"}
+
+    except Exception as e:
+        print("❌ DB Insert Error:", e)
+        raise HTTPException(status_code=500, detail="Failed to save measurements")
+    finally:
+        cursor.close()
+        conn.close()
+
+@router.get("/athlete/measurements")
+def get_latest_measurements(user=Depends(get_current_user)):
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    try:
+        cursor.execute("SELECT id FROM athletes WHERE user_id = %s", (user["id"],))
+        athlete = cursor.fetchone()
+        if not athlete:
+            raise HTTPException(status_code=404, detail="Athlete not found")
+
+        cursor.execute("""
+            SELECT height, weight, arm, leg, fat, muscle
+            FROM measurement_logs
+            WHERE athlete_id = %s
+            ORDER BY id DESC
+            LIMIT 1
+        """, (athlete["id"],))
+
+        data = cursor.fetchone()
+        if not data:
+            raise HTTPException(status_code=404, detail="No measurements found")
+
+        return data
+    
+    finally:
+        cursor.close()
+        conn.close()-e \n=== ./app/dump_database.py ===\n
+import mysql.connector
+
+# Set your DB credentials
+DB_CONFIG = {
+    "host": "localhost",
+    "user": "root",
+    "password": "MmmM12345!",
+    "database": "hfa"
+}
+
+# List of tables you want to export
+TABLES = [
+    "users", "athletes", "registration_requests", "attendance", "payments",
+    "branches", "threads", "posts", "notifications", "massage_bookings", "practice_sessions",
+    "performance_logs", "health_logs", "coach_assignments", "device_tokens"
+    # Add others as needed
+]
+
+def dump_database(output_file="db_dump.txt"):
+    conn = mysql.connector.connect(**DB_CONFIG)
+    cursor = conn.cursor(dictionary=True)
+
+    with open(output_file, "w", encoding="utf-8") as f:
+        for table in TABLES:
+            f.write(f"\n\n=== {table.upper()} ===\n")
+            try:
+                cursor.execute(f"SELECT * FROM {table}")
+                rows = cursor.fetchall()
+                if rows:
+                    for row in rows:
+                        f.write(str(row) + "\n")
+                else:
+                    f.write("No data found.\n")
+            except Exception as e:
+                f.write(f"⚠️ Error fetching table '{table}': {e}\n")
+
+    cursor.close()
+    conn.close()
+    print(f"✅ Database dumped to {output_file}")
+
+if __name__ == "__main__":
+    dump_database()

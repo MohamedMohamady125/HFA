@@ -1,0 +1,472 @@
+\n=== ./backend/app/auth.py ===\n
+from fastapi import APIRouter, HTTPException
+from app.database import get_connection
+from passlib.hash import bcrypt
+from jose import jwt
+from app.schemas import UserCreate, UserLogin
+from app.config import settings
+
+router = APIRouter()
+
+@router.post("/register")
+def register(user: UserCreate):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    # Check if email already exists
+    cursor.execute("SELECT id FROM registration_requests WHERE email = %s", (user.email,))
+    if cursor.fetchone():
+        raise HTTPException(status_code=400, detail="Email already submitted")
+
+    cursor.execute(
+        "INSERT INTO registration_requests (athlete_name, phone, email, password_hash) VALUES (%s, %s, %s, %s)",
+        (user.name, user.phone, user.email, bcrypt.hash(user.password))
+    )
+    conn.commit()
+    return {"message": "Request submitted. A coach will review and approve it."}
+
+@router.post("/login")
+def login(user: UserLogin):
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute("SELECT * FROM users WHERE email = %s", (user.email,))
+    db_user = cursor.fetchone()
+
+    if not db_user or not bcrypt.verify(user.password, db_user["password_hash"]):
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+
+    token = jwt.encode(
+        {"sub": str(db_user["id"])},
+        settings.JWT_SECRET,
+        algorithm=settings.JWT_ALGORITHM,
+    )
+
+    return {
+        "token": token,
+        "user": {
+            "id": db_user["id"],
+            "role": db_user["role"],
+            "approved": db_user.get("approved", False),
+        },
+    }\n=== ./backend/app/deps.py ===\n
+from fastapi import Depends, HTTPException, Header
+from jose import jwt
+from app.config import settings
+from app.database import get_connection
+
+def get_current_user(authorization: str = Header(...)):
+    if not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    token = authorization[7:]
+    try:
+        payload = jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
+        user_id = payload.get("sub")
+    except:
+        raise HTTPException(status_code=401, detail="Could not validate token")
+
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT * FROM users WHERE id = %s", (user_id,))
+    user = cursor.fetchone()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user\n=== ./backend/app/payments.py ===\n
+# FILE: app/payments.py
+from fastapi import APIRouter, Depends, HTTPException
+from app.database import get_connection
+from app.deps import get_current_user
+from app.utils.auth_utils import can_access_branch
+
+
+router = APIRouter()
+
+@router.get("/{athlete_id}")
+def get_payments(athlete_id: int, user=Depends(get_current_user)):
+    if user["role"] == "athlete" and user["id"] != athlete_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT * FROM payments WHERE athlete_id = %s ORDER BY due_date DESC", (athlete_id,))
+    return cursor.fetchall()
+
+
+
+@router.get("/branch/{branch_id}")
+def get_branch_payments(branch_id: int, user=Depends(get_current_user)):
+    can_access_branch(user, branch_id)
+    # ... fetch and return payments for the branch
+    if user["role"] not in ["coach", "head_coach"]:
+        raise HTTPException(status_code=403, detail="Only coaches can access branch payments")
+
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT * FROM payments WHERE branch_id = %s ORDER BY due_date DESC", (branch_id,))
+    return cursor.fetchall()
+
+
+@router.post("/confirm/{payment_id}")
+def confirm_payment(payment_id: int, user=Depends(get_current_user)):
+    if user["role"] not in ["coach", "head_coach"]:
+        raise HTTPException(status_code=403, detail="Only coaches can confirm payments")
+
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("UPDATE payments SET confirmed_by_coach = TRUE, status = 'paid' WHERE id = %s", (payment_id,))
+    conn.commit()
+    return {"message": "Payment confirmed"}\n=== ./backend/app/config.py ===\n
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+class Settings:
+    DB_HOST = os.getenv("DB_HOST")
+    DB_USER = os.getenv("DB_USER")
+    DB_PASSWORD = os.getenv("DB_PASSWORD")
+    DB_NAME = os.getenv("DB_NAME")
+    JWT_SECRET = os.getenv("JWT_SECRET")
+    JWT_ALGORITHM = os.getenv("JWT_ALGORITHM")
+
+settings = Settings()\n=== ./backend/app/branches.py ===\n
+from fastapi import APIRouter
+from app.database import get_connection
+
+router = APIRouter()
+
+@router.get("/")
+def list_branches():
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT id, name, address, phone, video_url FROM branches")
+    branches = cursor.fetchall()
+    return branches
+
+@router.get("/{branch_id}")
+def get_branch(branch_id: int):
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT * FROM branches WHERE id = %s", (branch_id,))
+    branch = cursor.fetchone()
+    if not branch:
+        return {"detail": "Branch not found"}
+    return branch\n=== ./backend/app/models.py ===\n
+from pydantic import BaseModel
+
+class User(BaseModel):
+    id: int
+    name: str
+    phone: str
+    role: str
+    approved: bool\n=== ./backend/app/users.py ===\n
+# FILE: app/users.py
+from fastapi import APIRouter, Depends, HTTPException, Header
+from jose import jwt
+from app.config import settings
+from app.database import get_connection
+from app.deps import get_current_user
+import traceback
+
+router = APIRouter()
+
+@router.get("/me")
+def get_current_user_details(authorization: str = Header(...)):
+    if not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    token = authorization[7:]
+    
+    try:
+        payload = jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
+        user_id = payload.get("sub")
+
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Invalid token payload")
+
+        print("✅ JWT Payload:", payload)
+        print("👤 Extracted user_id:", user_id)
+
+    except Exception as jwt_error:
+        print("❌ JWT Decode Error:")
+        traceback.print_exc()
+        raise HTTPException(status_code=401, detail=f"JWT decode error: {str(jwt_error)}")
+
+    try:
+        conn = get_connection()
+        cursor = conn.cursor(dictionary=True)
+
+        cursor.execute("""
+            SELECT 
+                u.id, u.name, u.email, u.phone, u.role, u.approved, ca.branch_id
+            FROM 
+                users u
+            LEFT JOIN 
+                coach_assignments ca ON u.id = ca.user_id
+            WHERE 
+                u.id = %s
+        """, (user_id,))
+        
+        user = cursor.fetchone()
+
+        if not user:
+            print("⚠️ No user found for ID:", user_id)
+            raise HTTPException(status_code=404, detail="User not found")
+
+        print("✅ DB User Found:", user)
+        return user
+
+    except Exception as db_error:
+        print("❌ Database Error:")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Database error: {str(db_error)}")
+
+
+@router.get("/requests")
+def get_registration_requests(user=Depends(get_current_user)):
+    if user["role"] not in ["coach", "head_coach"]:
+        raise HTTPException(status_code=403, detail="Only coaches can view registration requests")
+
+    try:
+        conn = get_connection()
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute("SELECT * FROM registration_requests WHERE approved = 0 ORDER BY submitted_at DESC")
+        return cursor.fetchall()
+    except Exception as e:
+        print("❌ Error fetching registration requests:", e)
+        raise HTTPException(status_code=500, detail="Failed to fetch registration requests")\n=== ./backend/app/gear.py ===\n
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
+from app.database import get_connection
+from app.deps import get_current_user
+from app.utils.auth_utils import can_access_branch
+
+router = APIRouter()
+
+class GearPost(BaseModel):
+    content: str
+
+@router.get("/{branch_id}")
+def get_gear(branch_id: int, user=Depends(get_current_user)):
+    can_access_branch(user, branch_id)
+
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("""
+        SELECT * FROM posts
+        WHERE thread_id IN (
+            SELECT id FROM threads WHERE branch_id = %s AND title = 'gear'
+        )
+        ORDER BY created_at DESC LIMIT 1
+    """, (branch_id,))
+    post = cursor.fetchone()
+    return post or {"message": "No gear updates posted yet"}
+
+@router.post("/{branch_id}")
+def post_gear(branch_id: int, data: GearPost, user=Depends(get_current_user)):
+    if user["role"] not in ["coach", "head_coach"]:
+        raise HTTPException(status_code=403, detail="Only coaches can post gear")
+
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute("SELECT id FROM threads WHERE branch_id = %s AND title = 'gear'", (branch_id,))
+    thread = cursor.fetchone()
+
+    if not thread:
+        cursor.execute("INSERT INTO threads (branch_id, title) VALUES (%s, %s)", (branch_id, "gear"))
+        thread_id = cursor.lastrowid
+    else:
+        thread_id = thread["id"]
+
+    cursor.execute(
+        "INSERT INTO posts (thread_id, user_id, message) VALUES (%s, %s, %s)",
+        (thread_id, user["id"], data.content)
+    )
+    conn.commit()
+
+    return {"message": "Gear update posted"}\n=== ./backend/app/attendance.py ===\n
+# app/attendance.py
+from fastapi import APIRouter, Depends, HTTPException
+from app.deps import get_current_user
+from app.database import get_connection
+
+router = APIRouter()
+
+@router.get("/")
+def get_weekly_attendance(user=Depends(get_current_user)):
+    if user["role"] != "athlete":
+        raise HTTPException(status_code=403, detail="Only athletes can view their attendance")
+
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    # Replace this with real attendance query
+    # This is mock data for frontend compatibility
+    return {"status": "3 of 3 practices attended this week"}
+\n=== ./backend/app/database.py ===\n
+import mysql.connector
+from app.config import settings
+
+def get_connection():
+    return mysql.connector.connect(
+        host=settings.DB_HOST,
+        user=settings.DB_USER,
+        password=settings.DB_PASSWORD,
+        database=settings.DB_NAME
+    )\n=== ./backend/app/utils/auth_utils.py ===\n
+# FILE: app/utils/auth_utils.py
+from fastapi import HTTPException
+
+def can_access_branch(user, branch_id: int):
+    if user["role"] == "head_coach":
+        return  # Full access
+    if user["role"] == "coach" and user.get("branch_id") == branch_id:
+        return  # Coach can access their assigned branch
+    raise HTTPException(status_code=403, detail="Access denied for this branch.")\n=== ./backend/app/threads.py ===\n
+# ✅ FILE: app/threads.py
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
+from app.database import get_connection
+from app.deps import get_current_user
+from app.utils.auth_utils import can_access_branch
+
+
+router = APIRouter()
+
+# 🧱 Pydantic models for incoming POST data
+class ThreadCreate(BaseModel):
+    title: str
+
+class MessageCreate(BaseModel):
+    message: str
+
+# 📌 Get threads for a branch
+@router.get("/branch/{branch_id}")
+def get_branch_threads(branch_id: int):
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT * FROM threads WHERE branch_id = %s", (branch_id,))
+    return cursor.fetchall()
+
+# 📌 Get posts in a thread
+@router.get("/{thread_id}/posts")
+def get_posts(thread_id: int):
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("""
+        SELECT p.id, p.message, u.name AS author, p.created_at
+        FROM posts p
+        JOIN users u ON p.user_id = u.id
+        WHERE p.thread_id = %s
+        ORDER BY p.created_at DESC
+    """, (thread_id,))
+    return cursor.fetchall()
+
+# ✅ Create a new thread (requires role check and data model)
+@router.post("/branch/{branch_id}/create")
+def create_thread(branch_id: int, title: str, user=Depends(get_current_user)):
+    can_access_branch(user, branch_id)
+
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("INSERT INTO threads (branch_id, title) VALUES (%s, %s)", (branch_id, title))
+    conn.commit()
+    return {"message": "Thread created"}
+
+# ✅ Post a message to a thread
+@router.post("/{thread_id}/post")
+def post_message(thread_id: int, data: MessageCreate, user=Depends(get_current_user)):
+    if user["role"] not in ["coach", "head_coach"]:
+        raise HTTPException(status_code=403, detail="Only coaches can post to threads")
+
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "INSERT INTO posts (thread_id, user_id, message) VALUES (%s, %s, %s)",
+        (thread_id, user["id"], data.message)
+    )
+    conn.commit()
+    return {"message": "Post added"}\n=== ./backend/app/schemas.py ===\n
+from pydantic import BaseModel, EmailStr
+
+class UserCreate(BaseModel):
+    name: str
+    phone: str
+    email: EmailStr
+    password: str
+
+class UserLogin(BaseModel):
+    email: EmailStr
+    password: str
+
+class UserOut(BaseModel):
+    id: int
+    name: str
+    phone: str
+    email: str
+    role: str
+    approved: bool\n=== ./backend/app/notifications.py ===\n
+from fastapi import APIRouter, Depends, HTTPException
+from app.database import get_connection
+from app.deps import get_current_user
+
+router = APIRouter()
+
+@router.get("/")
+def get_notifications(user=Depends(get_current_user)):
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT * FROM notifications WHERE user_id = %s ORDER BY created_at DESC", (user["id"],))
+    return cursor.fetchall()
+
+@router.post("/")
+def send_notification(user_id: int, message: str, user=Depends(get_current_user)):
+    if user["role"] not in ["coach", "head_coach"]:
+        raise HTTPException(status_code=403, detail="Only coaches can send notifications")
+
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("INSERT INTO notifications (user_id, message) VALUES (%s, %s)", (user_id, message))
+    conn.commit()
+    return {"message": "Notification sent"}
+
+@router.post("/read/{notification_id}")
+def mark_as_read(notification_id: int, user=Depends(get_current_user)):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "UPDATE notifications SET read_status = TRUE WHERE id = %s AND user_id = %s",
+        (notification_id, user["id"])
+    )
+    conn.commit()
+    return {"message": "Notification marked as read"}\n=== ./backend/app/main.py ===\n
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from app import auth, users, branches, gear, threads, payments, notifications, attendance
+
+app = FastAPI()
+
+# ✅ Enable CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Replace "*" with specific frontend origin for production
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# ✅ Include routers only once
+app.include_router(auth.router, prefix="/auth", tags=["auth"])
+app.include_router(users.router, prefix="/users", tags=["users"])
+app.include_router(branches.router, prefix="/branches", tags=["branches"])
+app.include_router(gear.router, prefix="/gear", tags=["gear"])
+app.include_router(threads.router, prefix="/threads", tags=["threads"])
+app.include_router(payments.router, prefix="/payments", tags=["payments"])
+app.include_router(notifications.router, prefix="/notifications", tags=["notifications"])
+app.include_router(attendance.router, prefix="/attendance", tags=["attendance"])
+
+@app.get("/")
+def root():
+    return {"message": "HFA API is running"}
