@@ -25,6 +25,7 @@ import 'screens/coach/coach_home_screen.dart';
 import 'screens/coach/coach_threads_screen.dart';
 import 'screens/coach/coach_gear_screen.dart';
 import 'screens/coach/coach_profile_screen.dart';
+import 'screens/coach/coach_payments_screen.dart';
 import 'screens/coach_manage/register_requests_screen.dart';
 import 'screens/coach_manage/payment_screen.dart';
 import 'screens/coach_manage/attendance_screen.dart';
@@ -130,6 +131,7 @@ class _HFAAppState extends State<HFAApp> {
             GoRoute(path: '/coach/home', builder: (_, __) => const CoachHomeScreen()),
             GoRoute(path: '/coach/threads', builder: (_, __) => const CoachThreadsScreen()),
             GoRoute(path: '/coach/gear', builder: (_, __) => const CoachGearScreen()),
+            GoRoute(path: '/coach/payments', builder: (_, __) => const CoachPaymentsScreen()),
             GoRoute(path: '/coach/profile', builder: (_, __) => const CoachProfileScreen()),
           ],
         ),
