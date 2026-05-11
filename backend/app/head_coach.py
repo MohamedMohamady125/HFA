@@ -1,84 +1,39 @@
-# FILE: app/headcoach.py
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
-from app.database import get_connection
+from app.database import get_connection, get_cursor
 from app.deps import get_current_user
 
 router = APIRouter()
 
-class CoachAssignmentInput(BaseModel):
-    coach_id: int
-    branch_id: int
-
-def verify_head_coach(user):
+@router.get("/branches")
+def list_all_branches_for_head_coach(user=Depends(get_current_user)):
     if user["role"] != "head_coach":
-        raise HTTPException(status_code=403, detail="Only head coaches can manage assignments")
+        raise HTTPException(status_code=403, detail="Access denied")
 
-@router.get("/headcoach/branches")
-def get_all_branches(user=Depends(get_current_user)):
-    verify_head_coach(user)
     conn = get_connection()
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT id, name FROM branches ORDER BY name")
-    result = cursor.fetchall()
+    cursor = get_cursor(conn)
+    cursor.execute("SELECT id, name, address, phone FROM branches ORDER BY name")
+    branches = [dict(r) for r in cursor.fetchall()]
     cursor.close()
     conn.close()
-    return result
+    return branches
 
-@router.get("/headcoach/coaches")
-def get_all_coaches(user=Depends(get_current_user)):
-    verify_head_coach(user)
-    conn = get_connection()
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute("""
-        SELECT id, name FROM users 
-        WHERE role = 'coach'
-        ORDER BY name
-    """)
-    coaches = cursor.fetchall()
-    cursor.close()
-    conn.close()
-    return coaches
+@router.post("/select-branch/{branch_id}")
+def select_branch_for_head_coach(branch_id: int, user=Depends(get_current_user)):
+    if user["role"] != "head_coach":
+        raise HTTPException(status_code=403, detail="Access denied")
 
-@router.get("/headcoach/assignments")
-def get_assignments(user=Depends(get_current_user)):
-    verify_head_coach(user)
     conn = get_connection()
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute("""
-        SELECT ca.id, ca.branch_id, ca.coach_id, u.name AS coach_name
-        FROM coach_assignments ca
-        JOIN users u ON ca.coach_id = u.id
-    """)
-    data = cursor.fetchall()
-    cursor.close()
-    conn.close()
-    return data
+    cursor = get_cursor(conn)
 
-@router.post("/headcoach/assign")
-def assign_coach(data: CoachAssignmentInput, user=Depends(get_current_user)):
-    verify_head_coach(user)
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("""
-        INSERT IGNORE INTO coach_assignments (branch_id, coach_id)
-        VALUES (%s, %s)
-    """, (data.branch_id, data.coach_id))
+    cursor.execute("SELECT id FROM branches WHERE id = %s", (branch_id,))
+    branch = cursor.fetchone()
+    if not branch:
+        raise HTTPException(status_code=404, detail="Branch not found")
+
+    cursor.execute("UPDATE users SET branch_id = %s WHERE id = %s", (branch_id, user["id"]))
     conn.commit()
-    cursor.close()
-    conn.close()
-    return {"message": "Coach assigned to branch."}
 
-@router.post("/headcoach/unassign")
-def unassign_coach(data: CoachAssignmentInput, user=Depends(get_current_user)):
-    verify_head_coach(user)
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("""
-        DELETE FROM coach_assignments 
-        WHERE branch_id = %s AND coach_id = %s
-    """, (data.branch_id, data.coach_id))
-    conn.commit()
     cursor.close()
     conn.close()
-    return {"message": "Coach unassigned from branch."}
+
+    return {"message": f"Branch {branch_id} selected"}

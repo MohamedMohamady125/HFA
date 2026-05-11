@@ -1,6 +1,6 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from app.deps import get_current_user
-from app.database import get_connection
+from app.database import get_connection, get_cursor
 
 router = APIRouter()
 
@@ -10,10 +10,9 @@ def get_athlete_dashboard(user=Depends(get_current_user)):
         return {"detail": "Access denied"}, 403
 
     conn = get_connection()
-    cursor = conn.cursor(dictionary=True)
+    cursor = get_cursor(conn)
 
     try:
-        # Attendance (most recent)
         cursor.execute("""
             SELECT status, session_date
             FROM attendance
@@ -25,7 +24,6 @@ def get_athlete_dashboard(user=Depends(get_current_user)):
         """, (user["id"],))
         attendance = cursor.fetchone()
 
-        # Gear
         cursor.execute("""
             SELECT p.message
             FROM posts p
@@ -36,7 +34,6 @@ def get_athlete_dashboard(user=Depends(get_current_user)):
         """, (user["branch_id"],))
         gear = cursor.fetchone()
 
-        # Latest thread
         cursor.execute("""
             SELECT title FROM threads WHERE branch_id = %s
             ORDER BY id DESC LIMIT 1
@@ -44,7 +41,7 @@ def get_athlete_dashboard(user=Depends(get_current_user)):
         thread = cursor.fetchone()
 
         return {
-            "attendance": attendance or {},
+            "attendance": dict(attendance) if attendance else {},
             "gear": gear["message"] if gear else None,
             "latest_thread": thread["title"] if thread else "No threads yet"
         }
@@ -52,3 +49,15 @@ def get_athlete_dashboard(user=Depends(get_current_user)):
     finally:
         cursor.close()
         conn.close()
+
+@router.get("/athletes/user/{user_id}")
+def get_athlete_by_user(user_id: int, user=Depends(get_current_user)):
+    conn = get_connection()
+    cursor = get_cursor(conn)
+    cursor.execute("SELECT id FROM athletes WHERE user_id = %s", (user_id,))
+    athlete = cursor.fetchone()
+    cursor.close()
+    conn.close()
+    if not athlete:
+        raise HTTPException(status_code=404, detail="Athlete not found")
+    return dict(athlete)

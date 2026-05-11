@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from app.database import get_connection
+from app.database import get_connection, get_cursor
 from app.deps import get_current_user
 
 router = APIRouter()
@@ -16,7 +16,7 @@ class MeasurementInput(BaseModel):
 @router.post("/athlete/measurements")
 def save_measurements(data: MeasurementInput, user=Depends(get_current_user)):
     conn = get_connection()
-    cursor = conn.cursor(dictionary=True)  # Added dictionary=True here
+    cursor = get_cursor(conn)
 
     try:
         cursor.execute("SELECT id FROM athletes WHERE user_id = %s", (user["id"],))
@@ -36,7 +36,7 @@ def save_measurements(data: MeasurementInput, user=Depends(get_current_user)):
         return {"message": "Measurements saved"}
 
     except Exception as e:
-        print("❌ DB Insert Error:", e)
+        print("DB Insert Error:", e)
         raise HTTPException(status_code=500, detail="Failed to save measurements")
     finally:
         cursor.close()
@@ -45,7 +45,7 @@ def save_measurements(data: MeasurementInput, user=Depends(get_current_user)):
 @router.get("/athlete/measurements")
 def get_latest_measurements(user=Depends(get_current_user)):
     conn = get_connection()
-    cursor = conn.cursor(dictionary=True)
+    cursor = get_cursor(conn)
 
     try:
         cursor.execute("SELECT id FROM athletes WHERE user_id = %s", (user["id"],))
@@ -65,8 +65,8 @@ def get_latest_measurements(user=Depends(get_current_user)):
         if not data:
             raise HTTPException(status_code=404, detail="No measurements found")
 
-        return data
-    
+        return dict(data)
+
     finally:
         cursor.close()
         conn.close()

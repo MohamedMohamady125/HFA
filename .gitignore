@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.pyc
+backend/.venv/
+backend/.env
+
+# macOS
+.DS_Store
+
+# Flutter
+flutter_app/.dart_tool/
+flutter_app/.packages
+flutter_app/build/
+flutter_app/.flutter-plugins
+flutter_app/.flutter-plugins-dependencies
+flutter_app/ios/
+flutter_app/android/.gradle/
+flutter_app/macos/
+flutter_app/windows/
+flutter_app/linux/
+flutter_app/web/
+
+# Node / React Native
+mobile-app/node_modules/
+mobile-app/.expo/
+
+# IDE
+.vscode/
+.idea/

@@ -1,3 +1,5 @@
+
+// ✅ FILE: app/(coach-manage)/payment.tsx
 import { useEffect, useState } from "react";
 import {
   View,
@@ -11,8 +13,9 @@ import {
   SafeAreaView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import api from "../../utils/api";
+import { useAuth } from "../../context/auth";
 
 export default function CoachPayments() {
   const [records, setRecords] = useState<any[]>([]);
@@ -20,11 +23,13 @@ export default function CoachPayments() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const router = useRouter();
+  const { user } = useAuth();
+  const { override_branch } = useLocalSearchParams();
+
+  const branchId = override_branch || user?.branch_id;
 
   const fetchSummary = async () => {
     try {
-      const me = await api.get("/users/me");
-      const branchId = me.data.branch_id;
       const res = await api.get(`/payments/summary/${branchId}`);
       setRecords(res.data.records ?? []);
       setSessionDates(res.data.session_dates ?? []);
@@ -52,7 +57,7 @@ export default function CoachPayments() {
 
   useEffect(() => {
     fetchSummary();
-  }, []);
+  }, [branchId]);
 
   const sorted = records.sort((a, b) => a.athlete_name.localeCompare(b.athlete_name));
 
@@ -71,13 +76,6 @@ export default function CoachPayments() {
       </TouchableOpacity>
 
       <Text style={styles.title}>💵 Payment Tracking</Text>
-
-      <TouchableOpacity
-        style={styles.summaryButton}
-        onPress={() => router.push("/(coach-manage)/payment-summary")}
-      >
-        <Text style={styles.summaryButtonText}>📊 View Payment Summary</Text>
-      </TouchableOpacity>
 
       <TextInput
         placeholder="Search athlete..."
@@ -101,20 +99,13 @@ export default function CoachPayments() {
                 <View key={date} style={styles.row}>
                   <Text style={styles.date}>{date}</Text>
                   <View style={styles.statusRow}>
-                    {[
-                      { status: "paid", icon: "✅" },
-                      { status: "pending", icon: "❌" },
-                      { status: "late", icon: "⚠️" },
-                    ].map(({ status, icon }) => (
+                    {["paid", "pending", "late"].map((status) => (
                       <TouchableOpacity
                         key={status}
-                        style={[
-                          styles.statusBtn,
-                          currentStatus === status && styles.activeStatus,
-                        ]}
+                        style={[styles.statusBtn, currentStatus === status && styles.activeStatus]}
                         onPress={() => markPayment(item.athlete_id, date, status)}
                       >
-                        <Text style={styles.statusText}>{icon}</Text>
+                        <Text style={styles.statusText}>{status[0].toUpperCase()}</Text>
                       </TouchableOpacity>
                     ))}
                   </View>
@@ -129,41 +120,15 @@ export default function CoachPayments() {
 }
 
 const styles = StyleSheet.create({
-  page: {
-    flex: 1,
-    backgroundColor: "#f5f9ff",
-    paddingTop: 60,
-    paddingHorizontal: 20,
-  },
-  backButton: {
-    marginBottom: 10,
-    alignSelf: "flex-start",
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "700",
-    marginBottom: 15,
-    color: "#1a1a1a",
-    textAlign: "center",
-  },
-  summaryButton: {
-    backgroundColor: "#FFD700",
-    paddingVertical: 12,
-    borderRadius: 10,
-    alignItems: "center",
-    marginBottom: 20,
-  },
-  summaryButtonText: {
-    color: "#333",
-    fontWeight: "600",
-    fontSize: 16,
-  },
+  page: { flex: 1, paddingTop: 60, paddingHorizontal: 20 },
+  backButton: { marginBottom: 10 },
+  title: { fontSize: 22, fontWeight: "bold", marginBottom: 20 },
   search: {
     backgroundColor: "#fff",
-    padding: 10,
     borderRadius: 10,
     borderColor: "#ccc",
     borderWidth: 1,
+    padding: 10,
     marginBottom: 15,
   },
   card: {
@@ -172,54 +137,20 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: 12,
     elevation: 2,
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowOffset: { width: 0, height: 2 },
   },
-  name: {
-    fontWeight: "600",
-    fontSize: 16,
-    marginBottom: 8,
-  },
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 8,
-  },
-  date: {
-    fontSize: 14,
-    color: "#555",
-  },
-  statusRow: {
-    flexDirection: "row",
-    gap: 8,
-  },
+  name: { fontWeight: "600", fontSize: 16, marginBottom: 8 },
+  row: { flexDirection: "row", justifyContent: "space-between", marginBottom: 6 },
+  date: { fontSize: 14, color: "#555" },
+  statusRow: { flexDirection: "row", gap: 6 },
   statusBtn: {
     backgroundColor: "#eee",
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 8,
-    alignItems: "center",
-    justifyContent: "center",
+    padding: 8,
+    borderRadius: 6,
     minWidth: 40,
-  },
-  activeStatus: {
-    backgroundColor: "#007AFF",
-  },
-  statusText: {
-    fontSize: 18,
-    color: "#fff",
-  },
-  empty: {
-    textAlign: "center",
-    color: "#999",
-    fontSize: 16,
-    marginTop: 20,
-  },
-  loading: {
-    flex: 1,
-    justifyContent: "center",
     alignItems: "center",
   },
+  activeStatus: { backgroundColor: "#007AFF" },
+  statusText: { color: "#fff", fontWeight: "bold" },
+  empty: { textAlign: "center", marginTop: 20, color: "#999" },
+  loading: { flex: 1, justifyContent: "center", alignItems: "center" },
 });

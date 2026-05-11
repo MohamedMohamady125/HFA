@@ -19,6 +19,7 @@ export default function AthleteHome() {
   const [paymentStatus, setPaymentStatus] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Formats current date key for payment status lookup
   const getCurrentDueDateKey = () => {
     const today = new Date();
     const year = today.getFullYear();
@@ -26,6 +27,7 @@ export default function AthleteHome() {
     return `${year}-${month}-01`;
   };
 
+  // Formats current month label for display
   const getCurrentMonthName = () => {
     const today = new Date();
     return today.toLocaleString("default", { month: "long", year: "numeric" });
@@ -35,23 +37,44 @@ export default function AthleteHome() {
     const fetchData = async () => {
       setLoading(true);
       try {
+        // Get stored user and token
         const storedUser = await AsyncStorage.getItem("authUser");
         if (!storedUser) return;
         const user = JSON.parse(storedUser);
         const headers = { Authorization: `Bearer ${user.token}` };
 
-        const attendanceRes = await axios.get(
-          `http://192.168.1.8:8000/attendance/athlete/${user.id}/week`,
+        // 1. Get athlete id linked to user id
+        const athleteRes = await axios.get(
+          `http://192.168.1.8:8000/athletes/user/${user.id}`,
           { headers }
         );
-        setAttendance(attendanceRes.data || []);
+        const athleteId = athleteRes.data.id;
 
+        // 2. Get weekly attendance - Use the athlete-specific endpoint
+        try {
+          const attendanceRes = await axios.get(
+            `http://192.168.1.8:8000/attendance/athlete/${user.id}/week`,
+            { headers }
+          );
+          setAttendance(attendanceRes.data || []);
+          console.log("✅ Successfully fetched attendance:", attendanceRes.data);
+        } catch (attendanceError) {
+          console.error("❌ Attendance fetch failed:", attendanceError);
+          if (axios.isAxiosError(attendanceError)) {
+            console.error("Response status:", attendanceError.response?.status);
+            console.error("Response data:", attendanceError.response?.data);
+          }
+          setAttendance([]); // Set empty array so UI doesn't break
+        }
+
+        // 3. Get latest gear update for branch
         const gearRes = await axios.get(
           `http://192.168.1.8:8000/gear/${user.branch_id}`,
           { headers }
         );
         setGearMessage(gearRes.data?.message || "No recent gear update.");
 
+        // 4. Get branch threads excluding gear thread
         const threadsRes = await axios.get(
           `http://192.168.1.8:8000/threads/branch/${user.branch_id}`,
           { headers }
@@ -69,6 +92,7 @@ export default function AthleteHome() {
           setLastThreadMessage("No threads available.");
         }
 
+        // 5. Get payment status for current month
         const payRes = await axios.get(
           `http://192.168.1.8:8000/payments/${user.id}/status`,
           { headers }
@@ -77,6 +101,12 @@ export default function AthleteHome() {
         setPaymentStatus(paymentData[getCurrentDueDateKey()] || "pending");
       } catch (err) {
         console.error("❌ Error fetching home data", err);
+        // Log more details for debugging
+        if (axios.isAxiosError(err)) {
+          console.error("Status:", err.response?.status);
+          console.error("Data:", err.response?.data);
+          console.error("Headers:", err.response?.headers);
+        }
       } finally {
         setLoading(false);
       }
@@ -85,32 +115,49 @@ export default function AthleteHome() {
     fetchData();
   }, []);
 
+  // Attendance status icons
   const getStatusIcon = (status: string | null) => {
     switch (status) {
-      case "present": return "✅";
-      case "absent": return "❌";
-      case "excused": return "🟡";
-      default: return "—";
+      case "present":
+        return "✅";
+      case "absent":
+        return "❌";
+      case "excused":
+        return "🟡";
+      default:
+        return "—";
     }
   };
 
+  // Payment status icons
   const getPaymentIcon = (status: string | null) => {
     switch (status) {
-      case "paid": return "✅";
-      case "late": return "⚠️";
-      case "pending": return "⏳";
-      case "error": return "❓";
-      default: return "❌";
+      case "paid":
+        return "✅";
+      case "late":
+        return "⚠️";
+      case "pending":
+        return "⏳";
+      case "error":
+        return "❓";
+      default:
+        return "❌";
     }
   };
 
+  // Payment status labels
   const getPaymentLabel = (status: string | null) => {
     switch (status) {
-      case "paid": return "Paid";
-      case "late": return "Late";
-      case "pending": return "Pending";
-      case "error": return "Error";
-      default: return "Unknown";
+      case "paid":
+        return "Paid";
+      case "late":
+        return "Late";
+      case "pending":
+        return "Pending";
+      case "error":
+        return "Error";
+      default:
+        return "Unknown";
     }
   };
 
@@ -132,30 +179,38 @@ export default function AthleteHome() {
         <Text style={styles.dateText}>{new Date().toLocaleDateString()}</Text>
       </View>
 
-      {/* Attendance */}
+      {/* Weekly Attendance */}
       <View style={[styles.card, { backgroundColor: "#3399FF" }]}>
         <Text style={styles.sectionTitle}>📆 Weekly Attendance</Text>
-        {["Day 1", "Day 2", "Day 3"].map((label, i) => {
-          const record = attendance.find((d) => d.day_number === i + 1);
-          return (
-            <View key={i} style={[styles.row, { backgroundColor: "#CCE5FF" }]}>
-              <Text style={styles.label}>{label}</Text>
-              <Text style={styles.status}>{getStatusIcon(record?.status ?? null)}</Text>
-            </View>
-          );
-        })}
+        {attendance.length === 0 ? (
+          <View style={[styles.row, { backgroundColor: "#CCE5FF" }]}>
+            <Text style={styles.label}>No attendance data available</Text>
+          </View>
+        ) : (
+          ["Day 1", "Day 2", "Day 3"].map((label, i) => {
+            const record = attendance.find((d) => d.day_number === i + 1);
+            return (
+              <View key={i} style={[styles.row, { backgroundColor: "#CCE5FF" }]}>
+                <Text style={styles.label}>{label}</Text>
+                <Text style={styles.status}>{getStatusIcon(record?.status ?? null)}</Text>
+              </View>
+            );
+          })
+        )}
       </View>
 
-      {/* Threads */}
+      {/* Latest Thread */}
       <TouchableOpacity
         style={[styles.card, { backgroundColor: "#3399FF" }]}
         onPress={() => router.push("/(athlete-tabs)/threads")}
       >
         <Text style={styles.sectionTitle}>💬 Latest Thread</Text>
-        <Text style={[styles.threadPreview, { backgroundColor: "#D6ECFF" }]}>{lastThreadMessage}</Text>
+        <Text style={[styles.threadPreview, { backgroundColor: "#D6ECFF" }]}>
+          {lastThreadMessage}
+        </Text>
       </TouchableOpacity>
 
-      {/* Gear */}
+      {/* Gear Check */}
       <TouchableOpacity
         style={[styles.card, { backgroundColor: "#3399FF" }]}
         onPress={() => router.push("/(athlete-tabs)/gear")}
@@ -164,7 +219,7 @@ export default function AthleteHome() {
         <Text style={[styles.threadPreview, { backgroundColor: "#D0F0FF" }]}>{gearMessage}</Text>
       </TouchableOpacity>
 
-      {/* Payment */}
+      {/* Payment Status */}
       <View style={[styles.card, { backgroundColor: "#3399FF" }]}>
         <Text style={styles.sectionTitle}>💰 Payment – {getCurrentMonthName()}</Text>
         <View style={[styles.row, { backgroundColor: "#F0F9FF" }]}>

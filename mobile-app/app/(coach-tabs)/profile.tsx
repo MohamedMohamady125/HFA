@@ -1,11 +1,31 @@
-// FILE: app/(coach-tabs)/profile.tsx
+import { useEffect, useState } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from "react-native";
 import { useAuth } from "../../context/auth";
 import { useRouter } from "expo-router";
+import axios from "axios";
 
 export default function CoachProfile() {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const router = useRouter();
+  const [branchName, setBranchName] = useState("");
+
+  useEffect(() => {
+    async function fetchUserDetails() {
+      try {
+        if (!user?.token) return;
+
+        const res = await axios.get("http://192.168.1.8:8000/users/me", {
+          headers: { Authorization: `Bearer ${user.token}` },
+        });
+        setBranchName(res.data.branch_name || "");
+        // Also refresh context user data to keep in sync with storage/backend
+        refreshUser();
+      } catch (e) {
+        console.error("Failed to fetch user details", e);
+      }
+    }
+    fetchUserDetails();
+  }, [user?.branch_id]); // fetch again when branch changes
 
   return (
     <ScrollView style={styles.container}>
@@ -13,27 +33,35 @@ export default function CoachProfile() {
 
       <View style={styles.profileCard}>
         <Text style={styles.name}>{user?.name || "Coach Name"}</Text>
-        <Text style={styles.info}>📍 {user?.branch_name || "Branch Name"}</Text>
-        <Text style={styles.info}>📧 {user?.email || "coach@email.com"}</Text>
+        <Text style={styles.info}>📍 {branchName || "Branch Name"}</Text>
+        <Text style={styles.info}>{user?.email || "coach@email.com"}</Text>
       </View>
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>⚡ Quick Actions</Text>
-        <TouchableOpacity style={styles.button} onPress={() => router.push("/edit-profile")}>
+        <TouchableOpacity
+          style={styles.button}
+          onPress={() => router.push("/edit-profile")}
+        >
           <Text style={styles.buttonText}>Edit Profile</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.button} onPress={() => router.push("/change-password")}>
+        <TouchableOpacity
+          style={styles.button}
+          onPress={() => router.push("/change-password")}
+        >
           <Text style={styles.buttonText}>Change Password</Text>
         </TouchableOpacity>
       </View>
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>📊 Attendance</Text>
-        <TouchableOpacity style={styles.button} onPress={() => router.push("/(coach-manage)/attendance")}>
+        <TouchableOpacity
+          style={styles.button}
+          onPress={() => router.push("/(coach-manage)/attendance")}
+        >
           <Text style={styles.buttonText}>Branch Attendance Summary</Text>
         </TouchableOpacity>
       </View>
-
     </ScrollView>
   );
 }

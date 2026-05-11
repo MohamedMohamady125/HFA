@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
-from app.database import get_connection
+from app.database import get_connection, get_cursor
 from app.deps import get_current_user
 from passlib.hash import bcrypt
 from datetime import date, datetime
@@ -10,11 +10,31 @@ router = APIRouter()
 
 class PaymentMark(BaseModel):
     athlete_id: int
-    session_date: str  # actual training session
-    status: str  # 'paid', 'pending', 'late'
+    session_date: str
+    status: str
 
 @router.get("/me")
 def get_current_user_details(user=Depends(get_current_user)):
+    conn = get_connection()
+    cursor = get_cursor(conn)
+
+    assigned_branch_id = user.get("branch_id")
+    if user["role"] in ["coach", "head_coach"]:
+        cursor.execute(
+            "SELECT branch_id FROM coach_assignments WHERE user_id = %s LIMIT 1",
+            (user["id"],),
+        )
+        assignment = cursor.fetchone()
+        if assignment:
+            assigned_branch_id = assignment["branch_id"]
+
+    cursor.execute("SELECT name FROM branches WHERE id = %s", (assigned_branch_id,))
+    branch = cursor.fetchone()
+    branch_name = branch["name"] if branch else None
+
+    cursor.close()
+    conn.close()
+
     return {
         "id": user["id"],
         "name": user["name"],
@@ -22,7 +42,8 @@ def get_current_user_details(user=Depends(get_current_user)):
         "phone": user["phone"],
         "role": user["role"],
         "approved": bool(user.get("approved", False)),
-        "branch_id": user.get("branch_id"),
+        "branch_id": assigned_branch_id,
+        "branch_name": branch_name,
     }
 
 @router.get("/requests")
@@ -31,14 +52,17 @@ def get_registration_requests(user=Depends(get_current_user)):
         raise HTTPException(status_code=403, detail="Only coaches can view registration requests")
 
     conn = get_connection()
-    cursor = conn.cursor(dictionary=True)
+    cursor = get_cursor(conn)
     cursor.execute("""
         SELECT id, athlete_name, phone, email, submitted_at, approved
         FROM registration_requests
-        WHERE approved = 0
+        WHERE approved = false
         ORDER BY submitted_at DESC
     """)
-    return cursor.fetchall()
+    rows = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return [dict(r) for r in rows]
 
 @router.post("/approve/{request_id}")
 def approve_registration_request(request_id: int, user=Depends(get_current_user)):
@@ -46,15 +70,13 @@ def approve_registration_request(request_id: int, user=Depends(get_current_user)
         raise HTTPException(status_code=403, detail="Only coaches can approve registrations")
 
     conn = get_connection()
-    cursor = conn.cursor(dictionary=True)
+    cursor = get_cursor(conn)
 
-    # Step 1: Fetch registration request
     cursor.execute("SELECT * FROM registration_requests WHERE id = %s", (request_id,))
     request = cursor.fetchone()
     if not request:
         raise HTTPException(status_code=404, detail="Request not found")
 
-    # Step 2: Check if user already exists
     cursor.execute("SELECT * FROM users WHERE email = %s", (request["email"],))
     existing_user = cursor.fetchone()
 
@@ -65,13 +87,14 @@ def approve_registration_request(request_id: int, user=Depends(get_current_user)
 
         cursor.execute("""
             UPDATE users
-            SET approved = 1, branch_id = %s
+            SET approved = true, branch_id = %s
             WHERE id = %s
         """, (user["branch_id"], user_id))
     else:
         cursor.execute("""
             INSERT INTO users (name, email, phone, password_hash, role, approved, branch_id)
             VALUES (%s, %s, %s, %s, %s, %s, %s)
+            RETURNING id
         """, (
             request["athlete_name"],
             request["email"],
@@ -81,12 +104,12 @@ def approve_registration_request(request_id: int, user=Depends(get_current_user)
             True,
             user["branch_id"]
         ))
-        user_id = cursor.lastrowid
+        user_id = cursor.fetchone()["id"]
 
-    # Insert into athletes table if not already
-    cursor.execute("INSERT IGNORE INTO athletes (user_id) VALUES (%s)", (user_id,))
+    # Insert athlete if not exists
+    cursor.execute("INSERT INTO athletes (user_id) VALUES (%s) ON CONFLICT (user_id) DO NOTHING", (user_id,))
 
-    # Step 3: Add initial payment row for current month
+    # Add initial payment row for current month
     cursor.execute("SELECT id FROM athletes WHERE user_id = %s", (user_id,))
     athlete = cursor.fetchone()
     if athlete:
@@ -96,7 +119,7 @@ def approve_registration_request(request_id: int, user=Depends(get_current_user)
         cursor.execute("""
             INSERT INTO payments (athlete_id, session_date, due_date, branch_id, status, confirmed_by_coach)
             VALUES (%s, %s, %s, %s, %s, %s)
-            ON DUPLICATE KEY UPDATE status = VALUES(status)
+            ON CONFLICT (athlete_id, due_date) DO UPDATE SET status = EXCLUDED.status
         """, (
             athlete_id,
             first_of_month,
@@ -106,15 +129,16 @@ def approve_registration_request(request_id: int, user=Depends(get_current_user)
             False
         ))
 
-    # Step 4: Approve the request
     if not request["approved"]:
         cursor.execute("""
             UPDATE registration_requests
-            SET approved = 1, approved_by = %s
+            SET approved = true, approved_by = %s
             WHERE id = %s
         """, (user["id"], request_id))
 
     conn.commit()
+    cursor.close()
+    conn.close()
     return {"message": "Registration approved"}
 
 @router.post("/payments/mark")
@@ -123,7 +147,7 @@ def mark_payment(data: PaymentMark, user=Depends(get_current_user)):
         raise HTTPException(status_code=403, detail="Only coaches can update payments")
 
     conn = get_connection()
-    cursor = conn.cursor()
+    cursor = get_cursor(conn)
 
     try:
         session_dt = datetime.strptime(data.session_date, "%Y-%m-%d").date()
@@ -135,7 +159,7 @@ def mark_payment(data: PaymentMark, user=Depends(get_current_user)):
     cursor.execute("""
         INSERT INTO payments (athlete_id, session_date, due_date, branch_id, status, confirmed_by_coach)
         VALUES (%s, %s, %s, %s, %s, TRUE)
-        ON DUPLICATE KEY UPDATE status = VALUES(status), confirmed_by_coach = TRUE
+        ON CONFLICT (athlete_id, due_date) DO UPDATE SET status = EXCLUDED.status, confirmed_by_coach = TRUE
     """, (
         data.athlete_id,
         session_dt,
@@ -145,6 +169,8 @@ def mark_payment(data: PaymentMark, user=Depends(get_current_user)):
     ))
 
     conn.commit()
+    cursor.close()
+    conn.close()
     return {"message": "Payment status updated"}
 
 @router.post("/reject/{request_id}")
@@ -153,16 +179,16 @@ def reject_registration_request(request_id: int, user=Depends(get_current_user))
         raise HTTPException(status_code=403, detail="Only coaches can reject registrations")
 
     conn = get_connection()
-    cursor = conn.cursor(dictionary=True)
+    cursor = get_cursor(conn)
 
-    # Step 1: Confirm the request exists
     cursor.execute("SELECT * FROM registration_requests WHERE id = %s", (request_id,))
     request = cursor.fetchone()
     if not request:
         raise HTTPException(status_code=404, detail="Request not found")
 
-    # Step 2: Delete the request
     cursor.execute("DELETE FROM registration_requests WHERE id = %s", (request_id,))
     conn.commit()
+    cursor.close()
+    conn.close()
 
     return {"message": "Registration request rejected successfully"}

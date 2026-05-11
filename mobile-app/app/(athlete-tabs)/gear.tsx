@@ -19,21 +19,22 @@ export default function GearScreen() {
       try {
         const storedUser = await AsyncStorage.getItem("authUser");
         if (!storedUser) throw new Error("No stored user");
-
+  
         const parsedUser = JSON.parse(storedUser);
         const headers = { Authorization: `Bearer ${parsedUser.token}` };
-
-        const branchId = parsedUser.branch_id;
+  
+        // Fetch assigned branch
+        const userRes = await axios.get("http://192.168.1.8:8000/users/me", { headers });
+        const branchId = userRes.data.branch_id;
         if (!branchId) throw new Error("Branch ID missing");
-
+  
         const res = await axios.get(`http://192.168.1.8:8000/gear/${branchId}`, { headers });
-
-        if (res.data?.message && res.data?.thread_title?.toLowerCase() === "gear") {
+  
+        if (res.data?.message) {
           setGearMessage(res.data.message);
         } else {
-          setGearMessage("No gear updates yet.");
+          setGearMessage("No gear updates posted yet.");
         }
-
       } catch (err) {
         console.error("❌ Error loading gear", err);
         setGearMessage("Error loading gear information.");
@@ -41,7 +42,7 @@ export default function GearScreen() {
         setLoading(false);
       }
     };
-
+  
     fetchGear();
   }, []);
 

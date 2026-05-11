@@ -1,15 +1,28 @@
-// ✅ FILE: app/_layout.tsx
-import { Slot, useRouter, useSegments, useLocalSearchParams } from "expo-router";
-import { useEffect } from "react";
+import { Slot, useRouter, useSegments } from "expo-router";
+import { useEffect, useState } from "react";
 import { View, ActivityIndicator } from "react-native";
 import { AuthProvider, useAuth } from "../context/auth";
-import '../utils/i18n';
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 function InnerLayout() {
   const { user, loading } = useAuth();
   const router = useRouter();
   const segments = useSegments();
-  const params = useLocalSearchParams();
+
+  const [headCoachMode, setHeadCoachMode] = useState(false);
+
+  useEffect(() => {
+    const checkHeadCoachMode = async () => {
+      const value = await AsyncStorage.getItem("headCoachMode");
+      setHeadCoachMode(value === "true");
+    };
+    checkHeadCoachMode();
+  }, []);
+
+  // Render Slot immediately to avoid navigate before mount error
+  if (loading) {
+    return <Slot />;
+  }
 
   useEffect(() => {
     if (loading) return;
@@ -18,11 +31,17 @@ function InnerLayout() {
     const currentRoute = segments.join("/");
 
     const isPublic = [
-      "guest-home", "pending-home-test", "athlete-home-test",
-      "services", "login", "register", "admin-login", "forgot-password",
+      "guest-home",
+      "pending-home-test",
+      "athlete-home-test",
+      "services",
+      "login",
+      "register",
+      "admin-login",
+      "forgot-password",
+      "head-coach-login",
+      "head-coach-branches",
     ].includes(currentRoute);
-
-    const isCoachAllowedRoute = ["edit-profile", "change-password"].includes(currentRoute);
 
     if (!user && !isPublic && group !== "(tabs)") {
       router.replace("/guest-home");
@@ -34,46 +53,23 @@ function InnerLayout() {
       return;
     }
 
-    if (
-      user?.isLoggedIn &&
-      user.isApproved &&
-      user.role === "coach" &&
-      !["(coach-tabs)", "(coach-manage)"].includes(group) &&
-      !isCoachAllowedRoute
-    ) {
-      router.replace("/(coach-tabs)/home");
-      return;
+    if (user?.isLoggedIn && user.isApproved) {
+      if (headCoachMode && user.role === "head_coach") {
+        if (group !== "head-coach-branches" && currentRoute !== "head-coach-login") {
+          router.replace("/head-coach-branches");
+          return;
+        }
+      } else if (["coach", "head_coach"].includes(user.role)) {
+        if (!["(coach-tabs)", "(coach-manage)"].includes(group)) {
+          router.replace("/(coach-tabs)/home");
+          return;
+        }
+      } else if (user.role === "athlete" && group !== "(athlete-tabs)") {
+        router.replace("/(athlete-tabs)/home");
+        return;
+      }
     }
-
-    if (
-      user?.isLoggedIn &&
-      user.isApproved &&
-      user.role === "head_coach" &&
-      group !== "(coach-tabs)" &&
-      !params.override_branch
-    ) {
-      router.replace("/head-coach-branches");
-      return;
-    }
-
-    if (
-      user?.isLoggedIn &&
-      user.isApproved &&
-      user.role === "athlete" &&
-      group !== "(athlete-tabs)"
-    ) {
-      router.replace("/(athlete-tabs)/home");
-      return;
-    }
-  }, [user, loading, segments]);
-
-  if (loading) {
-    return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <ActivityIndicator size="large" />
-      </View>
-    );
-  }
+  }, [user, loading, segments, headCoachMode]);
 
   return <Slot />;
 }

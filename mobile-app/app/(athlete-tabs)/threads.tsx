@@ -22,6 +22,7 @@ export default function AthleteThreadsScreen() {
   const [selectedThread, setSelectedThread] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [postsLoading, setPostsLoading] = useState(false);
+  const [branchName, setBranchName] = useState<string>("");
   const flatListRef = useRef<FlatList>(null);
   const router = useRouter();
 
@@ -37,19 +38,40 @@ export default function AthleteThreadsScreen() {
       const { token } = JSON.parse(storedUser);
       const headers = { Authorization: `Bearer ${token}` };
 
+      // 1. Get user info including branch ID
       const meRes = await axios.get(`${BASE_URL}/users/me`, { headers });
       const branchId = meRes.data.branch_id;
 
-      const threadsRes = await axios.get(`${BASE_URL}/threads/branch/${branchId}`, { headers });
-      const allThreads = threadsRes.data;
+      // 2. Fetch branch name
+      const branchRes = await axios.get(`${BASE_URL}/branches/${branchId}`, { headers });
+      setBranchName(branchRes.data.name);
 
-      const filtered = allThreads.filter((t: any) =>
-        !t.title.toLowerCase().includes("gear") &&
-        !t.title.toLowerCase().includes("equipment")
+      // 3. Fetch threads for the branch
+      const threadsRes = await axios.get(`${BASE_URL}/threads/branch/${branchId}`, { headers });
+      let fetchedThreads = threadsRes.data;
+
+      // 4. Replace thread titles like "Branch {branchId} General" with "Branch: {branchName} General"
+      fetchedThreads = fetchedThreads.map((thread: any) => {
+        const regex = new RegExp(`Branch\\s+${branchId}\\s+General`, "i");
+        if (regex.test(thread.title)) {
+          return {
+            ...thread,
+            title: `Branch: ${branchRes.data.name} `,
+          };
+        }
+        return thread;
+      });
+
+      // 5. Filter out gear and equipment threads
+      const filtered = fetchedThreads.filter(
+        (t: any) =>
+          !t.title.toLowerCase().includes("gear") &&
+          !t.title.toLowerCase().includes("equipment")
       );
 
       setThreads(filtered);
 
+      // 6. Auto-select first thread if exists
       if (filtered.length > 0) {
         await selectThread(filtered[0], headers);
       }
@@ -71,7 +93,6 @@ export default function AthleteThreadsScreen() {
       const headers = headersOverride || { Authorization: `Bearer ${token}` };
 
       const postsRes = await axios.get(`${BASE_URL}/threads/${thread.id}/posts`, { headers });
-
       setPosts(postsRes.data);
     } catch (error: any) {
       const errorMessage = error.response?.data?.detail || error.message || "Unknown error";
@@ -138,7 +159,7 @@ export default function AthleteThreadsScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#ffffff" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>💬 Branch Threads</Text>
+        <Text style={styles.headerTitle}>💬 Branch Threads{branchName ? ` - ${branchName}` : ""}</Text>
       </View>
 
       {threads.length === 0 ? (
@@ -157,10 +178,12 @@ export default function AthleteThreadsScreen() {
                 ]}
                 onPress={() => selectThread(thread)}
               >
-                <Text style={[
-                  styles.threadButtonText,
-                  selectedThread?.id === thread.id && styles.threadButtonTextActive
-                ]}>
+                <Text
+                  style={[
+                    styles.threadButtonText,
+                    selectedThread?.id === thread.id && styles.threadButtonTextActive,
+                  ]}
+                >
                   {thread.title}
                 </Text>
               </TouchableOpacity>
@@ -206,8 +229,6 @@ export default function AthleteThreadsScreen() {
     </SafeAreaView>
   );
 }
-
-// ...same imports...
 
 const styles = StyleSheet.create({
   container: {

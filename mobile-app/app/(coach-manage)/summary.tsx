@@ -5,53 +5,59 @@ import { useAuth } from "../../context/auth";
 
 export default function AttendanceSummary() {
   const { user } = useAuth();
-  const [data, setData] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [records, setRecords] = useState<any[]>([]);
   const [sessionDates, setSessionDates] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchSummary = async () => {
       try {
-        const [summaryRes, sessionDaysRes] = await Promise.all([
-          api.get(`/attendance/branch/${user.branch_id}/summary`),
-          api.get(`/attendance/branch/${user.branch_id}/session-dates`),
+        const [summaryRes, datesRes] = await Promise.all([
+          api.get(`/attendance/branch/${user?.branch_id}/summary`),
+          api.get(`/attendance/branch/${user?.branch_id}/session-dates`),
         ]);
 
-        setData(summaryRes.data.records);
-        setSessionDates(sessionDaysRes.data);
-      } catch (e) {
-        console.error("Failed to load summary or session days", e);
+        setRecords(summaryRes.data.records || []);
+        setSessionDates(datesRes.data || []);
+      } catch (err) {
+        console.error("❌ Failed to load attendance summary or session dates", err);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchData();
+    fetchSummary();
   }, []);
 
-  const groupByAthlete = () => {
-    const grouped: { [athlete: string]: { [date: string]: string | null } } = {};
-    for (let row of data) {
+  const groupRecords = () => {
+    const grouped: { [name: string]: { [date: string]: string } } = {};
+    for (let row of records) {
       if (!grouped[row.athlete_name]) grouped[row.athlete_name] = {};
       grouped[row.athlete_name][row.session_date] = row.status;
     }
     return grouped;
   };
 
-  if (loading) return <ActivityIndicator size="large" />;
+  const grouped = groupRecords();
 
-  const grouped = groupByAthlete();
+  if (loading) {
+    return (
+      <View style={styles.loading}>
+        <ActivityIndicator size="large" color="#007AFF" />
+        <Text style={{ marginTop: 10 }}>Loading summary...</Text>
+      </View>
+    );
+  }
 
   return (
     <ScrollView style={styles.container}>
       <Text style={styles.title}>📊 Attendance Summary</Text>
-
-      {Object.entries(grouped).map(([name, records]) => (
+      {Object.entries(grouped).map(([name, dateMap]) => (
         <View key={name} style={styles.card}>
           <Text style={styles.name}>{name}</Text>
           {sessionDates.map((date, idx) => (
             <Text key={date} style={styles.record}>
-              Day {idx + 1} ({date}): {records[date] ?? "—"}
+              Day {idx + 1} ({date}): {dateMap[date] ?? "—"}
             </Text>
           ))}
         </View>
@@ -62,13 +68,32 @@ export default function AttendanceSummary() {
 
 const styles = StyleSheet.create({
   container: { padding: 20 },
-  title: { fontSize: 20, fontWeight: "bold", marginBottom: 12 },
+  title: { fontSize: 20, fontWeight: "bold", marginBottom: 16 },
   card: {
-    backgroundColor: "#f8f9fa",
+    backgroundColor: "#fff",
+    borderRadius: 12,
     padding: 16,
-    borderRadius: 10,
     marginBottom: 16,
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
+    elevation: 2,
   },
-  name: { fontSize: 16, fontWeight: "600", marginBottom: 6 },
-  record: { fontSize: 14, color: "#333" },
+  name: {
+    fontSize: 16,
+    fontWeight: "600",
+    marginBottom: 8,
+    color: "#1a202c",
+  },
+  record: {
+    fontSize: 14,
+    color: "#333",
+  },
+  loading: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingTop: 100,
+  },
 });

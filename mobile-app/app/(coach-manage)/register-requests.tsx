@@ -2,18 +2,18 @@ import { useEffect, useState } from "react";
 import {
   View,
   Text,
-  FlatList,
-  TouchableOpacity,
   StyleSheet,
+  Button,
+  ScrollView,
   ActivityIndicator,
   Alert,
-  SafeAreaView,
+  TouchableOpacity,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
 import api from "../../utils/api";
+import { useRouter } from "expo-router";
 
-export default function RegisterRequestsScreen() {
+export default function CoachRequests() {
   const [requests, setRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
@@ -23,11 +23,7 @@ export default function RegisterRequestsScreen() {
       const res = await api.get("/users/requests");
       setRequests(res.data);
     } catch (err: any) {
-      console.error("❌ Failed to fetch registration requests:", err);
-      if (err.response) {
-        console.error("📡 Axios response error:", err.response.status, err.response.data);
-      }
-      Alert.alert("Error", "Failed to fetch registration requests");
+      Alert.alert("Error", err.response?.data?.detail || "Failed to load requests");
     } finally {
       setLoading(false);
     }
@@ -36,17 +32,16 @@ export default function RegisterRequestsScreen() {
   const handleApprove = async (requestId: number) => {
     try {
       await api.post(`/users/approve/${requestId}`);
-      Alert.alert("✅ Approved", "Athlete has been successfully approved.");
+      Alert.alert("Approved", "Athlete has been approved.");
       fetchRequests();
-    } catch (err) {
-      console.error("❌ Failed to approve athlete:", err);
+    } catch {
       Alert.alert("Error", "Failed to approve athlete");
     }
   };
 
   const handleReject = async (requestId: number) => {
     Alert.alert(
-      "Are you sure?",
+      "Confirm Reject",
       "This will permanently reject the registration request.",
       [
         { text: "Cancel", style: "cancel" },
@@ -56,11 +51,10 @@ export default function RegisterRequestsScreen() {
           onPress: async () => {
             try {
               await api.post(`/users/reject/${requestId}`);
-              Alert.alert("❌ Rejected", "The request was successfully rejected.");
+              Alert.alert("Rejected", "The request was rejected.");
               fetchRequests();
-            } catch (err) {
-              console.error("❌ Failed to reject request:", err);
-              Alert.alert("Error", "Failed to reject the request.");
+            } catch {
+              Alert.alert("Error", "Failed to reject the request");
             }
           },
         },
@@ -81,116 +75,40 @@ export default function RegisterRequestsScreen() {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#f8f9fb" }}>
-      <View style={styles.container}>
-        <TouchableOpacity onPress={() => router.push("/(coach-tabs)/home")} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#007AFF" />
-        </TouchableOpacity>
+    <ScrollView contentContainerStyle={styles.page}>
+      <TouchableOpacity onPress={() => router.push("/(coach-tabs)/home")} style={styles.backButton}>
+        <Ionicons name="arrow-back" size={24} color="#007AFF" />
+      </TouchableOpacity>
 
-        <Text style={styles.title}>Athlete Requests</Text>
-
-        <FlatList
-          data={requests}
-          keyExtractor={(item) => item.id.toString()}
-          ListEmptyComponent={<Text style={styles.empty}>No pending requests.</Text>}
-          renderItem={({ item }) => (
-            <View style={styles.card}>
-              <Text style={styles.name}>{item.athlete_name}</Text>
-              <Text style={styles.detail}>📞 {item.phone}</Text>
-              <Text style={styles.detail}>📧 {item.email}</Text>
-
-              <View style={{ flexDirection: "row", gap: 10, marginTop: 16 }}>
-                <TouchableOpacity
-                  style={styles.approveBtn}
-                  onPress={() => handleApprove(item.id)}
-                >
-                  <Text style={styles.btnText}>Approve</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.rejectBtn}
-                  onPress={() => handleReject(item.id)}
-                >
-                  <Text style={styles.btnText}>Reject</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
-        />
-      </View>
-    </SafeAreaView>
+      <Text style={styles.title}>📝 Pending Registration Requests</Text>
+      {requests.length === 0 ? (
+        <Text>No pending requests.</Text>
+      ) : (
+        requests.map((req, idx) => (
+          <View key={idx} style={styles.card}>
+            <Text style={styles.label}>📧 {req.email}</Text>
+            <Text style={styles.label}>📱 {req.phone}</Text>
+            <Text style={styles.label}>🧍 {req.athlete_name}</Text>
+            <Button title="Approve" onPress={() => handleApprove(req.id)} />
+            <Button title="Reject" onPress={() => handleReject(req.id)} color="red" />
+          </View>
+        ))
+      )}
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    paddingTop: 40,
-    paddingHorizontal: 20,
-  },
-  backButton: {
-    padding: 8,
-    borderRadius: 10,
-    backgroundColor: "#eef3f9",
-    alignSelf: "flex-start",
-    marginBottom: 15,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "700",
-    marginBottom: 20,
-    color: "#1e1e2d",
-  },
+  page: { padding: 20, paddingTop: 60 },
+  backButton: { marginBottom: 10 },
+  title: { fontSize: 20, fontWeight: "bold", marginBottom: 20 },
   card: {
     backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 20,
-    shadowColor: "#000",
-    shadowOpacity: 0.06,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  name: {
-    fontSize: 18,
-    fontWeight: "600",
-    marginBottom: 6,
-    color: "#333",
-  },
-  detail: {
-    fontSize: 15,
-    color: "#555",
-    marginBottom: 2,
-  },
-  approveBtn: {
-    flex: 1,
-    backgroundColor: "#4CAF50",
-    paddingVertical: 12,
+    padding: 16,
     borderRadius: 10,
-    alignItems: "center",
+    marginBottom: 16,
+    elevation: 2,
   },
-  rejectBtn: {
-    flex: 1,
-    backgroundColor: "#D32F2F",
-    paddingVertical: 12,
-    borderRadius: 10,
-    alignItems: "center",
-  },
-  btnText: {
-    color: "#fff",
-    fontWeight: "700",
-    fontSize: 15,
-  },
-  empty: {
-    marginTop: 40,
-    textAlign: "center",
-    fontSize: 16,
-    color: "#777",
-  },
-  loading: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
+  label: { marginBottom: 6, fontSize: 14 },
+  loading: { flex: 1, justifyContent: "center", alignItems: "center" },
 });

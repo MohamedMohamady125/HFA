@@ -1,4 +1,11 @@
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Image } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  SafeAreaView,
+  Image,
+} from "react-native";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import i18n from "../utils/i18n";
@@ -26,21 +33,36 @@ export default function GuestHome() {
       </TouchableOpacity>
 
       {/* Admin Button - Bottom Right */}
-      <TouchableOpacity style={styles.adminBtn} onPress={() => router.push("../admin-login")}>
+      <TouchableOpacity
+        style={styles.adminBtn}
+        onPress={() => router.push("../admin-login")}
+      >
         <Text style={styles.adminBtnText}>⚙️</Text>
       </TouchableOpacity>
+
+      {/* Head Coach Login Button - Top Right (always visible) */}
+      <TouchableOpacity
+  style={[styles.adminBtn, styles.headCoachBtnPosition]}
+  onPress={() => {
+    console.log("Head Coach button pressed");
+    router.push("/head-coach-login");
+  }}
+  activeOpacity={0.7}
+>
+  <Text style={styles.adminBtnText}>👑</Text>
+</TouchableOpacity>
 
       <View style={styles.contentContainer}>
         {/* Elegant Header */}
         <View style={styles.header}>
           <View style={styles.brandContainer}>
-            <Image 
-              source={require('../assets/images/hfanew.png')} // ← Try with one dot
+            <Image
+              source={require("../assets/images/hfanew.png")}
               style={styles.logoImage}
               resizeMode="contain"
             />
             <Text style={styles.brandName}></Text>
-            <Text style={styles.brandSubName}></Text>
+            <Text style={styles.brandSubName}>Academy</Text>
           </View>
           <Text style={styles.title}>{t("welcome_title")}</Text>
           <Text style={styles.subtitle}>{t("branch_count")}</Text>
@@ -62,17 +84,26 @@ export default function GuestHome() {
 
           {/* Action Buttons */}
           <View style={styles.buttonGroup}>
-            <TouchableOpacity style={styles.primaryBtn} onPress={() => router.push("/login")}>
+            <TouchableOpacity
+              style={styles.primaryBtn}
+              onPress={() => router.push("/login")}
+            >
               <Text style={styles.primaryBtnText}>{t("login")}</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.secondaryBtn} onPress={() => router.push("/register")}>
+            <TouchableOpacity
+              style={styles.secondaryBtn}
+              onPress={() => router.push("/register")}
+            >
               <Text style={styles.secondaryBtnText}>{t("register")}</Text>
             </TouchableOpacity>
           </View>
 
           {/* Secondary Action */}
-          <TouchableOpacity style={styles.linkBtn} onPress={() => router.push("/(tabs)/branches")}>
+          <TouchableOpacity
+            style={styles.linkBtn}
+            onPress={() => router.push("/(tabs)/branches")}
+          >
             <Text style={styles.linkBtnText}>{t("view_branches")}</Text>
             <Text style={styles.linkArrow}>→</Text>
           </TouchableOpacity>
@@ -93,7 +124,6 @@ const styles = StyleSheet.create({
   },
   gradientOverlay: {
     ...StyleSheet.absoluteFillObject,
-    background: "linear-gradient(135deg, rgba(0, 212, 255, 0.03) 0%, rgba(59, 130, 246, 0.08) 100%)",
     backgroundColor: "rgba(0, 212, 255, 0.02)",
   },
   contentContainer: {
@@ -299,7 +329,28 @@ const styles = StyleSheet.create({
     elevation: 6,
     zIndex: 1000,
   },
+  headCoachBtnPosition: {
+    position: "absolute",
+    top: 50,
+    right: 20,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "#ffffff",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#00d4ff",
+    shadowColor: "#00a3e6",
+    shadowOpacity: 0.5,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 6,
+    zIndex: 1100,
+  },
   adminBtnText: {
     fontSize: 16,
+    fontWeight: "700",
+    color: "#00d4ff",
   },
 });

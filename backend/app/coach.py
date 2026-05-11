@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, EmailStr
 from app.deps import get_current_user
-from app.database import get_connection
+from app.database import get_connection, get_cursor
 from passlib.hash import bcrypt
 
 router = APIRouter()
@@ -17,7 +17,7 @@ def get_coach_profile(user=Depends(get_current_user)):
         raise HTTPException(status_code=403, detail="Only coaches can access this")
 
     conn = get_connection()
-    cursor = conn.cursor(dictionary=True)
+    cursor = get_cursor(conn)
 
     cursor.execute("""
         SELECT u.name, u.email, b.name AS branch
@@ -32,9 +32,8 @@ def get_coach_profile(user=Depends(get_current_user)):
 
     if not result:
         raise HTTPException(status_code=404, detail="Coach profile not found")
-    return result
+    return dict(result)
 
-# ✅ Update Profile
 class UpdateCoachProfile(BaseModel):
     name: str
     email: EmailStr
@@ -45,7 +44,7 @@ def update_coach_profile(data: UpdateCoachProfile, user=Depends(get_current_user
         raise HTTPException(status_code=403, detail="Only coaches can update profile")
 
     conn = get_connection()
-    cursor = conn.cursor(dictionary=True)
+    cursor = get_cursor(conn)
 
     cursor.execute("""
         UPDATE users SET name = %s, email = %s WHERE id = %s
@@ -57,7 +56,6 @@ def update_coach_profile(data: UpdateCoachProfile, user=Depends(get_current_user
 
     return {"message": "Profile updated successfully"}
 
-# ✅ Change Password
 class ChangePasswordRequest(BaseModel):
     old_password: str
     new_password: str
@@ -65,7 +63,7 @@ class ChangePasswordRequest(BaseModel):
 @router.post("/coach/change-password")
 def change_password(data: ChangePasswordRequest, user=Depends(get_current_user)):
     conn = get_connection()
-    cursor = conn.cursor(dictionary=True)
+    cursor = get_cursor(conn)
 
     cursor.execute("SELECT password_hash FROM users WHERE id = %s", (user["id"],))
     row = cursor.fetchone()
@@ -82,16 +80,3 @@ def change_password(data: ChangePasswordRequest, user=Depends(get_current_user))
     conn.close()
 
     return {"message": "Password changed successfully"}
-
-
-@router.post("/coach/assign")
-def assign_coach_to_branch(coach_id: int, branch_id: int, user=Depends(get_current_user)):
-    if user["role"] != "head_coach":
-        raise HTTPException(status_code=403)
-    # assign coach logic
-
-@router.post("/coach/deassign")
-def remove_coach_from_branch(coach_id: int, branch_id: int, user=Depends(get_current_user)):
-    if user["role"] != "head_coach":
-        raise HTTPException(status_code=403)
-    # remove coach logic

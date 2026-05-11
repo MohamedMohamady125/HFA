@@ -1,52 +1,59 @@
 import { useEffect, useState } from "react";
-import { useRouter, useLocalSearchParams } from "expo-router";
 import {
+  ScrollView,
   View,
   Text,
-  StyleSheet,
-  Alert,
   TouchableOpacity,
+  StyleSheet,
   ActivityIndicator,
-  ScrollView,
+  Alert,
 } from "react-native";
 import { useAuth } from "../../context/auth";
 import api from "../../utils/api";
-
-interface User {
-  branch_id?: number;
-  role?: string;
-}
+import { useRouter, useLocalSearchParams } from "expo-router";
 
 export default function CoachHome() {
-  const { user } = useAuth() as { user: User | null };
+  const { user } = useAuth() as { user: any | null };
   const router = useRouter();
   const { override_branch } = useLocalSearchParams();
   const [name, setName] = useState<string>("");
 
-  const effectiveBranchId = override_branch
-    ? parseInt(Array.isArray(override_branch) ? override_branch[0] : override_branch)
-    : user?.branch_id;
+  const branchId = override_branch || user?.branch_id;
 
   useEffect(() => {
-    const fetchUser = async () => {
+    async function fetchUser() {
       try {
         const res = await api.get("/users/me");
-        setName(res.data?.name || "");
+        setName(res.data.name || "");
       } catch (err) {
-        console.error("❌ Error loading /me user:", err);
+        console.error("❌ Error loading user info:", err);
         Alert.alert("Error", "Failed to load user data");
       }
-    };
-
+    }
     fetchUser();
   }, []);
 
+  const handlePress = (route: string | null) => {
+    if (!route) {
+      Alert.alert("Error", "Branch ID not available for this action.");
+      return;
+    }
+    router.push(route);
+  };
+
   const tools = [
-    { title: "📝 Registration Requests", route: "/(coach-manage)/register-requests" },
-    { title: "📣 Threads", route: "/(coach-tabs)/coach-threads" },
-    { title: "🎒 Gear Updates", route: "/(coach-tabs)/coach-gear" },
-    { title: "💳 Payments", route: "/(coach-manage)/payment" },
-    { title: "📊 Attendance", route: "/(coach-manage)/attendance" },
+    { 
+      title: "📝 Registration Requests", 
+      route: "/(coach-manage)/register-requests",
+    },
+    { 
+      title: "💳 Payments", 
+      route: "/(coach-manage)/payment",
+    },
+    { 
+      title: "📊 Attendance", 
+      route: "/(coach-manage)/attendance",
+    },
   ];
 
   if (!name) {
@@ -67,21 +74,8 @@ export default function CoachHome() {
           <TouchableOpacity
             key={idx}
             style={styles.card}
-            onPress={() => {
-              const path = tool.route;
-              const overrideBranchStr = Array.isArray(override_branch) 
-                ? override_branch[0] 
-                : override_branch;
-              
-              if (overrideBranchStr && user?.role === "head_coach") {
-                router.push({
-                  pathname: path as any,
-                  params: { override_branch: overrideBranchStr }
-                });
-              } else {
-                router.push(path as any);
-              }
-            }}
+            onPress={() => handlePress(tool.route)}
+            activeOpacity={0.7}
           >
             <Text style={styles.cardText}>{tool.title}</Text>
           </TouchableOpacity>
@@ -135,9 +129,5 @@ const styles = StyleSheet.create({
     textAlign: "center",
     color: "#333",
   },
-  loadingContainer: { 
-    flex: 1, 
-    justifyContent: "center", 
-    alignItems: "center" 
-  },
+  loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
 });

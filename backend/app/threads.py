@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from app.database import get_connection
+from app.database import get_connection, get_cursor
 from app.deps import get_current_user
 from app.utils.auth_utils import can_access_branch
 
@@ -15,32 +15,126 @@ class MessageCreate(BaseModel):
 @router.get("/branch/{branch_id}")
 def get_branch_threads(branch_id: int):
     conn = get_connection()
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT * FROM threads WHERE branch_id = %s AND title != 'gear'", (branch_id,))
-    return cursor.fetchall()
+    cursor = get_cursor(conn)
+
+    try:
+        cursor.execute("""
+            SELECT * FROM threads
+            WHERE branch_id = %s AND title != 'gear'
+            ORDER BY created_at ASC
+        """, (branch_id,))
+        threads = [dict(r) for r in cursor.fetchall()]
+
+        if not threads:
+            cursor.execute("SELECT name FROM branches WHERE id = %s", (branch_id,))
+            branch = cursor.fetchone()
+            branch_name = branch["name"] if branch else f"Branch {branch_id}"
+
+            cursor.execute("""
+                INSERT INTO threads (branch_id, title, created_at)
+                VALUES (%s, %s, NOW())
+            """, (branch_id, f"Branch: {branch_name} General"))
+            conn.commit()
+
+            cursor.execute("""
+                SELECT * FROM threads
+                WHERE branch_id = %s AND title != 'gear'
+                ORDER BY created_at ASC
+            """, (branch_id,))
+            threads = [dict(r) for r in cursor.fetchall()]
+
+        return threads
+
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+    finally:
+        cursor.close()
+        conn.close()
+
+@router.post("/branch/{branch_id}/ensure-thread")
+def ensure_branch_thread(branch_id: int, user=Depends(get_current_user)):
+    can_access_branch(user, branch_id)
+
+    conn = get_connection()
+    cursor = get_cursor(conn)
+
+    try:
+        cursor.execute("""
+            SELECT id FROM threads
+            WHERE branch_id = %s AND title != 'gear'
+            LIMIT 1
+        """, (branch_id,))
+        existing = cursor.fetchone()
+
+        if not existing:
+            cursor.execute("SELECT name FROM branches WHERE id = %s", (branch_id,))
+            branch = cursor.fetchone()
+            branch_name = branch["name"] if branch else f"Branch {branch_id}"
+
+            cursor.execute("""
+                INSERT INTO threads (branch_id, title, created_at)
+                VALUES (%s, %s, NOW()) RETURNING id
+            """, (branch_id, f"Branch: {branch_name} General"))
+            thread_id = cursor.fetchone()["id"]
+            conn.commit()
+        else:
+            thread_id = existing["id"]
+
+        return {"thread_id": thread_id, "message": "Thread ready"}
+
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+    finally:
+        cursor.close()
+        conn.close()
 
 @router.get("/{thread_id}/posts")
 def get_posts(thread_id: int):
     conn = get_connection()
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute("""
-        SELECT p.id, p.message, u.name AS author, p.created_at
-        FROM posts p
-        JOIN users u ON p.user_id = u.id
-        WHERE p.thread_id = %s
-        ORDER BY p.created_at DESC
-    """, (thread_id,))
-    return cursor.fetchall()
+    cursor = get_cursor(conn)
+
+    try:
+        cursor.execute("""
+            SELECT p.id, p.message, p.user_id, u.name AS author, p.created_at
+            FROM posts p
+            JOIN users u ON p.user_id = u.id
+            WHERE p.thread_id = %s
+            ORDER BY p.created_at ASC
+        """, (thread_id,))
+        posts = [dict(r) for r in cursor.fetchall()]
+        return posts
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+    finally:
+        cursor.close()
+        conn.close()
 
 @router.post("/branch/{branch_id}/create")
 def create_thread(branch_id: int, data: ThreadCreate, user=Depends(get_current_user)):
     can_access_branch(user, branch_id)
 
     conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("INSERT INTO threads (branch_id, title) VALUES (%s, %s)", (branch_id, data.title))
-    conn.commit()
-    return {"message": "Thread created"}
+    cursor = get_cursor(conn)
+
+    try:
+        cursor.execute("""
+            INSERT INTO threads (branch_id, title, created_at)
+            VALUES (%s, %s, NOW()) RETURNING id
+        """, (branch_id, data.title))
+        thread_id = cursor.fetchone()["id"]
+        conn.commit()
+
+        return {"message": "Thread created", "thread_id": thread_id}
+
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to create thread: {str(e)}")
+    finally:
+        cursor.close()
+        conn.close()
 
 @router.post("/{thread_id}/post")
 def post_message(thread_id: int, data: MessageCreate, user=Depends(get_current_user)):
@@ -48,10 +142,28 @@ def post_message(thread_id: int, data: MessageCreate, user=Depends(get_current_u
         raise HTTPException(status_code=403, detail="Only coaches can post to threads")
 
     conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute(
-        "INSERT INTO posts (thread_id, user_id, message) VALUES (%s, %s, %s)",
-        (thread_id, user["id"], data.message)
-    )
-    conn.commit()
-    return {"message": "Post added"}
+    cursor = get_cursor(conn)
+
+    try:
+        cursor.execute("SELECT branch_id FROM threads WHERE id = %s", (thread_id,))
+        thread = cursor.fetchone()
+
+        if not thread:
+            raise HTTPException(status_code=404, detail="Thread not found")
+
+        cursor.execute("""
+            INSERT INTO posts (thread_id, user_id, message, created_at)
+            VALUES (%s, %s, %s, NOW())
+        """, (thread_id, user["id"], data.message))
+        conn.commit()
+
+        return {"message": "Post added", "success": True}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to post message: {str(e)}")
+    finally:
+        cursor.close()
+        conn.close()

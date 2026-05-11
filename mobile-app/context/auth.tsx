@@ -1,21 +1,24 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import api from "../utils/api";
 
-const AuthContext = createContext<any>(null);
+const AuthContext = createContext({
+  user: null,
+  loading: true,
+  setUser: () => {},
+  refreshUser: () => {},
+});
 
-export const AuthProvider = ({ children }: any) => {
-  const [user, setUser] = useState<any>(null);
+export const AuthProvider = ({ children }) => {
+  const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // ✅ Clean load: remove invalid/stale tokens and load fresh
   useEffect(() => {
     const loadUser = async () => {
       try {
-        await AsyncStorage.removeItem("authUser"); // 🔥 force clear
-        setUser(null);
+        const storedUser = await AsyncStorage.getItem("authUser");
+        if (storedUser) setUser(JSON.parse(storedUser));
       } catch (e) {
-        console.error("Failed to clear old authUser", e);
+        console.error("Failed to load user", e);
       } finally {
         setLoading(false);
       }
@@ -23,44 +26,13 @@ export const AuthProvider = ({ children }: any) => {
     loadUser();
   }, []);
 
-  // ✅ Login
-  const login = async (userData: any) => {
-    console.log("Logging in user:", userData);
-    setUser(userData);
-    await AsyncStorage.setItem("authUser", JSON.stringify(userData));
-  };
-
-  // ✅ Logout
-  const logout = async () => {
-    setUser(null);
-    await AsyncStorage.removeItem("authUser");
-  };
-
-  // ✅ Optional manual refresh
   const refreshUser = async () => {
-    try {
-      if (!user?.token) return;
-      const res = await api.get("/users/me", {
-        headers: { Authorization: `Bearer ${user.token}` },
-      });
-
-      const updated = {
-        ...res.data,
-        isLoggedIn: true,
-        isApproved: Boolean(res.data.approved),
-        token: user.token,
-      };
-
-      setUser(updated);
-      await AsyncStorage.setItem("authUser", JSON.stringify(updated));
-    } catch (e) {
-      console.error("❌ Failed to refresh user:", e);
-      await logout();
-    }
+    const storedUser = await AsyncStorage.getItem("authUser");
+    if (storedUser) setUser(JSON.parse(storedUser));
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, refreshUser }}>
+    <AuthContext.Provider value={{ user, loading, setUser, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

@@ -12,6 +12,7 @@ from app import head_coach
 
 
 
+
 app = FastAPI()
 
 # ✅ Enable CORS
@@ -30,7 +31,7 @@ app.add_middleware(LoggingMiddleware)
 
 # ✅ Register routers
 
-app.include_router(head_coach.router, tags=["headcoach"])
+app.include_router(head_coach.router, prefix="/head-coach", tags=["head_coach"])
 app.include_router(coach.router)
 app.include_router(measurements.router)
 app.include_router(performance.router, tags=["performance"])  # ⬅️ Register the router

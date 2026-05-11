@@ -3,48 +3,65 @@ import {
   View,
   Text,
   TextInput,
-  TouchableOpacity,
-  ActivityIndicator,
-  Alert,
+  Button,
   StyleSheet,
+  Alert,
+  ActivityIndicator,
   ScrollView,
+  TouchableOpacity,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 import api from "../../utils/api";
 import { useRouter } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 
 export default function CoachGear() {
-  const [branch, setBranch] = useState<{ id: number; name: string } | null>(null);
-  const [gearText, setGearText] = useState("");
+  const [branchId, setBranchId] = useState<number | null>(null);
+  const [branchName, setBranchName] = useState<string>("");
+  const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+
   const router = useRouter();
 
   useEffect(() => {
-    const fetchGear = async () => {
+    const loadData = async () => {
       try {
+        // Get user info with assigned branch_id
         const userRes = await api.get("/users/me");
-        const branchId = userRes.data.branch_id;
-        const branchRes = await api.get(`/branches/${branchId}`);
-        setBranch({ id: branchId, name: branchRes.data.name });
+        const branch_id = userRes.data.branch_id;  // Use branch_id directly
 
-        const gearRes = await api.get(`/gear/${branchId}`);
-        if (gearRes.data.message) setGearText(gearRes.data.message);
+        setBranchId(branch_id);
+
+        // Fetch branch details
+        const branchRes = await api.get(`/branches/${branch_id}`);
+        setBranchName(branchRes.data.name);
+
+        // Fetch latest gear post for branch
+        const gearRes = await api.get(`/gear/${branch_id}`);
+        if (gearRes.data?.message) {
+          setMessage(gearRes.data.message);
+        }
       } catch (err) {
-        Alert.alert("Error", "Failed to load gear info.");
+        Alert.alert("Error", "Failed to load gear or branch info.");
       } finally {
         setLoading(false);
       }
     };
 
-    fetchGear();
+    loadData();
   }, []);
 
-  const handleUpdateGear = async () => {
+  const handlePostGear = async () => {
+    if (!message || !branchId) return;
+
     try {
-      await api.post(`/gear/${branch?.id}`, { content: gearText });
-      Alert.alert("Success", "Gear info updated.");
+      setSubmitting(true);
+      await api.post(`/gear/${branchId}`, { content: message });
+      Alert.alert("✅ Gear Updated", "Gear info has been saved.");
     } catch (err: any) {
-      Alert.alert("Error", err.response?.data?.detail || "Failed to update gear.");
+      Alert.alert("Error", err.response?.data?.detail || "Failed to post gear.");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -58,104 +75,72 @@ export default function CoachGear() {
 
   return (
     <ScrollView contentContainerStyle={styles.page}>
-      <TouchableOpacity style={styles.backButton} onPress={() => router.push("/(coach-tabs)/home")}>
-        <Ionicons name="arrow-back" size={26} color="#007AFF" />
-      </TouchableOpacity>
-
-      <Text style={styles.title}>🎒 Gear Poster</Text>
-      <Text style={styles.branch}>Branch: {branch?.name}</Text>
-
-      <View style={styles.poster}>
-        <Text style={styles.posterTitle}>Current Gear Info</Text>
-        <Text style={styles.posterContent}>{gearText || "No gear info posted yet."}</Text>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+          <Ionicons name="arrow-back" size={24} color="#007AFF" />
+        </TouchableOpacity>
+        <Text style={styles.title}>🧢 Weekly Gear Update</Text>
       </View>
+      <Text style={styles.subtitle}>
+        Branch: <Text style={{ fontWeight: "bold" }}>{branchName}</Text>
+      </Text>
 
-      <Text style={styles.editLabel}>✏️ Edit Gear Info</Text>
       <TextInput
-        placeholder="Update gear instructions..."
-        value={gearText}
-        onChangeText={setGearText}
+        placeholder="Enter or edit gear info..."
+        value={message}
+        onChangeText={setMessage}
         multiline
+        numberOfLines={6}
         style={styles.input}
       />
 
-      <TouchableOpacity style={styles.button} onPress={handleUpdateGear}>
-        <Text style={styles.buttonText}>Update Poster</Text>
-      </TouchableOpacity>
+      <Button
+        title={submitting ? "Saving..." : "Save Gear Info"}
+        onPress={handlePostGear}
+        disabled={submitting || !message}
+      />
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   page: {
+    padding: 20,
     paddingTop: 60,
-    paddingHorizontal: 20,
-    backgroundColor: "#f9f9f9",
+    backgroundColor: "#f9fafb",
     flexGrow: 1,
   },
-  backButton: { marginBottom: 20 },
-  title: {
-    fontSize: 26,
-    fontWeight: "700",
-    marginBottom: 6,
-    textAlign: "center",
-    color: "#1a1a1a",
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 10,
   },
-  branch: {
-    fontSize: 16,
-    color: "#555",
+  backBtn: {
+    marginRight: 10,
+  },
+  title: {
+    fontSize: 22,
+    fontWeight: "700",
+    flex: 1,
+    textAlign: "center",
+  },
+  subtitle: {
+    fontSize: 14,
+    color: "#64748b",
     textAlign: "center",
     marginBottom: 20,
-  },
-  poster: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 30,
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 4,
-  },
-  posterTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    marginBottom: 12,
-    color: "#007AFF",
-  },
-  posterContent: {
-    fontSize: 16,
-    lineHeight: 24,
-    color: "#333",
-  },
-  editLabel: {
-    fontSize: 16,
-    fontWeight: "600",
-    marginBottom: 10,
-    color: "#444",
   },
   input: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    borderColor: "#ccc",
     borderWidth: 1,
-    padding: 15,
-    fontSize: 15,
-    minHeight: 100,
+    borderColor: "#cbd5e1",
+    borderRadius: 10,
+    padding: 14,
+    backgroundColor: "#ffffff",
+    minHeight: 120,
     textAlignVertical: "top",
     marginBottom: 20,
-  },
-  button: {
-    backgroundColor: "#007AFF",
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: "center",
-  },
-  buttonText: {
-    color: "#fff",
-    fontWeight: "600",
-    fontSize: 16,
+    fontSize: 15,
+    color: "#1e293b",
   },
   loading: {
     flex: 1,
