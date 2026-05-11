@@ -3,9 +3,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dio/dio.dart';
 import 'dart:convert';
 import 'package:provider/provider.dart';
-import '../../services/api_service.dart';
 import 'package:go_router/go_router.dart';
 import '../../providers/auth_provider.dart';
+import '../../services/api_service.dart';
+import '../../theme/app_theme.dart';
 
 class AthleteProfileScreen extends StatefulWidget {
   const AthleteProfileScreen({super.key});
@@ -18,24 +19,19 @@ class _AthleteProfileScreenState extends State<AthleteProfileScreen> {
   List<dynamic> attendance = [];
   String branchName = '';
   List<String> labels = ['Day 1', 'Day 2', 'Day 3'];
-  Map<String, TextEditingController> measurementControllers = {};
+  Map<String, TextEditingController> mCtrl = {};
   bool editable = true;
-  List<Map<String, TextEditingController>> eventControllers = [];
+  List<Map<String, TextEditingController>> eventCtrl = [];
   bool eventsEditable = true;
 
-  final _measurementKeys = ['height', 'weight', 'arm', 'leg', 'fat', 'muscle'];
-  final _measurementLabels = {
-    'height': 'Height (cm)', 'weight': 'Weight (kg)', 'arm': 'Arm Length (cm)',
-    'leg': 'Leg Length', 'fat': 'Fat Percentage %', 'muscle': 'Muscle Percentage %',
-  };
+  final _mKeys = ['height', 'weight', 'arm', 'leg', 'fat', 'muscle'];
+  final _mLabels = {'height': 'Height (cm)', 'weight': 'Weight (kg)', 'arm': 'Arm (cm)', 'leg': 'Leg (cm)', 'fat': 'Fat %', 'muscle': 'Muscle %'};
 
   @override
   void initState() {
     super.initState();
-    for (var k in _measurementKeys) {
-      measurementControllers[k] = TextEditingController();
-    }
-    eventControllers.add({'name': TextEditingController(), 'time': TextEditingController()});
+    for (var k in _mKeys) mCtrl[k] = TextEditingController();
+    eventCtrl.add({'name': TextEditingController(), 'time': TextEditingController()});
     _fetchData();
   }
 
@@ -45,106 +41,64 @@ class _AthleteProfileScreenState extends State<AthleteProfileScreen> {
     if (stored == null) return;
     final parsed = jsonDecode(stored);
     user = parsed;
-    final headers = {'Authorization': 'Bearer ${parsed['token']}'};
+    final h = {'Authorization': 'Bearer ${parsed['token']}'};
     final dio = Dio();
-    const baseUrl = '${ApiService.baseUrl}';
+    final base = ApiService.baseUrl;
 
     try {
       final results = await Future.wait([
-        dio.get('$baseUrl/attendance/athlete/${parsed['id']}/week', options: Options(headers: headers)),
-        dio.get('$baseUrl/branches/${parsed['branch_id']}', options: Options(headers: headers)),
-        dio.get('$baseUrl/attendance/branch/${parsed['branch_id']}/session-dates', options: Options(headers: headers)),
-        dio.get('$baseUrl/athlete/measurements', options: Options(headers: headers)),
+        dio.get('$base/attendance/athlete/${parsed['id']}/week', options: Options(headers: h)),
+        dio.get('$base/branches/${parsed['branch_id']}', options: Options(headers: h)),
+        dio.get('$base/attendance/branch/${parsed['branch_id']}/session-dates', options: Options(headers: h)),
+        dio.get('$base/athlete/measurements', options: Options(headers: h)),
       ]);
-
       attendance = results[0].data;
       branchName = results[1].data['name'] ?? '';
-      if (results[2].data is List) {
-        labels = List.generate((results[2].data as List).length, (i) => 'Day ${i + 1}');
-      }
-
+      if (results[2].data is List) labels = List.generate((results[2].data as List).length, (i) => 'Day ${i + 1}');
       final mData = results[3].data is List ? (results[3].data as List).firstOrNull : results[3].data;
-      if (mData != null) {
-        for (var k in _measurementKeys) {
-          measurementControllers[k]!.text = mData[k]?.toString() ?? '';
-        }
-        editable = false;
-      }
-
-      // Try events
+      if (mData != null) { for (var k in _mKeys) mCtrl[k]!.text = mData[k]?.toString() ?? ''; editable = false; }
       try {
-        final eventsRes = await dio.get('$baseUrl/athlete/performance-logs', options: Options(headers: headers));
-        if (eventsRes.data is List && (eventsRes.data as List).isNotEmpty) {
-          eventControllers = (eventsRes.data as List).map((e) => {
-            'name': TextEditingController(text: e['event_name'] ?? ''),
-            'time': TextEditingController(text: e['result_time']?.toString() ?? ''),
-          }).toList();
+        final evts = await dio.get('$base/athlete/performance-logs', options: Options(headers: h));
+        if (evts.data is List && (evts.data as List).isNotEmpty) {
+          eventCtrl = (evts.data as List).map((e) => {'name': TextEditingController(text: e['event_name'] ?? ''), 'time': TextEditingController(text: e['result_time']?.toString() ?? '')}).toList();
           eventsEditable = false;
         }
       } catch (_) {}
-    } catch (e) {
-      debugPrint('Error loading profile: $e');
-    }
+    } catch (_) {}
     if (mounted) setState(() {});
   }
 
   Future<void> _saveMeasurements() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final stored = prefs.getString('authUser');
-      if (stored == null) return;
-      final parsed = jsonDecode(stored);
-      final dio = Dio();
-
+      final parsed = jsonDecode(prefs.getString('authUser')!);
       final data = <String, double>{};
-      for (var k in _measurementKeys) {
-        data[k] = double.tryParse(measurementControllers[k]!.text) ?? 0;
-      }
-
-      await dio.post('${ApiService.baseUrl}/athlete/measurements', data: data, options: Options(headers: {'Authorization': 'Bearer ${parsed['token']}'}));
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Measurements saved!'), backgroundColor: Colors.green));
-        setState(() => editable = false);
-      }
-    } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not save measurements'), backgroundColor: Colors.red));
-    }
+      for (var k in _mKeys) data[k] = double.tryParse(mCtrl[k]!.text) ?? 0;
+      await Dio().post('${ApiService.baseUrl}/athlete/measurements', data: data, options: Options(headers: {'Authorization': 'Bearer ${parsed['token']}'}));
+      if (mounted) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Measurements saved!'), backgroundColor: AppColors.success)); setState(() => editable = false); }
+    } catch (_) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not save'), backgroundColor: AppColors.error)); }
   }
 
   Future<void> _saveEvents() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final stored = prefs.getString('authUser');
-      if (stored == null) return;
-      final parsed = jsonDecode(stored);
+      final parsed = jsonDecode(prefs.getString('authUser')!);
+      final h = {'Authorization': 'Bearer ${parsed['token']}'};
       final dio = Dio();
-      final headers = {'Authorization': 'Bearer ${parsed['token']}'};
-
-      final validEvents = eventControllers.where((e) => e['name']!.text.isNotEmpty && e['time']!.text.isNotEmpty).toList();
-      if (validEvents.isEmpty) return;
-
-      try { await dio.delete('${ApiService.baseUrl}/athlete/performance-logs', options: Options(headers: headers)); } catch (_) {}
-
-      for (var e in validEvents) {
-        await dio.post('${ApiService.baseUrl}/athlete/performance-log', data: {
-          'meet_name': 'Top Swim Event',
-          'meet_date': DateTime.now().toIso8601String().split('T')[0],
-          'event_name': e['name']!.text,
-          'result_time': double.tryParse(e['time']!.text) ?? 0,
-        }, options: Options(headers: headers));
+      final base = ApiService.baseUrl;
+      final valid = eventCtrl.where((e) => e['name']!.text.isNotEmpty && e['time']!.text.isNotEmpty).toList();
+      if (valid.isEmpty) return;
+      try { await dio.delete('$base/athlete/performance-logs', options: Options(headers: h)); } catch (_) {}
+      for (var e in valid) {
+        await dio.post('$base/athlete/performance-log', data: {'meet_name': 'Top Swim Event', 'meet_date': DateTime.now().toIso8601String().split('T')[0], 'event_name': e['name']!.text, 'result_time': double.tryParse(e['time']!.text) ?? 0}, options: Options(headers: h));
       }
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Events saved!'), backgroundColor: Colors.green));
-        setState(() => eventsEditable = false);
-      }
-    } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not save events'), backgroundColor: Colors.red));
-    }
+      if (mounted) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Events saved!'), backgroundColor: AppColors.success)); setState(() => eventsEditable = false); }
+    } catch (_) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not save'), backgroundColor: AppColors.error)); }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (user == null) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    if (user == null) return const AppLoadingScreen();
 
     return Scaffold(
       body: SafeArea(
@@ -153,86 +107,91 @@ class _AthleteProfileScreenState extends State<AthleteProfileScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('\u{1F389} Welcome back, ${user!['name']}!', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-              Text('\u{1F3E2} Branch: $branchName', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Color(0xFF555555))),
-              const SizedBox(height: 20),
+              // Profile header
+              AppCard(
+                child: Row(
+                  children: [
+                    CircleAvatar(radius: 28, backgroundColor: AppColors.primary, child: Text((user!['name'] ?? 'U')[0].toUpperCase(), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: Colors.white))),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Text(user!['name'] ?? '', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+                        const SizedBox(height: 4),
+                        Row(children: [const Icon(Icons.location_on_rounded, size: 14, color: AppColors.accent), const SizedBox(width: 4), Text(branchName, style: const TextStyle(fontSize: 13, color: AppColors.textSecondary))]),
+                      ]),
+                    ),
+                  ],
+                ),
+              ),
 
               // Attendance
-              _buildSection('\u{1F3C6} Attendance Tracker', child: Wrap(
-                spacing: 10, runSpacing: 10,
-                children: labels.asMap().entries.map((e) {
-                  final record = attendance.where((r) => r['day_number'] == e.key + 1).firstOrNull;
-                  final status = record?['status'];
-                  return Column(
-                    children: [
-                      Text(e.value, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
-                      const SizedBox(height: 4),
-                      Icon(
-                        status == 'present' ? Icons.check_circle : status == 'absent' ? Icons.cancel : Icons.remove_circle_outline,
-                        color: status == 'present' ? Colors.green : status == 'absent' ? Colors.red : Colors.grey,
-                        size: 24,
-                      ),
-                      Text(status?.toString().capitalize() ?? '\u{2014}', style: TextStyle(color: status == 'present' ? Colors.green : status == 'absent' ? Colors.red : Colors.grey, fontSize: 12)),
-                    ],
-                  );
-                }).toList(),
-              )),
+              const SizedBox(height: 8),
+              const SectionHeader(title: 'Attendance'),
+              AppCard(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: labels.asMap().entries.map((e) {
+                    final record = attendance.where((r) => r['day_number'] == e.key + 1).firstOrNull;
+                    final status = record?['status'];
+                    final color = status == 'present' ? AppColors.success : status == 'absent' ? AppColors.error : AppColors.textTertiary;
+                    return Column(children: [
+                      Text(e.value, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
+                      const SizedBox(height: 8),
+                      Icon(status == 'present' ? Icons.check_circle_rounded : status == 'absent' ? Icons.cancel_rounded : Icons.remove_circle_outline, color: color, size: 28),
+                    ]);
+                  }).toList(),
+                ),
+              ),
 
               // Measurements
-              _buildSection('\u{1F4CF} Measurements', child: Column(
-                children: [
-                  ..._measurementKeys.map((k) => Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(_measurementLabels[k]!, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white)),
-                        const SizedBox(height: 4),
-                        TextField(
-                          controller: measurementControllers[k],
-                          keyboardType: TextInputType.number,
-                          enabled: editable,
-                          decoration: InputDecoration(filled: true, fillColor: const Color(0xFFE0F2F1), border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide.none), contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4)),
-                        ),
-                      ],
-                    ),
-                  )),
-                  ElevatedButton(onPressed: _saveMeasurements, child: const Text('Save Measurements')),
-                  if (!editable) TextButton(onPressed: () => setState(() => editable = true), child: const Text('Edit Measurements', style: TextStyle(color: Colors.white))),
-                ],
-              )),
+              const SizedBox(height: 8),
+              SectionHeader(title: 'Measurements', trailing: editable ? null : TextButton(onPressed: () => setState(() => editable = true), child: const Text('Edit', style: TextStyle(color: AppColors.accent)))),
+              AppCard(
+                child: Column(
+                  children: [
+                    ..._mKeys.map((k) => Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Row(children: [
+                        SizedBox(width: 100, child: Text(_mLabels[k]!, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.textSecondary))),
+                        Expanded(child: TextField(controller: mCtrl[k], keyboardType: TextInputType.number, enabled: editable, style: const TextStyle(fontSize: 14), decoration: const InputDecoration(contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10), isDense: true))),
+                      ]),
+                    )),
+                    if (editable) SizedBox(width: double.infinity, child: ElevatedButton(onPressed: _saveMeasurements, child: const Text('Save Measurements'))),
+                  ],
+                ),
+              ),
 
-              // Swim Events
-              _buildSection('\u{1F3CA} Top Swim Events', child: Column(
-                children: [
-                  ...eventControllers.asMap().entries.map((e) => Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: Row(
-                      children: [
-                        Expanded(child: TextField(controller: e.value['name'], enabled: eventsEditable, decoration: InputDecoration(hintText: 'Event Name', filled: true, fillColor: const Color(0xFFE0F2F1), border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide.none)))),
+              // Events
+              const SizedBox(height: 8),
+              SectionHeader(title: 'Swim Events', trailing: eventsEditable ? null : TextButton(onPressed: () => setState(() => eventsEditable = true), child: const Text('Edit', style: TextStyle(color: AppColors.accent)))),
+              AppCard(
+                child: Column(
+                  children: [
+                    ...eventCtrl.map((e) => Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Row(children: [
+                        Expanded(child: TextField(controller: e['name'], enabled: eventsEditable, decoration: const InputDecoration(hintText: 'Event', isDense: true, contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10)))),
                         const SizedBox(width: 10),
-                        Expanded(child: TextField(controller: e.value['time'], enabled: eventsEditable, decoration: InputDecoration(hintText: 'Time', filled: true, fillColor: const Color(0xFFE0F2F1), border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide.none)))),
-                      ],
-                    ),
-                  )),
-                  if (eventControllers.length < 5 && eventsEditable)
-                    TextButton(onPressed: () => setState(() => eventControllers.add({'name': TextEditingController(), 'time': TextEditingController()})), child: const Text('Add Event', style: TextStyle(color: Colors.white))),
-                  ElevatedButton(onPressed: _saveEvents, child: const Text('Save Events')),
-                  if (!eventsEditable) TextButton(onPressed: () => setState(() => eventsEditable = true), child: const Text('Edit Events', style: TextStyle(color: Colors.white))),
-                ],
-              )),
+                        Expanded(child: TextField(controller: e['time'], enabled: eventsEditable, decoration: const InputDecoration(hintText: 'Time', isDense: true, contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10)))),
+                      ]),
+                    )),
+                    if (eventCtrl.length < 5 && eventsEditable) TextButton.icon(onPressed: () => setState(() => eventCtrl.add({'name': TextEditingController(), 'time': TextEditingController()})), icon: const Icon(Icons.add, size: 18), label: const Text('Add Event')),
+                    if (eventsEditable) SizedBox(width: double.infinity, child: ElevatedButton(onPressed: _saveEvents, child: const Text('Save Events'))),
+                  ],
+                ),
+              ),
 
-              const SizedBox(height: 20),
-              Center(
+              // Logout
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
                 child: OutlinedButton(
-                  onPressed: () async {
-                    await context.read<AuthProvider>().logout();
-                    if (context.mounted) context.go('/guest-home');
-                  },
-                  style: OutlinedButton.styleFrom(foregroundColor: Colors.red, side: const BorderSide(color: Colors.red)),
+                  onPressed: () async { await context.read<AuthProvider>().logout(); if (context.mounted) context.go('/guest-home'); },
+                  style: OutlinedButton.styleFrom(foregroundColor: AppColors.error, side: const BorderSide(color: AppColors.error)),
                   child: const Text('Logout'),
                 ),
               ),
+              const SizedBox(height: 16),
             ],
           ),
         ),
@@ -240,33 +199,6 @@ class _AthleteProfileScreenState extends State<AthleteProfileScreen> {
     );
   }
 
-  Widget _buildSection(String title, {required Widget child}) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 20),
-      padding: const EdgeInsets.all(15),
-      decoration: BoxDecoration(color: const Color(0xFF3399FF), borderRadius: BorderRadius.circular(12), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4, offset: const Offset(0, 2))]),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
-          const SizedBox(height: 10),
-          child,
-        ],
-      ),
-    );
-  }
-
   @override
-  void dispose() {
-    for (var c in measurementControllers.values) c.dispose();
-    for (var e in eventControllers) {
-      e['name']?.dispose();
-      e['time']?.dispose();
-    }
-    super.dispose();
-  }
-}
-
-extension StringExtension on String {
-  String capitalize() => isEmpty ? this : '${this[0].toUpperCase()}${substring(1)}';
+  void dispose() { for (var c in mCtrl.values) c.dispose(); for (var e in eventCtrl) { e['name']?.dispose(); e['time']?.dispose(); } super.dispose(); }
 }

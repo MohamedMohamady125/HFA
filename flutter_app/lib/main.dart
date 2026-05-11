@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'providers/auth_provider.dart';
 import 'l10n/app_localizations.dart';
+import 'theme/app_theme.dart';
 import 'screens/auth/guest_home_screen.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/auth/register_screen.dart';
@@ -41,12 +43,8 @@ GoRouter _createRouter(AuthProvider auth) {
     redirect: (context, state) {
       if (auth.loading) return null;
       final loc = state.matchedLocation;
-      final publicRoutes = [
-        '/guest-home', '/login', '/register', '/admin-login',
-        '/head-coach-login', '/forgot-password', '/pending',
-      ];
+      final publicRoutes = ['/guest-home', '/login', '/register', '/admin-login', '/head-coach-login', '/forgot-password', '/pending'];
       final isPublic = publicRoutes.any((r) => loc.startsWith(r));
-
       if (!auth.isLoggedIn && !isPublic) return '/guest-home';
       if (auth.isLoggedIn && !auth.isApproved && loc != '/pending') return '/pending';
       return null;
@@ -62,14 +60,10 @@ GoRouter _createRouter(AuthProvider auth) {
       GoRoute(path: '/change-password', builder: (_, __) => const ChangePasswordScreen()),
       GoRoute(path: '/edit-profile', builder: (_, __) => const EditProfileScreen()),
       GoRoute(path: '/head-coach-branches', builder: (_, __) => const HeadCoachBranchesScreen()),
-
-      // Coach manage routes
       GoRoute(path: '/coach-manage/register-requests', builder: (_, __) => const RegisterRequestsScreen()),
       GoRoute(path: '/coach-manage/payment', builder: (_, __) => const PaymentScreen()),
       GoRoute(path: '/coach-manage/attendance', builder: (_, __) => const AttendanceScreen()),
       GoRoute(path: '/coach-manage/summary', builder: (_, __) => const AttendanceSummaryScreen()),
-
-      // Athlete tabs
       ShellRoute(
         navigatorKey: _athleteShellKey,
         builder: (_, __, child) => AthleteShell(child: child),
@@ -80,8 +74,6 @@ GoRouter _createRouter(AuthProvider auth) {
           GoRoute(path: '/athlete/profile', builder: (_, __) => const AthleteProfileScreen()),
         ],
       ),
-
-      // Coach tabs
       ShellRoute(
         navigatorKey: _coachShellKey,
         builder: (_, __, child) => CoachShell(child: child),
@@ -98,6 +90,10 @@ GoRouter _createRouter(AuthProvider auth) {
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+    statusBarColor: Colors.transparent,
+    statusBarIconBrightness: Brightness.dark,
+  ));
   runApp(
     MultiProvider(
       providers: [
@@ -121,10 +117,7 @@ class HFAApp extends StatelessWidget {
     return MaterialApp.router(
       title: 'HFA Academy',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF00D4FF)),
-        useMaterial3: true,
-      ),
+      theme: AppTheme.theme,
       locale: localeProvider.locale,
       supportedLocales: const [Locale('en'), Locale('ar')],
       localizationsDelegates: const [

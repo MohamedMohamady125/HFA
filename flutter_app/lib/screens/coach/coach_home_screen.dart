@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../services/api_service.dart';
+import '../../theme/app_theme.dart';
 
 class CoachHomeScreen extends StatefulWidget {
   const CoachHomeScreen({super.key});
@@ -12,62 +13,69 @@ class _CoachHomeScreenState extends State<CoachHomeScreen> {
   String name = '';
 
   @override
-  void initState() {
-    super.initState();
-    _fetchUser();
-  }
+  void initState() { super.initState(); _fetchUser(); }
 
   Future<void> _fetchUser() async {
-    try {
-      final res = await ApiService().get('/users/me');
-      if (mounted) setState(() => name = res.data['name'] ?? '');
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to load user data'), backgroundColor: Colors.red));
-    }
+    try { final res = await ApiService().get('/users/me'); if (mounted) setState(() => name = res.data['name'] ?? ''); } catch (_) {}
   }
 
   @override
   Widget build(BuildContext context) {
-    if (name.isEmpty) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator(color: Color(0xFF007AFF))));
-    }
+    if (name.isEmpty) return const AppLoadingScreen(message: 'Loading...');
 
     final tools = [
-      {'title': '\u{1F4DD} Registration Requests', 'route': '/coach-manage/register-requests'},
-      {'title': '\u{1F4B3} Payments', 'route': '/coach-manage/payment'},
-      {'title': '\u{1F4CA} Attendance', 'route': '/coach-manage/attendance'},
+      {'title': 'Registration Requests', 'icon': Icons.person_add_rounded, 'route': '/coach-manage/register-requests', 'color': AppColors.info},
+      {'title': 'Payment Tracking', 'icon': Icons.payments_rounded, 'route': '/coach-manage/payment', 'color': AppColors.success},
+      {'title': 'Attendance', 'icon': Icons.fact_check_rounded, 'route': '/coach-manage/attendance', 'color': AppColors.warning},
     ];
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF9F9F9),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(16, 60, 16, 30),
-        child: Column(
-          children: [
-            Text('\u{1F44B} Welcome, Coach $name', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700), textAlign: TextAlign.center),
-            const SizedBox(height: 6),
-            const Text('Your coach dashboard', style: TextStyle(fontSize: 15, color: Color(0xFF666666)), textAlign: TextAlign.center),
-            const SizedBox(height: 25),
-            Wrap(
-              spacing: 16, runSpacing: 16,
-              children: tools.map((tool) => SizedBox(
-                width: (MediaQuery.of(context).size.width - 48) / 2,
-                child: Material(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(14),
-                  elevation: 2,
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(14),
-                    onTap: () => context.push(tool['route']!),
-                    child: Padding(
-                      padding: const EdgeInsets.all(20),
-                      child: Text(tool['title']!, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF333333)), textAlign: TextAlign.center),
-                    ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 30),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text('Hi, $name', style: const TextStyle(fontSize: 14, color: AppColors.textSecondary)),
+                      const SizedBox(height: 4),
+                      const Text('Coach Dashboard', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: AppColors.textPrimary, letterSpacing: -0.5)),
+                    ]),
+                  ),
+                  Container(
+                    width: 48, height: 48,
+                    decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(14)),
+                    child: const Icon(Icons.shield_rounded, color: Colors.white),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 32),
+
+              const SectionHeader(title: 'Quick Actions'),
+              ...tools.map((tool) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: AppCard(
+                  onTap: () => context.push(tool['route'] as String),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 48, height: 48,
+                        decoration: BoxDecoration(color: (tool['color'] as Color).withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
+                        child: Icon(tool['icon'] as IconData, color: tool['color'] as Color, size: 24),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(child: Text(tool['title'] as String, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.textPrimary))),
+                      const Icon(Icons.chevron_right_rounded, color: AppColors.textTertiary),
+                    ],
                   ),
                 ),
-              )).toList(),
-            ),
-          ],
+              )),
+            ],
+          ),
         ),
       ),
     );

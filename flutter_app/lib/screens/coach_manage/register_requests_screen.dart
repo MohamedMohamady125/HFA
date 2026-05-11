@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../services/api_service.dart';
+import '../../theme/app_theme.dart';
 
 class RegisterRequestsScreen extends StatefulWidget {
   const RegisterRequestsScreen({super.key});
@@ -13,100 +14,74 @@ class _RegisterRequestsScreenState extends State<RegisterRequestsScreen> {
   bool loading = true;
 
   @override
-  void initState() {
-    super.initState();
-    _fetchRequests();
-  }
+  void initState() { super.initState(); _fetchRequests(); }
 
   Future<void> _fetchRequests() async {
-    try {
-      final res = await ApiService().get('/users/requests');
-      requests = res.data;
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to load requests'), backgroundColor: Colors.red));
-    } finally {
-      if (mounted) setState(() => loading = false);
-    }
+    try { final res = await ApiService().get('/users/requests'); requests = res.data; }
+    catch (_) {} finally { if (mounted) setState(() => loading = false); }
   }
 
   Future<void> _approve(int id) async {
-    try {
-      await ApiService().post('/users/approve/$id');
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Athlete approved.'), backgroundColor: Colors.green));
-      _fetchRequests();
-    } catch (_) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to approve'), backgroundColor: Colors.red));
-    }
+    try { await ApiService().post('/users/approve/$id'); _showMsg('Athlete approved'); _fetchRequests(); }
+    catch (_) { _showMsg('Failed to approve', error: true); }
   }
 
   Future<void> _reject(int id) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Confirm Reject'),
-        content: const Text('This will permanently reject the registration request.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), style: TextButton.styleFrom(foregroundColor: Colors.red), child: const Text('Reject')),
-        ],
-      ),
-    );
-    if (confirmed != true) return;
-
-    try {
-      await ApiService().post('/users/reject/$id');
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Request rejected.'), backgroundColor: Colors.orange));
-      _fetchRequests();
-    } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to reject'), backgroundColor: Colors.red));
-    }
+    final ok = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
+      title: const Text('Reject Request?'), content: const Text('This will permanently reject the registration.'),
+      actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')), TextButton(onPressed: () => Navigator.pop(ctx, true), style: TextButton.styleFrom(foregroundColor: AppColors.error), child: const Text('Reject'))],
+    ));
+    if (ok != true) return;
+    try { await ApiService().post('/users/reject/$id'); _showMsg('Request rejected'); _fetchRequests(); }
+    catch (_) { _showMsg('Failed to reject', error: true); }
   }
+
+  void _showMsg(String msg, {bool error = false}) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: error ? AppColors.error : AppColors.success));
 
   @override
   Widget build(BuildContext context) {
-    if (loading) return const Scaffold(body: Center(child: CircularProgressIndicator(color: Color(0xFF007AFF))));
+    if (loading) return const AppLoadingScreen(message: 'Loading requests...');
 
     return Scaffold(
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              IconButton(icon: const Icon(Icons.arrow_back, color: Color(0xFF007AFF)), onPressed: () => context.go('/coach/home')),
-              const SizedBox(height: 10),
-              const Text('\u{1F4DD} Pending Registration Requests', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 20),
-              if (requests.isEmpty)
-                const Text('No pending requests.')
-              else
-                ...requests.map((req) => Container(
-                  margin: const EdgeInsets.only(bottom: 16),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(10), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4, offset: const Offset(0, 2))]),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('\u{1F4E7} ${req['email']}', style: const TextStyle(fontSize: 14)),
-                      const SizedBox(height: 6),
-                      Text('\u{1F4F1} ${req['phone']}', style: const TextStyle(fontSize: 14)),
-                      const SizedBox(height: 6),
-                      Text('\u{1F9CD} ${req['athlete_name']}', style: const TextStyle(fontSize: 14)),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(child: ElevatedButton(onPressed: () => _approve(req['id']), style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white), child: const Text('Approve'))),
-                          const SizedBox(width: 10),
-                          Expanded(child: ElevatedButton(onPressed: () => _reject(req['id']), style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white), child: const Text('Reject'))),
-                        ],
-                      ),
-                    ],
+      appBar: AppBar(title: const Text('Registration Requests'), leading: IconButton(icon: const Icon(Icons.arrow_back_rounded), onPressed: () => context.go('/coach/home'))),
+      body: requests.isEmpty
+          ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Icon(Icons.inbox_rounded, size: 56, color: AppColors.textTertiary.withValues(alpha: 0.4)),
+              const SizedBox(height: 16),
+              const Text('No pending requests', style: TextStyle(color: AppColors.textSecondary, fontSize: 16)),
+            ]))
+          : ListView.builder(
+              padding: const EdgeInsets.all(20),
+              itemCount: requests.length,
+              itemBuilder: (_, i) {
+                final req = requests[i];
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: AppCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(children: [
+                          CircleAvatar(radius: 20, backgroundColor: AppColors.accent.withValues(alpha: 0.1), child: Text((req['athlete_name'] ?? 'U')[0].toUpperCase(), style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.accent))),
+                          const SizedBox(width: 12),
+                          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            Text(req['athlete_name'] ?? '', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+                            Text(req['email'] ?? '', style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+                          ])),
+                        ]),
+                        if (req['phone'] != null) Padding(padding: const EdgeInsets.only(top: 8), child: Row(children: [const Icon(Icons.phone_outlined, size: 14, color: AppColors.textTertiary), const SizedBox(width: 6), Text(req['phone'], style: const TextStyle(fontSize: 13, color: AppColors.textSecondary))])),
+                        const SizedBox(height: 16),
+                        Row(children: [
+                          Expanded(child: OutlinedButton(onPressed: () => _reject(req['id']), style: OutlinedButton.styleFrom(foregroundColor: AppColors.error, side: const BorderSide(color: AppColors.error)), child: const Text('Reject'))),
+                          const SizedBox(width: 12),
+                          Expanded(child: ElevatedButton(onPressed: () => _approve(req['id']), style: ElevatedButton.styleFrom(backgroundColor: AppColors.success), child: const Text('Approve'))),
+                        ]),
+                      ],
+                    ),
                   ),
-                )),
-            ],
-          ),
-        ),
-      ),
+                );
+              },
+            ),
     );
   }
 }

@@ -5,6 +5,7 @@ import 'package:dio/dio.dart';
 import 'dart:convert';
 import 'package:intl/intl.dart';
 import '../../services/api_service.dart';
+import '../../theme/app_theme.dart';
 
 class AthleteHomeScreen extends StatefulWidget {
   const AthleteHomeScreen({super.key});
@@ -14,25 +15,16 @@ class AthleteHomeScreen extends StatefulWidget {
 
 class _AthleteHomeScreenState extends State<AthleteHomeScreen> {
   List<dynamic> attendance = [];
-  String gearMessage = 'Loading...';
-  String lastThreadMessage = 'Loading...';
+  String gearMessage = '';
+  String lastThreadMessage = '';
   String? paymentStatus;
   bool loading = true;
 
-  String _getCurrentDueDateKey() {
-    final now = DateTime.now();
-    return '${now.year}-${now.month.toString().padLeft(2, '0')}-01';
-  }
-
-  String _getCurrentMonthName() {
-    return DateFormat('MMMM yyyy').format(DateTime.now());
-  }
+  String _dueDateKey() { final n = DateTime.now(); return '${n.year}-${n.month.toString().padLeft(2, '0')}-01'; }
+  String _monthName() => DateFormat('MMMM yyyy').format(DateTime.now());
 
   @override
-  void initState() {
-    super.initState();
-    _fetchData();
-  }
+  void initState() { super.initState(); _fetchData(); }
 
   Future<void> _fetchData() async {
     setState(() => loading = true);
@@ -43,175 +35,153 @@ class _AthleteHomeScreenState extends State<AthleteHomeScreen> {
       final user = jsonDecode(stored);
       final dio = Dio();
       final headers = {'Authorization': 'Bearer ${user['token']}'};
-      const baseUrl = ApiService.baseUrl;
+      final base = ApiService.baseUrl;
 
-      final athleteRes = await dio.get('$baseUrl/athletes/user/${user['id']}', options: Options(headers: headers));
-      final branchId = user['branch_id'];
-
-      // Attendance
+      try { final r = await dio.get('$base/attendance/athlete/${user['id']}/week', options: Options(headers: headers)); attendance = r.data ?? []; } catch (_) { attendance = []; }
+      try { final r = await dio.get('$base/gear/${user['branch_id']}', options: Options(headers: headers)); gearMessage = r.data?['message'] ?? 'No recent gear update.'; } catch (_) { gearMessage = 'No gear updates.'; }
       try {
-        final attRes = await dio.get('$baseUrl/attendance/athlete/${user['id']}/week', options: Options(headers: headers));
-        attendance = attRes.data ?? [];
-      } catch (_) {
-        attendance = [];
-      }
-
-      // Gear
-      final gearRes = await dio.get('$baseUrl/gear/$branchId', options: Options(headers: headers));
-      gearMessage = gearRes.data?['message'] ?? 'No recent gear update.';
-
-      // Threads
-      final threadsRes = await dio.get('$baseUrl/threads/branch/$branchId', options: Options(headers: headers));
-      final threads = (threadsRes.data as List).where((t) => !(t['title'] as String).toLowerCase().contains('gear')).toList();
-      if (threads.isNotEmpty) {
-        final postsRes = await dio.get('$baseUrl/threads/${threads[0]['id']}/posts', options: Options(headers: headers));
-        final posts = postsRes.data as List;
-        lastThreadMessage = posts.isNotEmpty ? (posts[0]['message'] ?? 'No posts yet.') : 'No posts yet.';
-      } else {
-        lastThreadMessage = 'No threads available.';
-      }
-
-      // Payment
-      final payRes = await dio.get('$baseUrl/payments/${user['id']}/status', options: Options(headers: headers));
-      final payData = payRes.data ?? {};
-      paymentStatus = payData[_getCurrentDueDateKey()] ?? 'pending';
-    } catch (e) {
-      debugPrint('Error fetching home data: $e');
-    } finally {
-      if (mounted) setState(() => loading = false);
-    }
-  }
-
-  String _getStatusIcon(String? status) {
-    switch (status) {
-      case 'present': return '\u{2705}';
-      case 'absent': return '\u{274C}';
-      case 'excused': return '\u{1F7E1}';
-      default: return '\u{2014}';
-    }
-  }
-
-  String _getPaymentIcon(String? status) {
-    switch (status) {
-      case 'paid': return '\u{2705}';
-      case 'late': return '\u{26A0}\u{FE0F}';
-      case 'pending': return '\u{23F3}';
-      default: return '\u{274C}';
-    }
-  }
-
-  String _getPaymentLabel(String? status) {
-    switch (status) {
-      case 'paid': return 'Paid';
-      case 'late': return 'Late';
-      case 'pending': return 'Pending';
-      default: return 'Unknown';
-    }
+        final r = await dio.get('$base/threads/branch/${user['branch_id']}', options: Options(headers: headers));
+        final threads = (r.data as List).where((t) => !(t['title'] as String).toLowerCase().contains('gear')).toList();
+        if (threads.isNotEmpty) {
+          final p = await dio.get('$base/threads/${threads[0]['id']}/posts', options: Options(headers: headers));
+          lastThreadMessage = (p.data as List).isNotEmpty ? p.data[0]['message'] ?? '' : 'No posts yet.';
+        } else { lastThreadMessage = 'No threads available.'; }
+      } catch (_) { lastThreadMessage = 'No threads available.'; }
+      try { final r = await dio.get('$base/payments/${user['id']}/status', options: Options(headers: headers)); paymentStatus = (r.data ?? {})[_dueDateKey()] ?? 'pending'; } catch (_) { paymentStatus = 'pending'; }
+    } catch (_) {} finally { if (mounted) setState(() => loading = false); }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (loading) {
-      return const Scaffold(
-        backgroundColor: Color(0xFF3399FF),
-        body: Center(
-          child: Card(
-            child: Padding(
-              padding: EdgeInsets.all(40),
-              child: Column(mainAxisSize: MainAxisSize.min, children: [
-                CircularProgressIndicator(color: Color(0xFF3399FF)),
-                SizedBox(height: 16),
-                Text('Loading...', style: TextStyle(color: Color(0xFF00796B), fontWeight: FontWeight.w600)),
-              ]),
+    if (loading) return const AppLoadingScreen(message: 'Loading dashboard...');
+
+    return Scaffold(
+      body: SafeArea(
+        child: RefreshIndicator(
+          onRefresh: _fetchData,
+          color: AppColors.accent,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 30),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        const Text('Dashboard', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: AppColors.textPrimary, letterSpacing: -0.5)),
+                        const SizedBox(height: 4),
+                        Text(DateFormat('EEEE, MMM d').format(DateTime.now()), style: const TextStyle(fontSize: 14, color: AppColors.textSecondary)),
+                      ]),
+                    ),
+                    Container(
+                      width: 44, height: 44,
+                      decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
+                      child: const Icon(Icons.pool_rounded, color: AppColors.accent),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 28),
+
+                // Attendance
+                const SectionHeader(title: 'Weekly Attendance'),
+                AppCard(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: List.generate(3, (i) {
+                      final record = attendance.where((d) => d['day_number'] == i + 1).firstOrNull;
+                      final status = record?['status'];
+                      return _attendanceDay('Day ${i + 1}', status);
+                    }),
+                  ),
+                ),
+                const SizedBox(height: 8),
+
+                // Thread
+                const SectionHeader(title: 'Latest Thread'),
+                AppCard(
+                  onTap: () => context.go('/athlete/threads'),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 40, height: 40,
+                        decoration: BoxDecoration(color: AppColors.info.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
+                        child: const Icon(Icons.forum_rounded, color: AppColors.info, size: 20),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(child: Text(lastThreadMessage, style: const TextStyle(fontSize: 14, color: AppColors.textSecondary, height: 1.4), maxLines: 2, overflow: TextOverflow.ellipsis)),
+                      const Icon(Icons.chevron_right_rounded, color: AppColors.textTertiary),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+
+                // Gear
+                const SectionHeader(title: 'Gear Check'),
+                AppCard(
+                  onTap: () => context.go('/athlete/gear'),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 40, height: 40,
+                        decoration: BoxDecoration(color: AppColors.warning.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
+                        child: const Icon(Icons.backpack_rounded, color: AppColors.warning, size: 20),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(child: Text(gearMessage, style: const TextStyle(fontSize: 14, color: AppColors.textSecondary, height: 1.4), maxLines: 2, overflow: TextOverflow.ellipsis)),
+                      const Icon(Icons.chevron_right_rounded, color: AppColors.textTertiary),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+
+                // Payment
+                SectionHeader(title: 'Payment', subtitle: _monthName()),
+                AppCard(
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 40, height: 40,
+                        decoration: BoxDecoration(color: _paymentColor().withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
+                        child: Icon(_paymentIcon(), color: _paymentColor(), size: 20),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(child: Text('Status', style: const TextStyle(fontSize: 14, color: AppColors.textSecondary))),
+                      StatusBadge(label: _paymentLabel(), color: _paymentColor()),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
         ),
-      );
-    }
+      ),
+    );
+  }
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(20, 60, 20, 30),
-        child: Column(
-          children: [
-            const Text('Dashboard', style: TextStyle(fontSize: 32, fontWeight: FontWeight.w800, color: Color(0xFF00796B))),
-            const SizedBox(height: 8),
-            Text(DateFormat('M/d/yyyy').format(DateTime.now()), style: const TextStyle(fontSize: 16, color: Color(0xFF555555), fontWeight: FontWeight.w500)),
-            const SizedBox(height: 32),
-
-            // Weekly Attendance
-            _buildCard('\u{1F4C6} Weekly Attendance', children: [
-              if (attendance.isEmpty)
-                _buildRow('No attendance data available', '')
-              else
-                for (int i = 0; i < 3; i++)
-                  _buildRow('Day ${i + 1}', _getStatusIcon(attendance.where((d) => d['day_number'] == i + 1).firstOrNull?['status'])),
-            ]),
-
-            // Latest Thread
-            GestureDetector(
-              onTap: () => context.go('/athlete/threads'),
-              child: _buildCard('\u{1F4AC} Latest Thread', children: [
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(color: const Color(0xFFD6ECFF), borderRadius: BorderRadius.circular(12)),
-                  child: Text(lastThreadMessage, style: const TextStyle(fontSize: 15, color: Color(0xFF37474F), height: 1.47)),
-                ),
-              ]),
-            ),
-
-            // Gear Check
-            GestureDetector(
-              onTap: () => context.go('/athlete/gear'),
-              child: _buildCard('\u{1F392} Gear Check', children: [
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(color: const Color(0xFFD0F0FF), borderRadius: BorderRadius.circular(12)),
-                  child: Text(gearMessage, style: const TextStyle(fontSize: 15, color: Color(0xFF37474F), height: 1.47)),
-                ),
-              ]),
-            ),
-
-            // Payment
-            _buildCard('\u{1F4B0} Payment \u{2013} ${_getCurrentMonthName()}', children: [
-              _buildRow('Status', '${_getPaymentIcon(paymentStatus)} ${_getPaymentLabel(paymentStatus)}',
-                  bgColor: const Color(0xFFF0F9FF)),
-            ]),
-          ],
+  Widget _attendanceDay(String label, String? status) {
+    final color = status == 'present' ? AppColors.success : status == 'absent' ? AppColors.error : AppColors.textTertiary;
+    final icon = status == 'present' ? Icons.check_circle_rounded : status == 'absent' ? Icons.cancel_rounded : Icons.remove_circle_outline;
+    return Column(
+      children: [
+        Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
+        const SizedBox(height: 8),
+        Container(
+          width: 48, height: 48,
+          decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
+          child: Icon(icon, color: color, size: 24),
         ),
-      ),
+        const SizedBox(height: 4),
+        Text(status?.capitalize() ?? '\u2014', style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w600)),
+      ],
     );
   }
 
-  Widget _buildCard(String title, {required List<Widget> children}) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 20),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(color: const Color(0xFF3399FF), borderRadius: BorderRadius.circular(20), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 8, offset: const Offset(0, 4))]),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.white)),
-          const SizedBox(height: 16),
-          ...children,
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRow(String label, String status, {Color bgColor = const Color(0xFFCCE5FF)}) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: bgColor, borderRadius: BorderRadius.circular(12)),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF37474F))),
-          Text(status, style: const TextStyle(fontSize: 20)),
-        ],
-      ),
-    );
-  }
+  Color _paymentColor() => switch (paymentStatus) { 'paid' => AppColors.success, 'late' => AppColors.error, _ => AppColors.warning };
+  IconData _paymentIcon() => switch (paymentStatus) { 'paid' => Icons.check_circle, 'late' => Icons.warning_rounded, _ => Icons.schedule };
+  String _paymentLabel() => switch (paymentStatus) { 'paid' => 'Paid', 'late' => 'Late', 'pending' => 'Pending', _ => 'Unknown' };
 }
+
+extension on String { String capitalize() => isEmpty ? this : '${this[0].toUpperCase()}${substring(1)}'; }

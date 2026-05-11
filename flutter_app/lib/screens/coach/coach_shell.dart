@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../theme/app_theme.dart';
 
 class CoachShell extends StatelessWidget {
   final Widget child;
   const CoachShell({super.key, required this.child});
 
   int _currentIndex(BuildContext context) {
-    final location = GoRouterState.of(context).matchedLocation;
-    if (location.startsWith('/coach/threads')) return 1;
-    if (location.startsWith('/coach/gear')) return 2;
-    if (location.startsWith('/coach/profile')) return 3;
+    final loc = GoRouterState.of(context).matchedLocation;
+    if (loc.startsWith('/coach/threads')) return 1;
+    if (loc.startsWith('/coach/gear')) return 2;
+    if (loc.startsWith('/coach/profile')) return 3;
     return 0;
   }
 
@@ -17,22 +18,25 @@ class CoachShell extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       body: child,
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _currentIndex(context),
-        onDestinationSelected: (i) {
-          switch (i) {
-            case 0: context.go('/coach/home');
-            case 1: context.go('/coach/threads');
-            case 2: context.go('/coach/gear');
-            case 3: context.go('/coach/profile');
-          }
-        },
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: 'Home'),
-          NavigationDestination(icon: Icon(Icons.chat_bubble_outline), selectedIcon: Icon(Icons.chat_bubble), label: 'Groups'),
-          NavigationDestination(icon: Icon(Icons.work_outline), selectedIcon: Icon(Icons.work), label: 'Gear'),
-          NavigationDestination(icon: Icon(Icons.person_outline), selectedIcon: Icon(Icons.person), label: 'Profile'),
-        ],
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(border: Border(top: BorderSide(color: AppColors.divider))),
+        child: NavigationBar(
+          selectedIndex: _currentIndex(context),
+          onDestinationSelected: (i) {
+            switch (i) {
+              case 0: context.go('/coach/home');
+              case 1: context.go('/coach/threads');
+              case 2: context.go('/coach/gear');
+              case 3: context.go('/coach/profile');
+            }
+          },
+          destinations: const [
+            NavigationDestination(icon: Icon(Icons.dashboard_outlined), selectedIcon: Icon(Icons.dashboard_rounded), label: 'Home'),
+            NavigationDestination(icon: Icon(Icons.forum_outlined), selectedIcon: Icon(Icons.forum_rounded), label: 'Chat'),
+            NavigationDestination(icon: Icon(Icons.backpack_outlined), selectedIcon: Icon(Icons.backpack_rounded), label: 'Gear'),
+            NavigationDestination(icon: Icon(Icons.person_outline_rounded), selectedIcon: Icon(Icons.person_rounded), label: 'Profile'),
+          ],
+        ),
       ),
     );
   }

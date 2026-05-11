@@ -6,6 +6,7 @@ import 'package:dio/dio.dart';
 import 'dart:convert';
 import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
+import '../../theme/app_theme.dart';
 
 class HeadCoachBranchesScreen extends StatefulWidget {
   const HeadCoachBranchesScreen({super.key});
@@ -15,9 +16,7 @@ class HeadCoachBranchesScreen extends StatefulWidget {
 
 class _HeadCoachBranchesScreenState extends State<HeadCoachBranchesScreen> {
   List<dynamic> branches = [];
-  bool loading = true;
-  bool loggingIn = false;
-  static const baseUrl = ApiService.baseUrl;
+  bool loading = true, loggingIn = false;
 
   static const coachCredentials = {
     2: {'email': 'hadayek@gmail.com', 'password': '1234'},
@@ -27,119 +26,77 @@ class _HeadCoachBranchesScreenState extends State<HeadCoachBranchesScreen> {
   };
 
   @override
-  void initState() {
-    super.initState();
-    _fetchBranches();
-  }
+  void initState() { super.initState(); _fetchBranches(); }
 
   Future<void> _fetchBranches() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final stored = prefs.getString('authUser');
-      if (stored == null) {
-        if (mounted) context.go('/guest-home');
-        return;
-      }
+      if (stored == null) { if (mounted) context.go('/guest-home'); return; }
       final user = jsonDecode(stored);
-      final res = await Dio().get('$baseUrl/branches', options: Options(headers: {'Authorization': 'Bearer ${user['token']}'}));
+      final res = await Dio().get('${ApiService.baseUrl}/branches', options: Options(headers: {'Authorization': 'Bearer ${user['token']}'}));
       branches = res.data;
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to load branches: $e'), backgroundColor: Colors.red));
-    } finally {
-      if (mounted) setState(() => loading = false);
-    }
+    } catch (_) {} finally { if (mounted) setState(() => loading = false); }
   }
 
   Future<void> _loginAsCoach(Map<String, dynamic> branch) async {
     final creds = coachCredentials[branch['id']];
-    if (creds == null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('No credentials for branch: ${branch['name']}'), backgroundColor: Colors.red));
-      return;
-    }
-
+    if (creds == null) { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('No credentials for ${branch['name']}'), backgroundColor: AppColors.error)); return; }
     setState(() => loggingIn = true);
     try {
-      final res = await Dio().post('$baseUrl/auth/login', data: creds);
-      final token = res.data['token'];
-      final user = res.data['user'];
-
-      if (!['coach', 'head_coach'].contains(user['role'])) {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Logged in user is not a coach'), backgroundColor: Colors.red));
-        return;
-      }
-
-      final authUser = {
-        ...Map<String, dynamic>.from(user),
-        'token': token,
-        'isLoggedIn': true,
-        'isApproved': true,
-        'branch_id': branch['id'],
-        'branch_name': branch['name'],
-      };
-
+      final res = await Dio().post('${ApiService.baseUrl}/auth/login', data: creds);
+      final authUser = {...Map<String, dynamic>.from(res.data['user']), 'token': res.data['token'], 'isLoggedIn': true, 'isApproved': true, 'branch_id': branch['id'], 'branch_name': branch['name']};
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('authUser', jsonEncode(authUser));
       await prefs.remove('headCoachMode');
-
       if (!mounted) return;
       await context.read<AuthProvider>().login(authUser);
       context.go('/coach/home');
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Login failed: $e'), backgroundColor: Colors.red));
-    } finally {
-      if (mounted) setState(() => loggingIn = false);
-    }
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Login failed'), backgroundColor: AppColors.error));
+    } finally { if (mounted) setState(() => loggingIn = false); }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (loading || loggingIn) {
-      return Scaffold(
-        body: Center(
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            const CircularProgressIndicator(color: Color(0xFF007AFF)),
-            const SizedBox(height: 12),
-            Text(loggingIn ? 'Logging in...' : 'Loading branches...', style: const TextStyle(fontSize: 16, color: Color(0xFF007AFF))),
-          ]),
-        ),
-      );
-    }
+    if (loading || loggingIn) return AppLoadingScreen(message: loggingIn ? 'Switching branch...' : 'Loading branches...');
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF9FAFB),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(20),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Select Branch to Manage', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: Color(0xFF007AFF)), textAlign: TextAlign.center),
-              const SizedBox(height: 16),
+              const Text('Select Branch', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: AppColors.textPrimary, letterSpacing: -0.5)),
+              const SizedBox(height: 6),
+              const Text('Choose a branch to manage', style: TextStyle(fontSize: 14, color: AppColors.textSecondary)),
+              const SizedBox(height: 24),
               Expanded(
                 child: branches.isEmpty
-                    ? const Center(child: Text('No branches available.', style: TextStyle(fontSize: 18, color: Color(0xFF555555))))
+                    ? const Center(child: Text('No branches available.', style: TextStyle(color: AppColors.textSecondary)))
                     : ListView.builder(
                         itemCount: branches.length,
                         itemBuilder: (_, i) {
                           final b = branches[i];
-                          return Card(
-                            margin: const EdgeInsets.only(bottom: 12),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            elevation: 3,
-                            child: InkWell(
-                              borderRadius: BorderRadius.circular(12),
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: AppCard(
                               onTap: () => _loginAsCoach(Map<String, dynamic>.from(b)),
-                              child: Padding(
-                                padding: const EdgeInsets.all(18),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(b['name'] ?? '', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
-                                    const SizedBox(height: 6),
-                                    Text(b['address'] ?? '', style: const TextStyle(fontSize: 14, color: Color(0xFF555555))),
-                                    const SizedBox(height: 4),
-                                    Text('\u{1F4DE} ${b['phone'] ?? ''}', style: const TextStyle(fontSize: 14, color: Color(0xFF007AFF))),
-                                  ],
-                                ),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 48, height: 48,
+                                    decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
+                                    child: const Icon(Icons.location_city_rounded, color: AppColors.accent),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                    Text(b['name'] ?? '', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+                                    if (b['address'] != null) Text(b['address'], style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+                                  ])),
+                                  const Icon(Icons.chevron_right_rounded, color: AppColors.textTertiary),
+                                ],
                               ),
                             ),
                           );

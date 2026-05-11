@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
+import '../../theme/app_theme.dart';
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
@@ -11,67 +12,46 @@ class EditProfileScreen extends StatefulWidget {
 }
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
-  late TextEditingController _nameController;
-  late TextEditingController _emailController;
+  late TextEditingController _nameCtrl, _emailCtrl;
 
   @override
   void initState() {
     super.initState();
     final auth = context.read<AuthProvider>();
-    _nameController = TextEditingController(text: auth.userName ?? '');
-    _emailController = TextEditingController(text: auth.userEmail ?? '');
+    _nameCtrl = TextEditingController(text: auth.userName ?? '');
+    _emailCtrl = TextEditingController(text: auth.userEmail ?? '');
   }
 
   Future<void> _handleSave() async {
     try {
-      await ApiService().put('/coach/profile', data: {'name': _nameController.text, 'email': _emailController.text});
+      await ApiService().put('/coach/profile', data: {'name': _nameCtrl.text, 'email': _emailCtrl.text});
       if (!mounted) return;
       await context.read<AuthProvider>().refreshUser();
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profile updated successfully.'), backgroundColor: Colors.green));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profile updated.'), backgroundColor: AppColors.success));
       context.pop();
     } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to update profile.'), backgroundColor: Colors.red));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to update.'), backgroundColor: AppColors.error));
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              TextButton.icon(onPressed: () => context.pop(), icon: const Icon(Icons.arrow_back), label: const Text('Back'), style: TextButton.styleFrom(foregroundColor: const Color(0xFF007AFF))),
-              const SizedBox(height: 10),
-              const Text('Edit Profile', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 20),
-              TextField(controller: _nameController, decoration: _inputDec('Name')),
-              const SizedBox(height: 15),
-              TextField(controller: _emailController, keyboardType: TextInputType.emailAddress, decoration: _inputDec('Email')),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _handleSave,
-                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF007AFF), foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-                  child: const Text('Save Changes', style: TextStyle(fontWeight: FontWeight.w600)),
-                ),
-              ),
-            ],
-          ),
+      appBar: AppBar(title: const Text('Edit Profile'), leading: IconButton(icon: const Icon(Icons.arrow_back_rounded), onPressed: () => context.pop())),
+      body: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          children: [
+            AppFormField(label: 'NAME', controller: _nameCtrl),
+            AppFormField(label: 'EMAIL', controller: _emailCtrl, keyboardType: TextInputType.emailAddress),
+            const SizedBox(height: 8),
+            SizedBox(width: double.infinity, child: ElevatedButton(onPressed: _handleSave, child: const Text('Save Changes'))),
+          ],
         ),
       ),
     );
   }
 
-  InputDecoration _inputDec(String hint) => InputDecoration(hintText: hint, filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFFCCCCCC))));
-
   @override
-  void dispose() {
-    _nameController.dispose();
-    _emailController.dispose();
-    super.dispose();
-  }
+  void dispose() { _nameCtrl.dispose(); _emailCtrl.dispose(); super.dispose(); }
 }
