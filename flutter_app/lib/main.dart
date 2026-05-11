@@ -31,6 +31,7 @@ import 'screens/coach_manage/attendance_screen.dart';
 import 'screens/coach_manage/attendance_summary_screen.dart';
 import 'screens/coach/edit_profile_screen.dart';
 import 'screens/coach/head_coach_branches_screen.dart';
+import 'screens/coach/manage_coaches_screen.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
 final _athleteShellKey = GlobalKey<NavigatorState>();
@@ -43,7 +44,7 @@ GoRouter _createRouter(AuthProvider auth) {
     redirect: (context, state) {
       if (auth.loading) return null;
       final loc = state.matchedLocation;
-      final publicRoutes = ['/guest-home', '/login', '/register', '/admin-login', '/head-coach-login', '/forgot-password', '/pending'];
+      final publicRoutes = ['/guest-home', '/login', '/register', '/admin-login', '/head-coach-login', '/head-coach-branches', '/head-coach-manage-coaches', '/forgot-password', '/pending'];
       final isPublic = publicRoutes.any((r) => loc.startsWith(r));
       if (!auth.isLoggedIn && !isPublic) return '/guest-home';
       if (auth.isLoggedIn && !auth.isApproved && loc != '/pending') return '/pending';
@@ -60,6 +61,7 @@ GoRouter _createRouter(AuthProvider auth) {
       GoRoute(path: '/change-password', builder: (_, __) => const ChangePasswordScreen()),
       GoRoute(path: '/edit-profile', builder: (_, __) => const EditProfileScreen()),
       GoRoute(path: '/head-coach-branches', builder: (_, __) => const HeadCoachBranchesScreen()),
+      GoRoute(path: '/head-coach-manage-coaches', builder: (_, __) => const ManageCoachesScreen()),
       GoRoute(path: '/coach-manage/register-requests', builder: (_, __) => const RegisterRequestsScreen()),
       GoRoute(path: '/coach-manage/payment', builder: (_, __) => const PaymentScreen()),
       GoRoute(path: '/coach-manage/attendance', builder: (_, __) => const AttendanceScreen()),

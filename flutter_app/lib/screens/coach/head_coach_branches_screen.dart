@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:dio/dio.dart';
 import 'dart:convert';
 import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
@@ -16,50 +15,56 @@ class HeadCoachBranchesScreen extends StatefulWidget {
 
 class _HeadCoachBranchesScreenState extends State<HeadCoachBranchesScreen> {
   List<dynamic> branches = [];
-  bool loading = true, loggingIn = false;
-
-  static const coachCredentials = {
-    2: {'email': 'hadayek@gmail.com', 'password': '1234'},
-    3: {'email': 'maadi@gmail.com', 'password': '1234'},
-    4: {'email': 'nasrcity@gmail.com', 'password': '1234'},
-    5: {'email': 'newcairo@gmail.com', 'password': '1234'},
-  };
+  bool loading = true, switching = false;
 
   @override
   void initState() { super.initState(); _fetchBranches(); }
 
   Future<void> _fetchBranches() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final stored = prefs.getString('authUser');
-      if (stored == null) { if (mounted) context.go('/guest-home'); return; }
-      final user = jsonDecode(stored);
-      final res = await Dio().get('${ApiService.baseUrl}/branches', options: Options(headers: {'Authorization': 'Bearer ${user['token']}'}));
+      final res = await ApiService().get('/head-coach/branches');
       branches = res.data;
     } catch (_) {} finally { if (mounted) setState(() => loading = false); }
   }
 
-  Future<void> _loginAsCoach(Map<String, dynamic> branch) async {
-    final creds = coachCredentials[branch['id']];
-    if (creds == null) { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('No credentials for ${branch['name']}'), backgroundColor: AppColors.error)); return; }
-    setState(() => loggingIn = true);
+  Future<void> _switchToBranch(Map<String, dynamic> branch) async {
+    setState(() => switching = true);
     try {
-      final res = await Dio().post('${ApiService.baseUrl}/auth/login', data: creds);
-      final authUser = {...Map<String, dynamic>.from(res.data['user']), 'token': res.data['token'], 'isLoggedIn': true, 'isApproved': true, 'branch_id': branch['id'], 'branch_name': branch['name']};
+      // Select branch on backend (updates head_coach's branch_id)
+      await ApiService().post('/head-coach/select-branch/${branch['id']}');
+
+      // Update local auth to reflect selected branch, keep head_coach role
       final prefs = await SharedPreferences.getInstance();
+      final stored = prefs.getString('authUser');
+      if (stored == null) return;
+      final authUser = Map<String, dynamic>.from(jsonDecode(stored));
+      authUser['branch_id'] = branch['id'];
+      authUser['branch_name'] = branch['name'];
       await prefs.setString('authUser', jsonEncode(authUser));
-      await prefs.remove('headCoachMode');
+
       if (!mounted) return;
       await context.read<AuthProvider>().login(authUser);
       context.go('/coach/home');
     } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Login failed'), backgroundColor: AppColors.error));
-    } finally { if (mounted) setState(() => loggingIn = false); }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to switch branch'), backgroundColor: AppColors.error),
+      );
+    } finally {
+      if (mounted) setState(() => switching = false);
+    }
+  }
+
+  Future<void> _logout() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.clear();
+    if (!mounted) return;
+    await context.read<AuthProvider>().logout();
+    context.go('/guest-home');
   }
 
   @override
   Widget build(BuildContext context) {
-    if (loading || loggingIn) return AppLoadingScreen(message: loggingIn ? 'Switching branch...' : 'Loading branches...');
+    if (loading || switching) return AppLoadingScreen(message: switching ? 'Switching branch...' : 'Loading branches...');
 
     return Scaffold(
       body: SafeArea(
@@ -68,10 +73,36 @@ class _HeadCoachBranchesScreenState extends State<HeadCoachBranchesScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Select Branch', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: AppColors.textPrimary, letterSpacing: -0.5)),
-              const SizedBox(height: 6),
-              const Text('Choose a branch to manage', style: TextStyle(fontSize: 14, color: AppColors.textSecondary)),
-              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: const [
+                        Text('Head Coach', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: AppColors.textPrimary, letterSpacing: -0.5)),
+                        SizedBox(height: 4),
+                        Text('Select a branch to manage', style: TextStyle(fontSize: 14, color: AppColors.textSecondary)),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: _logout,
+                    icon: const Icon(Icons.logout_rounded, color: AppColors.textSecondary),
+                    tooltip: 'Logout',
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              // Manage Coaches button
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () => context.go('/head-coach-manage-coaches'),
+                  icon: const Icon(Icons.people_rounded),
+                  label: const Text('Manage Coaches'),
+                ),
+              ),
+              const SizedBox(height: 20),
               Expanded(
                 child: branches.isEmpty
                     ? const Center(child: Text('No branches available.', style: TextStyle(color: AppColors.textSecondary)))
@@ -82,7 +113,7 @@ class _HeadCoachBranchesScreenState extends State<HeadCoachBranchesScreen> {
                           return Padding(
                             padding: const EdgeInsets.only(bottom: 12),
                             child: AppCard(
-                              onTap: () => _loginAsCoach(Map<String, dynamic>.from(b)),
+                              onTap: () => _switchToBranch(Map<String, dynamic>.from(b)),
                               child: Row(
                                 children: [
                                   Container(
