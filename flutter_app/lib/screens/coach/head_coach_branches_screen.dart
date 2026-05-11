@@ -43,11 +43,13 @@ class _HeadCoachBranchesScreenState extends State<HeadCoachBranchesScreen> {
       await prefs.setString('authUser', jsonEncode(authUser));
 
       if (!mounted) return;
+      final nav = GoRouter.of(context);
       await context.read<AuthProvider>().login(authUser);
-      context.go('/coach/home');
-    } catch (_) {
+      nav.go('/coach/home');
+    } catch (e) {
+      debugPrint('Switch branch error: $e');
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to switch branch'), backgroundColor: AppColors.error),
+        SnackBar(content: Text('Failed to switch branch: $e'), backgroundColor: AppColors.error),
       );
     } finally {
       if (mounted) setState(() => switching = false);
