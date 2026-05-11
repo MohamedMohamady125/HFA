@@ -44,10 +44,25 @@ GoRouter _createRouter(AuthProvider auth) {
     redirect: (context, state) {
       if (auth.loading) return null;
       final loc = state.matchedLocation;
-      final publicRoutes = ['/guest-home', '/login', '/register', '/admin-login', '/head-coach-login', '/head-coach-branches', '/head-coach-manage-coaches', '/forgot-password', '/pending'];
-      final isPublic = publicRoutes.any((r) => loc.startsWith(r));
-      if (!auth.isLoggedIn && !isPublic) return '/guest-home';
-      if (auth.isLoggedIn && !auth.isApproved && loc != '/pending') return '/pending';
+
+      final guestOnly = ['/guest-home', '/login', '/register', '/admin-login', '/head-coach-login', '/forgot-password'];
+      final isGuestOnly = guestOnly.any((r) => loc.startsWith(r));
+
+      // Not logged in -> only allow guest routes
+      if (!auth.isLoggedIn) {
+        return isGuestOnly ? null : '/guest-home';
+      }
+
+      // Logged in but not approved -> pending
+      if (!auth.isApproved && loc != '/pending') return '/pending';
+
+      // Logged in + approved -> don't let them back to guest-only pages
+      if (isGuestOnly) {
+        if (auth.role == 'head_coach') return '/head-coach-branches';
+        if (auth.role == 'coach') return '/coach/home';
+        return '/athlete/home';
+      }
+
       return null;
     },
     routes: [
