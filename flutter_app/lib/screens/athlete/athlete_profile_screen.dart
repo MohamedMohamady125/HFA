@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
+import '../../l10n/app_localizations.dart';
 
 class AthleteProfileScreen extends StatefulWidget {
   const AthleteProfileScreen({super.key});
@@ -98,6 +99,7 @@ class _AthleteProfileScreenState extends State<AthleteProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     if (user == null) return const AppLoadingScreen();
 
     return Scaffold(
@@ -126,7 +128,7 @@ class _AthleteProfileScreenState extends State<AthleteProfileScreen> {
 
               // Attendance
               const SizedBox(height: 8),
-              const SectionHeader(title: 'Attendance'),
+              SectionHeader(title: l.translate('attendance_tracker')),
               AppCard(
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -145,25 +147,25 @@ class _AthleteProfileScreenState extends State<AthleteProfileScreen> {
 
               // Measurements
               const SizedBox(height: 8),
-              SectionHeader(title: 'Measurements', trailing: editable ? null : TextButton(onPressed: () => setState(() => editable = true), child: const Text('Edit', style: TextStyle(color: AppColors.accent)))),
+              SectionHeader(title: l.translate('measurements'), trailing: editable ? null : TextButton(onPressed: () => setState(() => editable = true), child: Text(l.translate('edit'), style: const TextStyle(color: AppColors.accent)))),
               AppCard(
                 child: Column(
                   children: [
                     ..._mKeys.map((k) => Padding(
                       padding: const EdgeInsets.only(bottom: 12),
                       child: Row(children: [
-                        SizedBox(width: 100, child: Text(_mLabels[k]!, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.textSecondary))),
+                        SizedBox(width: 100, child: Text(l.translate(k), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.textSecondary))),
                         Expanded(child: TextField(controller: mCtrl[k], keyboardType: TextInputType.number, enabled: editable, style: const TextStyle(fontSize: 14), decoration: const InputDecoration(contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10), isDense: true))),
                       ]),
                     )),
-                    if (editable) SizedBox(width: double.infinity, child: ElevatedButton(onPressed: _saveMeasurements, child: const Text('Save Measurements'))),
+                    if (editable) SizedBox(width: double.infinity, child: ElevatedButton(onPressed: _saveMeasurements, child: Text(l.translate('save_measurements')))),
                   ],
                 ),
               ),
 
               // Events
               const SizedBox(height: 8),
-              SectionHeader(title: 'Swim Events', trailing: eventsEditable ? null : TextButton(onPressed: () => setState(() => eventsEditable = true), child: const Text('Edit', style: TextStyle(color: AppColors.accent)))),
+              SectionHeader(title: l.translate('swim_events'), trailing: eventsEditable ? null : TextButton(onPressed: () => setState(() => eventsEditable = true), child: Text(l.translate('edit'), style: const TextStyle(color: AppColors.accent)))),
               AppCard(
                 child: Column(
                   children: [
@@ -175,8 +177,8 @@ class _AthleteProfileScreenState extends State<AthleteProfileScreen> {
                         Expanded(child: TextField(controller: e['time'], enabled: eventsEditable, decoration: const InputDecoration(hintText: 'Time', isDense: true, contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10)))),
                       ]),
                     )),
-                    if (eventCtrl.length < 5 && eventsEditable) TextButton.icon(onPressed: () => setState(() => eventCtrl.add({'name': TextEditingController(), 'time': TextEditingController()})), icon: const Icon(Icons.add, size: 18), label: const Text('Add Event')),
-                    if (eventsEditable) SizedBox(width: double.infinity, child: ElevatedButton(onPressed: _saveEvents, child: const Text('Save Events'))),
+                    if (eventCtrl.length < 5 && eventsEditable) TextButton.icon(onPressed: () => setState(() => eventCtrl.add({'name': TextEditingController(), 'time': TextEditingController()})), icon: const Icon(Icons.add, size: 18), label: Text(l.translate('add_event'))),
+                    if (eventsEditable) SizedBox(width: double.infinity, child: ElevatedButton(onPressed: _saveEvents, child: Text(l.translate('save_events')))),
                   ],
                 ),
               ),
@@ -188,7 +190,7 @@ class _AthleteProfileScreenState extends State<AthleteProfileScreen> {
                 child: OutlinedButton(
                   onPressed: () async { await context.read<AuthProvider>().logout(); if (context.mounted) context.go('/guest-home'); },
                   style: OutlinedButton.styleFrom(foregroundColor: AppColors.error, side: const BorderSide(color: AppColors.error)),
-                  child: const Text('Logout'),
+                  child: Text(l.translate('logout')),
                 ),
               ),
               const SizedBox(height: 16),

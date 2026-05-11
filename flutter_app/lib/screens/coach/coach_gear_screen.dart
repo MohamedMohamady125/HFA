@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
+import '../../l10n/app_localizations.dart';
 
 class CoachGearScreen extends StatefulWidget {
   const CoachGearScreen({super.key});
@@ -31,14 +32,15 @@ class _CoachGearScreenState extends State<CoachGearScreen> {
     setState(() => submitting = true);
     try {
       await ApiService().post('/gear/$branchId', data: {'content': _msgCtrl.text});
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Gear info saved!'), backgroundColor: AppColors.success));
+      if (mounted) { final l = AppLocalizations.of(context); ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l.translate('gear_saved')), backgroundColor: AppColors.success)); }
     } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to post gear.'), backgroundColor: AppColors.error));
+      if (mounted) { final l = AppLocalizations.of(context); ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l.translate('gear_failed')), backgroundColor: AppColors.error)); }
     } finally { if (mounted) setState(() => submitting = false); }
   }
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     if (loading) return const AppLoadingScreen();
 
     return Scaffold(
@@ -48,7 +50,7 @@ class _CoachGearScreenState extends State<CoachGearScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SectionHeader(title: 'Gear Update', subtitle: 'Branch: $branchName'),
+              SectionHeader(title: l.translate('weekly_gear_update'), subtitle: 'Branch: $branchName'),
               const SizedBox(height: 8),
               AppCard(
                 child: Column(
@@ -56,14 +58,14 @@ class _CoachGearScreenState extends State<CoachGearScreen> {
                     TextField(
                       controller: _msgCtrl, maxLines: 8,
                       style: const TextStyle(fontSize: 15, height: 1.5),
-                      decoration: const InputDecoration(hintText: 'Enter gear requirements for your athletes...', border: InputBorder.none, fillColor: Colors.transparent),
+                      decoration: InputDecoration(hintText: l.translate('enter_gear'), border: InputBorder.none, fillColor: Colors.transparent),
                     ),
                     const SizedBox(height: 16),
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
                         onPressed: submitting || _msgCtrl.text.isEmpty ? null : _handlePost,
-                        child: Text(submitting ? 'Saving...' : 'Save Gear Info'),
+                        child: Text(submitting ? l.translate('saving') : l.translate('save_gear')),
                       ),
                     ),
                   ],

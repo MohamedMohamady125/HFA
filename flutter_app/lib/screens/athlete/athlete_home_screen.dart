@@ -6,6 +6,7 @@ import 'dart:convert';
 import 'package:intl/intl.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
+import '../../l10n/app_localizations.dart';
 
 class AthleteHomeScreen extends StatefulWidget {
   const AthleteHomeScreen({super.key});
@@ -53,7 +54,8 @@ class _AthleteHomeScreenState extends State<AthleteHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (loading) return const AppLoadingScreen(message: 'Loading dashboard...');
+    final l = AppLocalizations.of(context);
+    if (loading) return AppLoadingScreen(message: l.translate('loading_dashboard'));
 
     return Scaffold(
       body: SafeArea(
@@ -71,7 +73,7 @@ class _AthleteHomeScreenState extends State<AthleteHomeScreen> {
                   children: [
                     Expanded(
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        const Text('Dashboard', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: AppColors.textPrimary, letterSpacing: -0.5)),
+                        Text(l.translate('dashboard'), style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: AppColors.textPrimary, letterSpacing: -0.5)),
                         const SizedBox(height: 4),
                         Text(DateFormat('EEEE, MMM d').format(DateTime.now()), style: const TextStyle(fontSize: 14, color: AppColors.textSecondary)),
                       ]),
@@ -86,7 +88,7 @@ class _AthleteHomeScreenState extends State<AthleteHomeScreen> {
                 const SizedBox(height: 28),
 
                 // Attendance
-                const SectionHeader(title: 'Weekly Attendance'),
+                SectionHeader(title: l.translate('weekly_attendance')),
                 AppCard(
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -100,7 +102,7 @@ class _AthleteHomeScreenState extends State<AthleteHomeScreen> {
                 const SizedBox(height: 8),
 
                 // Thread
-                const SectionHeader(title: 'Latest Thread'),
+                SectionHeader(title: l.translate('latest_thread')),
                 AppCard(
                   onTap: () => context.go('/athlete/threads'),
                   child: Row(
@@ -119,7 +121,7 @@ class _AthleteHomeScreenState extends State<AthleteHomeScreen> {
                 const SizedBox(height: 8),
 
                 // Gear
-                const SectionHeader(title: 'Gear Check'),
+                SectionHeader(title: l.translate('gear_check')),
                 AppCard(
                   onTap: () => context.go('/athlete/gear'),
                   child: Row(
@@ -138,7 +140,7 @@ class _AthleteHomeScreenState extends State<AthleteHomeScreen> {
                 const SizedBox(height: 8),
 
                 // Payment
-                SectionHeader(title: 'Payment', subtitle: _monthName()),
+                SectionHeader(title: l.translate('payment'), subtitle: _monthName()),
                 AppCard(
                   child: Row(
                     children: [
@@ -148,7 +150,7 @@ class _AthleteHomeScreenState extends State<AthleteHomeScreen> {
                         child: Icon(_paymentIcon(), color: _paymentColor(), size: 20),
                       ),
                       const SizedBox(width: 14),
-                      Expanded(child: Text('Status', style: const TextStyle(fontSize: 14, color: AppColors.textSecondary))),
+                      Expanded(child: Text(l.translate('status'), style: const TextStyle(fontSize: 14, color: AppColors.textSecondary))),
                       StatusBadge(label: _paymentLabel(), color: _paymentColor()),
                     ],
                   ),
@@ -181,7 +183,10 @@ class _AthleteHomeScreenState extends State<AthleteHomeScreen> {
 
   Color _paymentColor() => switch (paymentStatus) { 'paid' => AppColors.success, 'late' => AppColors.error, _ => AppColors.warning };
   IconData _paymentIcon() => switch (paymentStatus) { 'paid' => Icons.check_circle, 'late' => Icons.warning_rounded, _ => Icons.schedule };
-  String _paymentLabel() => switch (paymentStatus) { 'paid' => 'Paid', 'late' => 'Late', 'pending' => 'Pending', _ => 'Unknown' };
+  String _paymentLabel() {
+    final l = AppLocalizations.of(context);
+    return switch (paymentStatus) { 'paid' => l.translate('paid'), 'late' => l.translate('late'), 'pending' => l.translate('pending'), _ => l.translate('unknown') };
+  }
 }
 
 extension on String { String capitalize() => isEmpty ? this : '${this[0].toUpperCase()}${substring(1)}'; }

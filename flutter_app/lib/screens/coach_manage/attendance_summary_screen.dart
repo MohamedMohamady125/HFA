@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
+import '../../l10n/app_localizations.dart';
 
 class AttendanceSummaryScreen extends StatefulWidget {
   const AttendanceSummaryScreen({super.key});
@@ -38,11 +39,12 @@ class _AttendanceSummaryScreenState extends State<AttendanceSummaryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (loading) return const AppLoadingScreen(message: 'Loading summary...');
+    final l = AppLocalizations.of(context);
+    if (loading) return AppLoadingScreen(message: l.translate('loading_summary'));
     final grouped = _group();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Attendance Summary')),
+      appBar: AppBar(title: Text(l.translate('attendance_summary_title'))),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: grouped.entries.map((entry) => Padding(

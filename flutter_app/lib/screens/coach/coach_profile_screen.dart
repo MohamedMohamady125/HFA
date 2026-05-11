@@ -5,6 +5,7 @@ import 'package:dio/dio.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
+import '../../l10n/app_localizations.dart';
 
 class CoachProfileScreen extends StatefulWidget {
   const CoachProfileScreen({super.key});
@@ -29,6 +30,7 @@ class _CoachProfileScreenState extends State<CoachProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final auth = context.watch<AuthProvider>();
 
     return Scaffold(
@@ -57,17 +59,17 @@ class _CoachProfileScreenState extends State<CoachProfileScreen> {
               ),
               const SizedBox(height: 8),
 
-              const Align(alignment: Alignment.centerLeft, child: SectionHeader(title: 'Settings')),
-              _menuItem(Icons.person_outline_rounded, 'Edit Profile', () => context.push('/edit-profile')),
-              _menuItem(Icons.lock_outline_rounded, 'Change Password', () => context.push('/change-password')),
-              _menuItem(Icons.fact_check_outlined, 'Attendance Summary', () => context.push('/coach-manage/attendance')),
+              Align(alignment: Alignment.centerLeft, child: SectionHeader(title: l.translate('settings'))),
+              _menuItem(Icons.person_outline_rounded, l.translate('edit_profile'), () => context.push('/edit-profile')),
+              _menuItem(Icons.lock_outline_rounded, l.translate('change_password'), () => context.push('/change-password')),
+              _menuItem(Icons.fact_check_outlined, l.translate('attendance_summary'), () => context.push('/coach-manage/attendance')),
               const SizedBox(height: 24),
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton(
                   onPressed: () async { await auth.logout(); if (context.mounted) context.go('/guest-home'); },
                   style: OutlinedButton.styleFrom(foregroundColor: AppColors.error, side: const BorderSide(color: AppColors.error)),
-                  child: const Text('Logout'),
+                  child: Text(l.translate('logout')),
                 ),
               ),
             ],

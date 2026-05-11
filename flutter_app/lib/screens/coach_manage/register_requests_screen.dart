@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
+import '../../l10n/app_localizations.dart';
 
 class RegisterRequestsScreen extends StatefulWidget {
   const RegisterRequestsScreen({super.key});
@@ -22,17 +23,19 @@ class _RegisterRequestsScreenState extends State<RegisterRequestsScreen> {
   }
 
   Future<void> _approve(int id) async {
-    try { await ApiService().post('/users/approve/$id'); _showMsg('Athlete approved'); _fetchRequests(); }
+    final l = AppLocalizations.of(context);
+    try { await ApiService().post('/users/approve/$id'); _showMsg(l.translate('athlete_approved')); _fetchRequests(); }
     catch (_) { _showMsg('Failed to approve', error: true); }
   }
 
   Future<void> _reject(int id) async {
+    final l = AppLocalizations.of(context);
     final ok = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
-      title: const Text('Reject Request?'), content: const Text('This will permanently reject the registration.'),
-      actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')), TextButton(onPressed: () => Navigator.pop(ctx, true), style: TextButton.styleFrom(foregroundColor: AppColors.error), child: const Text('Reject'))],
+      title: Text(l.translate('reject_confirm')), content: Text(l.translate('reject_desc')),
+      actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l.translate('cancel'))), TextButton(onPressed: () => Navigator.pop(ctx, true), style: TextButton.styleFrom(foregroundColor: AppColors.error), child: Text(l.translate('reject')))],
     ));
     if (ok != true) return;
-    try { await ApiService().post('/users/reject/$id'); _showMsg('Request rejected'); _fetchRequests(); }
+    try { await ApiService().post('/users/reject/$id'); _showMsg(l.translate('request_rejected')); _fetchRequests(); }
     catch (_) { _showMsg('Failed to reject', error: true); }
   }
 
@@ -40,15 +43,16 @@ class _RegisterRequestsScreenState extends State<RegisterRequestsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (loading) return const AppLoadingScreen(message: 'Loading requests...');
+    final l = AppLocalizations.of(context);
+    if (loading) return AppLoadingScreen(message: l.translate('loading'));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Registration Requests'), leading: IconButton(icon: const Icon(Icons.arrow_back_rounded), onPressed: () => context.go('/coach/home'))),
+      appBar: AppBar(title: Text(l.translate('pending_requests')), leading: IconButton(icon: const Icon(Icons.arrow_back_rounded), onPressed: () => context.go('/coach/home'))),
       body: requests.isEmpty
           ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
               Icon(Icons.inbox_rounded, size: 56, color: AppColors.textTertiary.withValues(alpha: 0.4)),
               const SizedBox(height: 16),
-              const Text('No pending requests', style: TextStyle(color: AppColors.textSecondary, fontSize: 16)),
+              Text(l.translate('no_requests'), style: const TextStyle(color: AppColors.textSecondary, fontSize: 16)),
             ]))
           : ListView.builder(
               padding: const EdgeInsets.all(20),
@@ -72,9 +76,9 @@ class _RegisterRequestsScreenState extends State<RegisterRequestsScreen> {
                         if (req['phone'] != null) Padding(padding: const EdgeInsets.only(top: 8), child: Row(children: [const Icon(Icons.phone_outlined, size: 14, color: AppColors.textTertiary), const SizedBox(width: 6), Text(req['phone'], style: const TextStyle(fontSize: 13, color: AppColors.textSecondary))])),
                         const SizedBox(height: 16),
                         Row(children: [
-                          Expanded(child: OutlinedButton(onPressed: () => _reject(req['id']), style: OutlinedButton.styleFrom(foregroundColor: AppColors.error, side: const BorderSide(color: AppColors.error)), child: const Text('Reject'))),
+                          Expanded(child: OutlinedButton(onPressed: () => _reject(req['id']), style: OutlinedButton.styleFrom(foregroundColor: AppColors.error, side: const BorderSide(color: AppColors.error)), child: Text(l.translate('reject')))),
                           const SizedBox(width: 12),
-                          Expanded(child: ElevatedButton(onPressed: () => _approve(req['id']), style: ElevatedButton.styleFrom(backgroundColor: AppColors.success), child: const Text('Approve'))),
+                          Expanded(child: ElevatedButton(onPressed: () => _approve(req['id']), style: ElevatedButton.styleFrom(backgroundColor: AppColors.success), child: Text(l.translate('approve')))),
                         ]),
                       ],
                     ),

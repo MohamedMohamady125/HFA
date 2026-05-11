@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
+import '../../l10n/app_localizations.dart';
 
 class CoachPaymentsScreen extends StatefulWidget {
   const CoachPaymentsScreen({super.key});
@@ -38,7 +39,8 @@ class _CoachPaymentsScreenState extends State<CoachPaymentsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (loading) return const AppLoadingScreen(message: 'Loading payments...');
+    final l = AppLocalizations.of(context);
+    if (loading) return AppLoadingScreen(message: l.translate('loading'));
 
     final sorted = List.from(records)..sort((a, b) => (a['athlete_name'] as String).compareTo(b['athlete_name']));
     final filtered = sorted.where((r) => (r['athlete_name'] as String).toLowerCase().contains(search.toLowerCase())).toList();
@@ -53,13 +55,13 @@ class _CoachPaymentsScreenState extends State<CoachPaymentsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Payment Tracking', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: AppColors.textPrimary, letterSpacing: -0.5)),
+                  Text(l.translate('payment_tracking'), style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: AppColors.textPrimary, letterSpacing: -0.5)),
                   const SizedBox(height: 4),
                   Text('${filtered.length} athletes', style: const TextStyle(fontSize: 14, color: AppColors.textSecondary)),
                   const SizedBox(height: 16),
                   TextField(
                     onChanged: (v) => setState(() => search = v),
-                    decoration: const InputDecoration(hintText: 'Search athlete...', prefixIcon: Icon(Icons.search_rounded, color: AppColors.textTertiary)),
+                    decoration: InputDecoration(hintText: l.translate('search_athlete'), prefixIcon: const Icon(Icons.search_rounded, color: AppColors.textTertiary)),
                   ),
                 ],
               ),
@@ -69,7 +71,7 @@ class _CoachPaymentsScreenState extends State<CoachPaymentsScreen> {
               child: RefreshIndicator(
                 onRefresh: _fetchSummary,
                 child: filtered.isEmpty
-                    ? ListView(children: const [SizedBox(height: 100), Center(child: Text('No athletes found.', style: TextStyle(color: AppColors.textSecondary)))])
+                    ? ListView(children: [const SizedBox(height: 100), Center(child: Text(l.translate('no_athletes'), style: const TextStyle(color: AppColors.textSecondary)))])
                     : ListView.builder(
                         padding: const EdgeInsets.symmetric(horizontal: 20),
                         itemCount: filtered.length,

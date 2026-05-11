@@ -6,6 +6,7 @@ import 'dart:convert';
 import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
+import '../../l10n/app_localizations.dart';
 
 class HeadCoachBranchesScreen extends StatefulWidget {
   const HeadCoachBranchesScreen({super.key});
@@ -48,9 +49,9 @@ class _HeadCoachBranchesScreenState extends State<HeadCoachBranchesScreen> {
       nav.go('/coach/home');
     } catch (e) {
       debugPrint('Switch branch error: $e');
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to switch branch: $e'), backgroundColor: AppColors.error),
-      );
+      if (mounted) { final l = AppLocalizations.of(context); ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${l.translate('failed_switch')}: $e'), backgroundColor: AppColors.error),
+      ); }
     } finally {
       if (mounted) setState(() => switching = false);
     }
@@ -66,7 +67,8 @@ class _HeadCoachBranchesScreenState extends State<HeadCoachBranchesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (loading || switching) return AppLoadingScreen(message: switching ? 'Switching branch...' : 'Loading branches...');
+    final l = AppLocalizations.of(context);
+    if (loading || switching) return AppLoadingScreen(message: switching ? l.translate('switching_branch') : l.translate('loading_branches'));
 
     return Scaffold(
       body: SafeArea(
@@ -80,17 +82,17 @@ class _HeadCoachBranchesScreenState extends State<HeadCoachBranchesScreen> {
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
-                        Text('Head Coach', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: AppColors.textPrimary, letterSpacing: -0.5)),
-                        SizedBox(height: 4),
-                        Text('Select a branch to manage', style: TextStyle(fontSize: 14, color: AppColors.textSecondary)),
+                      children: [
+                        Text(l.translate('head_coach'), style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: AppColors.textPrimary, letterSpacing: -0.5)),
+                        const SizedBox(height: 4),
+                        Text(l.translate('select_branch_manage'), style: const TextStyle(fontSize: 14, color: AppColors.textSecondary)),
                       ],
                     ),
                   ),
                   IconButton(
                     onPressed: _logout,
                     icon: const Icon(Icons.logout_rounded, color: AppColors.textSecondary),
-                    tooltip: 'Logout',
+                    tooltip: l.translate('logout'),
                   ),
                 ],
               ),
@@ -101,13 +103,13 @@ class _HeadCoachBranchesScreenState extends State<HeadCoachBranchesScreen> {
                 child: OutlinedButton.icon(
                   onPressed: () => context.go('/head-coach-manage-coaches'),
                   icon: const Icon(Icons.people_rounded),
-                  label: const Text('Manage Coaches'),
+                  label: Text(l.translate('manage_coaches')),
                 ),
               ),
               const SizedBox(height: 20),
               Expanded(
                 child: branches.isEmpty
-                    ? const Center(child: Text('No branches available.', style: TextStyle(color: AppColors.textSecondary)))
+                    ? Center(child: Text(l.translate('no_branches'), style: const TextStyle(color: AppColors.textSecondary)))
                     : ListView.builder(
                         itemCount: branches.length,
                         itemBuilder: (_, i) {

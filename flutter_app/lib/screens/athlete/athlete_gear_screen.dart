@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'dart:convert';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
+import '../../l10n/app_localizations.dart';
 
 class AthleteGearScreen extends StatefulWidget {
   const AthleteGearScreen({super.key});
@@ -34,7 +35,8 @@ class _AthleteGearScreenState extends State<AthleteGearScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (loading) return const AppLoadingScreen(message: 'Loading gear...');
+    final l = AppLocalizations.of(context);
+    if (loading) return AppLoadingScreen(message: l.translate('loading_gear'));
 
     return Scaffold(
       body: SafeArea(
@@ -43,7 +45,7 @@ class _AthleteGearScreenState extends State<AthleteGearScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SectionHeader(title: 'Gear Update', subtitle: 'Latest gear requirements from your coach'),
+              SectionHeader(title: l.translate('gear_update'), subtitle: l.translate('gear_subtitle')),
               const SizedBox(height: 8),
               AppCard(
                 child: Row(

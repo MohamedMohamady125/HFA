@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
+import '../../l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 
@@ -63,7 +64,8 @@ class _CoachThreadsScreenState extends State<CoachThreadsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (loading) return const AppLoadingScreen(message: 'Loading chat...');
+    final l = AppLocalizations.of(context);
+    if (loading) return AppLoadingScreen(message: l.translate('loading'));
 
     return Scaffold(
       body: SafeArea(
@@ -82,8 +84,8 @@ class _CoachThreadsScreenState extends State<CoachThreadsScreen> {
                   ),
                   const SizedBox(width: 12),
                   Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    const Text('Branch Chat', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
-                    Text('${messages.length} messages', style: const TextStyle(fontSize: 12, color: AppColors.textTertiary)),
+                    Text(l.translate('branch_chat'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+                    Text('${messages.length} ${l.translate('messages')}', style: const TextStyle(fontSize: 12, color: AppColors.textTertiary)),
                   ])),
                   IconButton(icon: const Icon(Icons.refresh_rounded, color: AppColors.accent), onPressed: _loadMessages),
                 ],
@@ -96,7 +98,7 @@ class _CoachThreadsScreenState extends State<CoachThreadsScreen> {
                   ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
                       Icon(Icons.chat_bubble_outline_rounded, size: 56, color: AppColors.textTertiary.withValues(alpha: 0.5)),
                       const SizedBox(height: 16),
-                      const Text('No messages yet', style: TextStyle(fontSize: 16, color: AppColors.textSecondary, fontWeight: FontWeight.w600)),
+                      Text(l.translate('no_messages'), style: const TextStyle(fontSize: 16, color: AppColors.textSecondary, fontWeight: FontWeight.w600)),
                     ]))
                   : ListView.builder(
                       controller: _scrollCtrl,
@@ -156,7 +158,7 @@ class _CoachThreadsScreenState extends State<CoachThreadsScreen> {
                     child: TextField(
                       controller: _msgCtrl, maxLines: null, maxLength: 1000, enabled: !sending,
                       style: const TextStyle(fontSize: 15),
-                      decoration: InputDecoration(hintText: 'Type a message...', counterText: '', contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12), border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide(color: AppColors.divider)), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide(color: AppColors.divider))),
+                      decoration: InputDecoration(hintText: l.translate('type_message'), counterText: '', contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12), border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide(color: AppColors.divider)), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide(color: AppColors.divider))),
                     ),
                   ),
                   const SizedBox(width: 8),

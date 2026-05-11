@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
+import '../../l10n/app_localizations.dart';
 
 class CoachHomeScreen extends StatefulWidget {
   const CoachHomeScreen({super.key});
@@ -21,12 +22,13 @@ class _CoachHomeScreenState extends State<CoachHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (name.isEmpty) return const AppLoadingScreen(message: 'Loading...');
+    final l = AppLocalizations.of(context);
+    if (name.isEmpty) return AppLoadingScreen(message: l.translate('loading'));
 
     final tools = [
-      {'title': 'Registration Requests', 'icon': Icons.person_add_rounded, 'route': '/coach-manage/register-requests', 'color': AppColors.info},
-      {'title': 'Payment Tracking', 'icon': Icons.payments_rounded, 'route': '/coach-manage/payment', 'color': AppColors.success},
-      {'title': 'Attendance', 'icon': Icons.fact_check_rounded, 'route': '/coach-manage/attendance', 'color': AppColors.warning},
+      {'title': l.translate('registration_requests'), 'icon': Icons.person_add_rounded, 'route': '/coach-manage/register-requests', 'color': AppColors.info},
+      {'title': l.translate('payment_tracking'), 'icon': Icons.payments_rounded, 'route': '/coach-manage/payment', 'color': AppColors.success},
+      {'title': l.translate('attendance'), 'icon': Icons.fact_check_rounded, 'route': '/coach-manage/attendance', 'color': AppColors.warning},
     ];
 
     return Scaffold(
@@ -43,7 +45,7 @@ class _CoachHomeScreenState extends State<CoachHomeScreen> {
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       Text('Hi, $name', style: const TextStyle(fontSize: 14, color: AppColors.textSecondary)),
                       const SizedBox(height: 4),
-                      const Text('Coach Dashboard', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: AppColors.textPrimary, letterSpacing: -0.5)),
+                      Text(l.translate('coach_dashboard'), style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: AppColors.textPrimary, letterSpacing: -0.5)),
                     ]),
                   ),
                   Container(
@@ -55,7 +57,7 @@ class _CoachHomeScreenState extends State<CoachHomeScreen> {
               ),
               const SizedBox(height: 32),
 
-              const SectionHeader(title: 'Quick Actions'),
+              SectionHeader(title: l.translate('quick_actions')),
               ...tools.map((tool) => Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: AppCard(

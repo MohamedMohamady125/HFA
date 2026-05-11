@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
+import '../../l10n/app_localizations.dart';
 
 class AttendanceScreen extends StatefulWidget {
   const AttendanceScreen({super.key});
@@ -45,11 +46,12 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_branchId == null) return const Scaffold(body: Center(child: Text('No branch assigned')));
+    final l = AppLocalizations.of(context);
+    if (_branchId == null) return Scaffold(body: Center(child: Text(l.translate('no_branch'))));
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Weekly Attendance'),
+        title: Text(l.translate('weekly_attendance_title')),
         leading: IconButton(icon: const Icon(Icons.arrow_back_rounded), onPressed: () => context.pop()),
         actions: [IconButton(icon: const Icon(Icons.bar_chart_rounded, color: AppColors.accent), onPressed: () => context.push('/coach-manage/summary'))],
       ),

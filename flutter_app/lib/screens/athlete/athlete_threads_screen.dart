@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'package:intl/intl.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
+import '../../l10n/app_localizations.dart';
 
 class AthleteThreadsScreen extends StatefulWidget {
   const AthleteThreadsScreen({super.key});
@@ -58,7 +59,8 @@ class _AthleteThreadsScreenState extends State<AthleteThreadsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (loading) return const AppLoadingScreen(message: 'Loading threads...');
+    final l = AppLocalizations.of(context);
+    if (loading) return AppLoadingScreen(message: l.translate('loading_threads'));
 
     return Scaffold(
       body: SafeArea(
@@ -71,11 +73,11 @@ class _AthleteThreadsScreenState extends State<AthleteThreadsScreen> {
                 children: [
                   const Icon(Icons.forum_rounded, color: AppColors.primary, size: 24),
                   const SizedBox(width: 10),
-                  Expanded(child: Text(branchName.isNotEmpty ? branchName : 'Threads', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.textPrimary))),
+                  Expanded(child: Text(branchName.isNotEmpty ? branchName : l.translate('threads'), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.textPrimary))),
                 ],
               ),
             ),
-            if (threads.isEmpty) const Expanded(child: Center(child: Text('No threads available', style: TextStyle(color: AppColors.textSecondary))))
+            if (threads.isEmpty) Expanded(child: Center(child: Text(l.translate('no_threads'), style: const TextStyle(color: AppColors.textSecondary))))
             else ...[
               // Thread chips
               SizedBox(
@@ -108,7 +110,7 @@ class _AthleteThreadsScreenState extends State<AthleteThreadsScreen> {
               if (postsLoading)
                 const Expanded(child: Center(child: CircularProgressIndicator(color: AppColors.accent)))
               else if (posts.isEmpty)
-                const Expanded(child: Center(child: Text('No messages yet', style: TextStyle(color: AppColors.textSecondary))))
+                Expanded(child: Center(child: Text(l.translate('no_messages'), style: const TextStyle(color: AppColors.textSecondary))))
               else
                 Expanded(
                   child: ListView.builder(
