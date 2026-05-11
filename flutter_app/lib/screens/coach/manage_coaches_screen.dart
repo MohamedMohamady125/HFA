@@ -90,7 +90,7 @@ class _ManageCoachesScreenState extends State<ManageCoachesScreen> {
                 _dialogField('Password', passCtrl, obscure: true),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<int>(
-                  initialValue: selectedBranch,
+                  value: selectedBranch,
                   decoration: const InputDecoration(labelText: 'Branch'),
                   items: branches.map<DropdownMenuItem<int>>((b) =>
                     DropdownMenuItem(value: b['id'] as int, child: Text(b['name'] ?? ''))).toList(),
