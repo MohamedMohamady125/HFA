@@ -13,33 +13,44 @@ class GuestHomeScreen extends StatelessWidget {
     final localeProvider = context.watch<LocaleProvider>();
 
     return Scaffold(
-      body: Stack(
-        children: [
-          // Background gradient
-          Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft, end: Alignment.bottomRight,
-                colors: [Color(0xFF0A2342), Color(0xFF1B3A5C), Color(0xFF0D4F8B)],
-              ),
-            ),
-          ),
-          // Decorative circles
-          Positioned(top: -80, right: -60, child: _circle(240, AppColors.accent.withValues(alpha: 0.08))),
-          Positioned(bottom: -40, left: -80, child: _circle(200, AppColors.accent.withValues(alpha: 0.06))),
-          Positioned(top: 200, left: -40, child: _circle(120, AppColors.accent.withValues(alpha: 0.04))),
-
-          SafeArea(
-            child: Column(
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: Stack(
+          children: [
+            // Content
+            Column(
               children: [
                 // Top bar
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      _iconBtn(localeProvider.locale.languageCode == 'en' ? '\u0639\u0631\u0628\u064A' : 'EN', () => localeProvider.toggleLocale()),
-                      _iconBtn('Coach', () => context.push('/admin-login'), icon: Icons.shield_outlined),
+                      GestureDetector(
+                        onTap: () => localeProvider.toggleLocale(),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: AppColors.surfaceLight,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            localeProvider.locale.languageCode == 'en' ? '\u0639\u0631\u0628\u064A' : 'EN',
+                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
+                          ),
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () => context.push('/head-coach-login'),
+                        child: Container(
+                          width: 40, height: 40,
+                          decoration: BoxDecoration(
+                            color: AppColors.surfaceLight,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(Icons.admin_panel_settings_outlined, color: AppColors.textSecondary, size: 20),
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -49,72 +60,67 @@ class GuestHomeScreen extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(horizontal: 28),
                     child: Column(
                       children: [
-                        const SizedBox(height: 40),
+                        const SizedBox(height: 32),
                         // Logo
                         Container(
-                          width: 100, height: 100,
+                          width: 110, height: 110,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             color: Colors.white,
-                            boxShadow: [BoxShadow(color: AppColors.accent.withValues(alpha: 0.3), blurRadius: 30, spreadRadius: 5)],
+                            boxShadow: [BoxShadow(color: AppColors.primary.withValues(alpha: 0.15), blurRadius: 24, spreadRadius: 2)],
                           ),
                           child: ClipOval(child: Image.asset('assets/images/hfanew.png', fit: BoxFit.cover)),
                         ),
-                        const SizedBox(height: 24),
-                        const Text('HFA', style: TextStyle(fontSize: 36, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: 6)),
-                        const SizedBox(height: 4),
-                        Text('SWIMMING ACADEMY', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.accentLight.withValues(alpha: 0.8), letterSpacing: 4)),
-                        const SizedBox(height: 12),
-                        Text(l10n.translate('welcome_title'), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: Colors.white)),
+                        const SizedBox(height: 20),
+                        const Text('HFA', style: TextStyle(fontSize: 32, fontWeight: FontWeight.w800, color: AppColors.primary, letterSpacing: 4)),
+                        const SizedBox(height: 2),
+                        Text('SWIMMING ACADEMY', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.primary.withValues(alpha: 0.5), letterSpacing: 3)),
+                        const SizedBox(height: 20),
+                        Text(l10n.translate('welcome_title'), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
                         const SizedBox(height: 8),
-                        Text(l10n.translate('branch_count'), style: TextStyle(fontSize: 14, color: Colors.white.withValues(alpha: 0.7))),
-                        const SizedBox(height: 48),
+                        Text(l10n.translate('branch_count'), style: const TextStyle(fontSize: 14, color: AppColors.textSecondary)),
+                        const SizedBox(height: 36),
 
-                        // Info card
+                        // Branch info card
                         Container(
-                          padding: const EdgeInsets.all(20),
+                          padding: const EdgeInsets.all(18),
                           decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+                            color: AppColors.accentLight,
+                            borderRadius: BorderRadius.circular(16),
                           ),
                           child: Row(
                             children: [
                               Container(
-                                width: 44, height: 44,
-                                decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(12)),
-                                child: const Icon(Icons.location_on_rounded, color: AppColors.accent, size: 22),
+                                width: 42, height: 42,
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Icon(Icons.location_on_rounded, color: AppColors.primary, size: 22),
                               ),
                               const SizedBox(width: 14),
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(l10n.translate('nearest_branch'), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.accent)),
+                                    Text(l10n.translate('nearest_branch'), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.primary)),
                                     const SizedBox(height: 4),
-                                    Text(l10n.translate('branch_name'), style: TextStyle(fontSize: 14, color: Colors.white.withValues(alpha: 0.9), fontWeight: FontWeight.w500)),
-                                    Text(l10n.translate('practice_time'), style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.5))),
+                                    Text(l10n.translate('branch_name'), style: const TextStyle(fontSize: 14, color: AppColors.textPrimary, fontWeight: FontWeight.w500)),
+                                    Text(l10n.translate('practice_time'), style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
                                   ],
                                 ),
                               ),
                             ],
                           ),
                         ),
-                        const SizedBox(height: 32),
+                        const SizedBox(height: 36),
 
                         // Login button
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton(
                             onPressed: () => context.push('/login'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.accent,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                              elevation: 0,
-                            ),
-                            child: Text(l10n.translate('login'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
+                            child: Text(l10n.translate('login'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
                           ),
                         ),
                         const SizedBox(height: 12),
@@ -124,62 +130,24 @@ class GuestHomeScreen extends StatelessWidget {
                           width: double.infinity,
                           child: OutlinedButton(
                             onPressed: () => context.push('/register'),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: Colors.white,
-                              side: BorderSide(color: Colors.white.withValues(alpha: 0.3), width: 1.5),
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                            ),
                             child: Text(l10n.translate('register'), style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
                           ),
                         ),
-                        const SizedBox(height: 60),
+                        const SizedBox(height: 20),
+
+                        // Coach login link
+                        TextButton.icon(
+                          onPressed: () => context.push('/admin-login'),
+                          icon: const Icon(Icons.shield_outlined, size: 18, color: AppColors.textSecondary),
+                          label: const Text('Coach Login', style: TextStyle(color: AppColors.textSecondary, fontSize: 14, fontWeight: FontWeight.w500)),
+                        ),
+                        const SizedBox(height: 40),
                       ],
                     ),
                   ),
                 ),
               ],
             ),
-          ),
-
-          // Head coach button
-          Positioned(
-            bottom: 40, right: 24,
-            child: GestureDetector(
-              onTap: () => context.push('/head-coach-login'),
-              child: Container(
-                width: 48, height: 48,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white.withValues(alpha: 0.15),
-                  border: Border.all(color: AppColors.accent.withValues(alpha: 0.4)),
-                ),
-                child: const Icon(Icons.admin_panel_settings, color: AppColors.accent, size: 22),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _circle(double size, Color color) => Container(width: size, height: size, decoration: BoxDecoration(shape: BoxShape.circle, color: color));
-
-  Widget _iconBtn(String label, VoidCallback onTap, {IconData? icon}) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (icon != null) ...[Icon(icon, color: Colors.white70, size: 16), const SizedBox(width: 6)],
-            Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white70)),
           ],
         ),
       ),

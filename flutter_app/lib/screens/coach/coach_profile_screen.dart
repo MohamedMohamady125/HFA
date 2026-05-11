@@ -41,7 +41,7 @@ class _CoachProfileScreenState extends State<CoachProfileScreen> {
               AppCard(
                 child: Column(
                   children: [
-                    CircleAvatar(radius: 36, backgroundColor: AppColors.primary, child: Text((auth.userName ?? 'C')[0].toUpperCase(), style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: Colors.white))),
+                    CircleAvatar(radius: 36, backgroundColor: AppColors.accent, child: Text((auth.userName ?? 'C')[0].toUpperCase(), style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: Colors.white))),
                     const SizedBox(height: 16),
                     Text(auth.userName ?? 'Coach', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
                     const SizedBox(height: 6),

@@ -68,7 +68,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                       margin: const EdgeInsets.symmetric(horizontal: 4),
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       decoration: BoxDecoration(
-                        color: active ? AppColors.primary : AppColors.surfaceLight,
+                        color: active ? AppColors.accent : AppColors.surfaceLight,
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Center(child: Text(days[i], style: TextStyle(fontSize: 14, color: active ? Colors.white : AppColors.textSecondary, fontWeight: FontWeight.w600))),

@@ -111,7 +111,7 @@ class _AthleteProfileScreenState extends State<AthleteProfileScreen> {
               AppCard(
                 child: Row(
                   children: [
-                    CircleAvatar(radius: 28, backgroundColor: AppColors.primary, child: Text((user!['name'] ?? 'U')[0].toUpperCase(), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: Colors.white))),
+                    CircleAvatar(radius: 28, backgroundColor: AppColors.accent, child: Text((user!['name'] ?? 'U')[0].toUpperCase(), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: Colors.white))),
                     const SizedBox(width: 16),
                     Expanded(
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

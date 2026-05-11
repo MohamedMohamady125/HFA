@@ -18,8 +18,8 @@ class PendingScreen extends StatelessWidget {
             children: [
               Container(
                 width: 100, height: 100,
-                decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), shape: BoxShape.circle),
-                child: const Icon(Icons.hourglass_top_rounded, size: 48, color: AppColors.accent),
+                decoration: BoxDecoration(color: AppColors.accentLight, shape: BoxShape.circle),
+                child: const Icon(Icons.hourglass_top_rounded, size: 48, color: AppColors.primary),
               ),
               const SizedBox(height: 32),
               const Text('Pending Approval', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),

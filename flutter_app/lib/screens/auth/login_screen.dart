@@ -60,96 +60,74 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [AppColors.primary, Color(0xFF153B5C)]),
-        ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              // Back button
-              Align(
-                alignment: Alignment.centerLeft,
-                child: IconButton(
-                  onPressed: () => context.pop(),
-                  icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
-                ),
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        leading: IconButton(onPressed: () => context.pop(), icon: const Icon(Icons.arrow_back_rounded)),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 28),
+        child: Column(
+          children: [
+            const SizedBox(height: 20),
+            Container(
+              width: 72, height: 72,
+              decoration: BoxDecoration(
+                color: AppColors.accentLight,
+                borderRadius: BorderRadius.circular(20),
               ),
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 28),
-                  child: Column(
-                    children: [
-                      const SizedBox(height: 20),
-                      const Icon(Icons.pool_rounded, size: 56, color: AppColors.accent),
-                      const SizedBox(height: 16),
-                      const Text('Welcome Back', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: Colors.white)),
-                      const SizedBox(height: 8),
-                      Text('Sign in to your athlete account', style: TextStyle(fontSize: 15, color: Colors.white.withValues(alpha: 0.6))),
-                      const SizedBox(height: 40),
+              child: const Icon(Icons.pool_rounded, size: 36, color: AppColors.primary),
+            ),
+            const SizedBox(height: 20),
+            const Text('Welcome Back', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
+            const SizedBox(height: 6),
+            const Text('Sign in to your athlete account', style: TextStyle(fontSize: 14, color: AppColors.textSecondary)),
+            const SizedBox(height: 36),
 
-                      // Form card
-                      Container(
-                        padding: const EdgeInsets.all(24),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 30, offset: const Offset(0, 10))],
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            AppFormField(label: 'EMAIL', controller: _emailController, keyboardType: TextInputType.emailAddress, hint: 'your@email.com'),
-                            const SizedBox(height: 4),
-                            const Text('PASSWORD', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textSecondary, letterSpacing: 0.3)),
-                            const SizedBox(height: 8),
-                            TextField(
-                              controller: _passwordController,
-                              obscureText: _obscure,
-                              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
-                              decoration: InputDecoration(
-                                hintText: 'Enter your password',
-                                suffixIcon: IconButton(
-                                  icon: Icon(_obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: AppColors.textTertiary, size: 20),
-                                  onPressed: () => setState(() => _obscure = !_obscure),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: TextButton(
-                                onPressed: () => context.push('/forgot-password'),
-                                child: const Text('Forgot password?', style: TextStyle(fontSize: 13, color: AppColors.accent, fontWeight: FontWeight.w600)),
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            SizedBox(
-                              width: double.infinity,
-                              child: ElevatedButton(
-                                onPressed: _loading ? null : _handleLogin,
-                                child: _loading
-                                    ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white))
-                                    : const Text('Sign In'),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      TextButton(
-                        onPressed: () => context.push('/register'),
-                        child: RichText(text: TextSpan(style: TextStyle(fontSize: 14, color: Colors.white.withValues(alpha: 0.6)), children: [
-                          const TextSpan(text: "Don't have an account? "),
-                          TextSpan(text: 'Register', style: const TextStyle(color: AppColors.accent, fontWeight: FontWeight.w700)),
-                        ])),
-                      ),
-                    ],
-                  ),
+            // Form
+            AppFormField(label: 'EMAIL', controller: _emailController, keyboardType: TextInputType.emailAddress, hint: 'your@email.com'),
+            const SizedBox(height: 4),
+            const Align(alignment: Alignment.centerLeft, child: Text('PASSWORD', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textSecondary, letterSpacing: 0.3))),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _passwordController,
+              obscureText: _obscure,
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+              decoration: InputDecoration(
+                hintText: 'Enter your password',
+                suffixIcon: IconButton(
+                  icon: Icon(_obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: AppColors.textTertiary, size: 20),
+                  onPressed: () => setState(() => _obscure = !_obscure),
                 ),
               ),
-            ],
-          ),
+            ),
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: () => context.push('/forgot-password'),
+                child: const Text('Forgot password?', style: TextStyle(fontSize: 13, color: AppColors.primary, fontWeight: FontWeight.w600)),
+              ),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _loading ? null : _handleLogin,
+                child: _loading
+                    ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white))
+                    : const Text('Sign In'),
+              ),
+            ),
+            const SizedBox(height: 24),
+            TextButton(
+              onPressed: () => context.push('/register'),
+              child: RichText(text: const TextSpan(style: TextStyle(fontSize: 14, color: AppColors.textSecondary), children: [
+                TextSpan(text: "Don't have an account? "),
+                TextSpan(text: 'Register', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700)),
+              ])),
+            ),
+          ],
         ),
       ),
     );

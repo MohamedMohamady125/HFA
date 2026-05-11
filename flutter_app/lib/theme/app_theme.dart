@@ -2,15 +2,15 @@ import 'package:flutter/material.dart';
 
 class AppColors {
   // Primary palette
-  static const primary = Color(0xFF0A2342);       // Deep navy
-  static const primaryLight = Color(0xFF1B3A5C);   // Lighter navy
-  static const accent = Color(0xFF00B4D8);         // Vibrant cyan
-  static const accentLight = Color(0xFF90E0EF);    // Light cyan
+  static const primary = Color(0xFF3399FF);        // HFA Blue
+  static const primaryLight = Color(0xFF5AAEFF);   // Lighter blue
+  static const accent = Color(0xFF3399FF);         // Same blue as primary
+  static const accentLight = Color(0xFFCCE5FF);    // Very light blue
 
   // Backgrounds
-  static const scaffoldBg = Color(0xFFF7F8FC);     // Cool white
+  static const scaffoldBg = Color(0xFFF5F7FA);     // Clean white-gray
   static const cardBg = Colors.white;
-  static const surfaceLight = Color(0xFFF0F4F8);   // Light gray-blue
+  static const surfaceLight = Color(0xFFF0F4F8);   // Light gray
 
   // Text
   static const textPrimary = Color(0xFF1A1D26);

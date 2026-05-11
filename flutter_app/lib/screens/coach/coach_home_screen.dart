@@ -48,8 +48,8 @@ class _CoachHomeScreenState extends State<CoachHomeScreen> {
                   ),
                   Container(
                     width: 48, height: 48,
-                    decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(14)),
-                    child: const Icon(Icons.shield_rounded, color: Colors.white),
+                    decoration: BoxDecoration(color: AppColors.accentLight, borderRadius: BorderRadius.circular(14)),
+                    child: const Icon(Icons.shield_rounded, color: AppColors.primary),
                   ),
                 ],
               ),

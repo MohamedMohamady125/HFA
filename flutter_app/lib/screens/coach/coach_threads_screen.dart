@@ -77,7 +77,7 @@ class _CoachThreadsScreenState extends State<CoachThreadsScreen> {
                 children: [
                   Container(
                     width: 40, height: 40,
-                    decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(10)),
+                    decoration: BoxDecoration(color: AppColors.accent, borderRadius: BorderRadius.circular(10)),
                     child: Center(child: Text('${displayBranchId ?? ''}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14))),
                   ),
                   const SizedBox(width: 12),
@@ -124,7 +124,7 @@ class _CoachThreadsScreenState extends State<CoachThreadsScreen> {
                               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                               constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.72),
                               decoration: BoxDecoration(
-                                color: isMine ? AppColors.primary : AppColors.cardBg,
+                                color: isMine ? AppColors.accent : AppColors.cardBg,
                                 borderRadius: BorderRadius.circular(16).copyWith(
                                   bottomRight: isMine ? const Radius.circular(4) : null,
                                   bottomLeft: !isMine ? const Radius.circular(4) : null,
@@ -162,7 +162,7 @@ class _CoachThreadsScreenState extends State<CoachThreadsScreen> {
                   const SizedBox(width: 8),
                   Container(
                     width: 46, height: 46,
-                    decoration: BoxDecoration(color: sending ? AppColors.textTertiary : AppColors.primary, shape: BoxShape.circle),
+                    decoration: BoxDecoration(color: sending ? AppColors.textTertiary : AppColors.accent, shape: BoxShape.circle),
                     child: IconButton(
                       onPressed: _msgCtrl.text.trim().isNotEmpty && !sending ? _postMessage : null,
                       icon: sending ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Icon(Icons.send_rounded, color: Colors.white, size: 20),
