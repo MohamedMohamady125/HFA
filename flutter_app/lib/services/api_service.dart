@@ -3,8 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 
 class ApiService {
-  // TODO: Replace with your Railway URL after deployment (e.g. https://your-app.up.railway.app)
-  static const String baseUrl = 'http://192.168.1.8:8000';
+  static const String baseUrl = 'https://hfa-production-a1ce.up.railway.app';
   static final ApiService _instance = ApiService._internal();
   late final Dio _dio;
 
