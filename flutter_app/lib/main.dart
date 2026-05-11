@@ -37,99 +37,109 @@ final _rootNavigatorKey = GlobalKey<NavigatorState>();
 final _athleteShellKey = GlobalKey<NavigatorState>();
 final _coachShellKey = GlobalKey<NavigatorState>();
 
-GoRouter _createRouter(AuthProvider auth) {
-  return GoRouter(
-    navigatorKey: _rootNavigatorKey,
-    initialLocation: '/guest-home',
-    redirect: (context, state) {
-      if (auth.loading) return null;
-      final loc = state.matchedLocation;
-
-      final guestOnly = ['/guest-home', '/login', '/register', '/admin-login', '/head-coach-login', '/forgot-password'];
-      final isGuestOnly = guestOnly.any((r) => loc.startsWith(r));
-
-      // Not logged in -> only allow guest routes
-      if (!auth.isLoggedIn) {
-        return isGuestOnly ? null : '/guest-home';
-      }
-
-      // Logged in but not approved -> pending
-      if (!auth.isApproved && loc != '/pending') return '/pending';
-
-      // Logged in + approved -> don't let them back to guest-only pages
-      if (isGuestOnly) {
-        if (auth.role == 'head_coach') return '/head-coach-branches';
-        if (auth.role == 'coach') return '/coach/home';
-        return '/athlete/home';
-      }
-
-      return null;
-    },
-    routes: [
-      GoRoute(path: '/guest-home', builder: (_, __) => const GuestHomeScreen()),
-      GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
-      GoRoute(path: '/register', builder: (_, __) => const RegisterScreen()),
-      GoRoute(path: '/admin-login', builder: (_, __) => const AdminLoginScreen()),
-      GoRoute(path: '/head-coach-login', builder: (_, __) => const HeadCoachLoginScreen()),
-      GoRoute(path: '/pending', builder: (_, __) => const PendingScreen()),
-      GoRoute(path: '/forgot-password', builder: (_, __) => const ForgotPasswordScreen()),
-      GoRoute(path: '/change-password', builder: (_, __) => const ChangePasswordScreen()),
-      GoRoute(path: '/edit-profile', builder: (_, __) => const EditProfileScreen()),
-      GoRoute(path: '/head-coach-branches', builder: (_, __) => const HeadCoachBranchesScreen()),
-      GoRoute(path: '/head-coach-manage-coaches', builder: (_, __) => const ManageCoachesScreen()),
-      GoRoute(path: '/coach-manage/register-requests', builder: (_, __) => const RegisterRequestsScreen()),
-      GoRoute(path: '/coach-manage/payment', builder: (_, __) => const PaymentScreen()),
-      GoRoute(path: '/coach-manage/attendance', builder: (_, __) => const AttendanceScreen()),
-      GoRoute(path: '/coach-manage/summary', builder: (_, __) => const AttendanceSummaryScreen()),
-      ShellRoute(
-        navigatorKey: _athleteShellKey,
-        builder: (_, __, child) => AthleteShell(child: child),
-        routes: [
-          GoRoute(path: '/athlete/home', builder: (_, __) => const AthleteHomeScreen()),
-          GoRoute(path: '/athlete/threads', builder: (_, __) => const AthleteThreadsScreen()),
-          GoRoute(path: '/athlete/gear', builder: (_, __) => const AthleteGearScreen()),
-          GoRoute(path: '/athlete/profile', builder: (_, __) => const AthleteProfileScreen()),
-        ],
-      ),
-      ShellRoute(
-        navigatorKey: _coachShellKey,
-        builder: (_, __, child) => CoachShell(child: child),
-        routes: [
-          GoRoute(path: '/coach/home', builder: (_, __) => const CoachHomeScreen()),
-          GoRoute(path: '/coach/threads', builder: (_, __) => const CoachThreadsScreen()),
-          GoRoute(path: '/coach/gear', builder: (_, __) => const CoachGearScreen()),
-          GoRoute(path: '/coach/profile', builder: (_, __) => const CoachProfileScreen()),
-        ],
-      ),
-    ],
-  );
-}
-
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
     statusBarIconBrightness: Brightness.dark,
   ));
+
+  final authProvider = AuthProvider();
+
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => AuthProvider()),
+        ChangeNotifierProvider.value(value: authProvider),
         ChangeNotifierProvider(create: (_) => LocaleProvider()),
       ],
-      child: const HFAApp(),
+      child: HFAApp(authProvider: authProvider),
     ),
   );
 }
 
-class HFAApp extends StatelessWidget {
-  const HFAApp({super.key});
+class HFAApp extends StatefulWidget {
+  final AuthProvider authProvider;
+  const HFAApp({super.key, required this.authProvider});
+
+  @override
+  State<HFAApp> createState() => _HFAAppState();
+}
+
+class _HFAAppState extends State<HFAApp> {
+  late final GoRouter _router;
+
+  @override
+  void initState() {
+    super.initState();
+    _router = GoRouter(
+      navigatorKey: _rootNavigatorKey,
+      initialLocation: '/guest-home',
+      refreshListenable: widget.authProvider,
+      redirect: (context, state) {
+        final auth = widget.authProvider;
+        if (auth.loading) return null;
+        final loc = state.matchedLocation;
+
+        final guestOnly = ['/guest-home', '/login', '/register', '/admin-login', '/head-coach-login', '/forgot-password'];
+        final isGuestOnly = guestOnly.any((r) => loc.startsWith(r));
+
+        if (!auth.isLoggedIn) {
+          return isGuestOnly ? null : '/guest-home';
+        }
+
+        if (!auth.isApproved && loc != '/pending') return '/pending';
+
+        if (isGuestOnly) {
+          if (auth.role == 'head_coach') return '/head-coach-branches';
+          if (auth.role == 'coach') return '/coach/home';
+          return '/athlete/home';
+        }
+
+        return null;
+      },
+      routes: [
+        GoRoute(path: '/guest-home', builder: (_, __) => const GuestHomeScreen()),
+        GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
+        GoRoute(path: '/register', builder: (_, __) => const RegisterScreen()),
+        GoRoute(path: '/admin-login', builder: (_, __) => const AdminLoginScreen()),
+        GoRoute(path: '/head-coach-login', builder: (_, __) => const HeadCoachLoginScreen()),
+        GoRoute(path: '/pending', builder: (_, __) => const PendingScreen()),
+        GoRoute(path: '/forgot-password', builder: (_, __) => const ForgotPasswordScreen()),
+        GoRoute(path: '/change-password', builder: (_, __) => const ChangePasswordScreen()),
+        GoRoute(path: '/edit-profile', builder: (_, __) => const EditProfileScreen()),
+        GoRoute(path: '/head-coach-branches', builder: (_, __) => const HeadCoachBranchesScreen()),
+        GoRoute(path: '/head-coach-manage-coaches', builder: (_, __) => const ManageCoachesScreen()),
+        GoRoute(path: '/coach-manage/register-requests', builder: (_, __) => const RegisterRequestsScreen()),
+        GoRoute(path: '/coach-manage/payment', builder: (_, __) => const PaymentScreen()),
+        GoRoute(path: '/coach-manage/attendance', builder: (_, __) => const AttendanceScreen()),
+        GoRoute(path: '/coach-manage/summary', builder: (_, __) => const AttendanceSummaryScreen()),
+        ShellRoute(
+          navigatorKey: _athleteShellKey,
+          builder: (_, __, child) => AthleteShell(child: child),
+          routes: [
+            GoRoute(path: '/athlete/home', builder: (_, __) => const AthleteHomeScreen()),
+            GoRoute(path: '/athlete/threads', builder: (_, __) => const AthleteThreadsScreen()),
+            GoRoute(path: '/athlete/gear', builder: (_, __) => const AthleteGearScreen()),
+            GoRoute(path: '/athlete/profile', builder: (_, __) => const AthleteProfileScreen()),
+          ],
+        ),
+        ShellRoute(
+          navigatorKey: _coachShellKey,
+          builder: (_, __, child) => CoachShell(child: child),
+          routes: [
+            GoRoute(path: '/coach/home', builder: (_, __) => const CoachHomeScreen()),
+            GoRoute(path: '/coach/threads', builder: (_, __) => const CoachThreadsScreen()),
+            GoRoute(path: '/coach/gear', builder: (_, __) => const CoachGearScreen()),
+            GoRoute(path: '/coach/profile', builder: (_, __) => const CoachProfileScreen()),
+          ],
+        ),
+      ],
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    final auth = context.watch<AuthProvider>();
     final localeProvider = context.watch<LocaleProvider>();
-    final router = _createRouter(auth);
 
     return MaterialApp.router(
       title: 'HFA Academy',
@@ -143,7 +153,7 @@ class HFAApp extends StatelessWidget {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      routerConfig: router,
+      routerConfig: _router,
     );
   }
 }
