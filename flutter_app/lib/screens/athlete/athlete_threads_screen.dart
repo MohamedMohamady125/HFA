@@ -10,10 +10,10 @@ import '../../l10n/app_localizations.dart';
 class AthleteThreadsScreen extends StatefulWidget {
   const AthleteThreadsScreen({super.key});
   @override
-  State<AthleteThreadsScreen> createState() => _AthleteThreadsScreenState();
+  State<AthleteThreadsScreen> createState() => AthleteThreadsScreenState();
 }
 
-class _AthleteThreadsScreenState extends State<AthleteThreadsScreen> with AutomaticKeepAliveClientMixin {
+class AthleteThreadsScreenState extends State<AthleteThreadsScreen> with AutomaticKeepAliveClientMixin {
   @override
   bool get wantKeepAlive => true;
   List<dynamic> threads = [], posts = [];
@@ -21,11 +21,15 @@ class _AthleteThreadsScreenState extends State<AthleteThreadsScreen> with Automa
   bool loading = true, postsLoading = false;
   String branchName = '';
 
+  bool _fetched = false;
+
   @override
   void initState() { super.initState(); _fetchData(); }
 
-  Future<void> _fetchData() async {
-    setState(() => loading = true);
+  void silentRefresh() { if (_fetched) _fetchData(silent: true); }
+
+  Future<void> _fetchData({bool silent = false}) async {
+    if (!silent) setState(() => loading = true);
     try {
       final api = ApiService();
       final me = await api.get('/users/me');
@@ -39,6 +43,7 @@ class _AthleteThreadsScreenState extends State<AthleteThreadsScreen> with Automa
       }).toList();
 
       if (threads.isNotEmpty) await _selectThread(threads[0]);
+      _fetched = true;
     } catch (_) {} finally { if (mounted) setState(() => loading = false); }
   }
 

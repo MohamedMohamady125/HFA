@@ -6,14 +6,16 @@ import '../../l10n/app_localizations.dart';
 class CoachGearScreen extends StatefulWidget {
   const CoachGearScreen({super.key});
   @override
-  State<CoachGearScreen> createState() => _CoachGearScreenState();
+  State<CoachGearScreen> createState() => CoachGearScreenState();
 }
 
-class _CoachGearScreenState extends State<CoachGearScreen> {
+class CoachGearScreenState extends State<CoachGearScreen> {
   int? branchId;
   String branchName = '';
   final _msgCtrl = TextEditingController();
   bool loading = true, submitting = false;
+
+  void silentRefresh() { _loadData(); }
 
   @override
   void initState() { super.initState(); _loadData(); }

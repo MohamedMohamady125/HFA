@@ -9,16 +9,18 @@ import 'dart:convert';
 class CoachThreadsScreen extends StatefulWidget {
   const CoachThreadsScreen({super.key});
   @override
-  State<CoachThreadsScreen> createState() => _CoachThreadsScreenState();
+  State<CoachThreadsScreen> createState() => CoachThreadsScreenState();
 }
 
-class _CoachThreadsScreenState extends State<CoachThreadsScreen> {
+class CoachThreadsScreenState extends State<CoachThreadsScreen> {
   Map<String, dynamic>? user;
   List<dynamic> messages = [];
   final _msgCtrl = TextEditingController();
   bool loading = true, sending = false;
   int? threadId, displayBranchId;
   final _scrollCtrl = ScrollController();
+
+  void silentRefresh() { if (threadId != null) _loadMessages(); }
 
   @override
   void initState() { super.initState(); _loadThread(); }

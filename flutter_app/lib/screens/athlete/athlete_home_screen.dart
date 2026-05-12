@@ -11,10 +11,10 @@ import '../../l10n/app_localizations.dart';
 class AthleteHomeScreen extends StatefulWidget {
   const AthleteHomeScreen({super.key});
   @override
-  State<AthleteHomeScreen> createState() => _AthleteHomeScreenState();
+  State<AthleteHomeScreen> createState() => AthleteHomeScreenState();
 }
 
-class _AthleteHomeScreenState extends State<AthleteHomeScreen> with AutomaticKeepAliveClientMixin {
+class AthleteHomeScreenState extends State<AthleteHomeScreen> with AutomaticKeepAliveClientMixin {
   List<dynamic> attendance = [];
   String gearMessage = '', lastThreadMessage = '';
   String? paymentStatus;
@@ -30,8 +30,13 @@ class _AthleteHomeScreenState extends State<AthleteHomeScreen> with AutomaticKee
   @override
   void initState() { super.initState(); _fetchData(); }
 
-  Future<void> _fetchData() async {
-    if (!loading && !_fetched) setState(() => loading = true);
+  // Called by shell on tab switch - silent refresh
+  void silentRefresh() {
+    if (_fetched) _fetchData(silent: true);
+  }
+
+  Future<void> _fetchData({bool silent = false}) async {
+    if (!silent && !_fetched) setState(() => loading = true);
     try {
       final prefs = await SharedPreferences.getInstance();
       final stored = prefs.getString('authUser');

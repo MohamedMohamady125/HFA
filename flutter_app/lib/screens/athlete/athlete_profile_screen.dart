@@ -11,10 +11,10 @@ import '../../l10n/app_localizations.dart';
 class AthleteProfileScreen extends StatefulWidget {
   const AthleteProfileScreen({super.key});
   @override
-  State<AthleteProfileScreen> createState() => _AthleteProfileScreenState();
+  State<AthleteProfileScreen> createState() => AthleteProfileScreenState();
 }
 
-class _AthleteProfileScreenState extends State<AthleteProfileScreen> {
+class AthleteProfileScreenState extends State<AthleteProfileScreen> {
   Map<String, dynamic>? user;
   List<dynamic> attendance = [];
   String branchName = '';
@@ -29,6 +29,8 @@ class _AthleteProfileScreenState extends State<AthleteProfileScreen> {
   // Events
   List<Map<String, TextEditingController>> eventCtrl = [];
   bool eventsEditable = true;
+
+  void silentRefresh() { _fetchData(); }
 
   @override
   void initState() {

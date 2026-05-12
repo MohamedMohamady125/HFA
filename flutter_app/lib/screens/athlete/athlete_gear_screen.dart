@@ -9,22 +9,26 @@ import '../../l10n/app_localizations.dart';
 class AthleteGearScreen extends StatefulWidget {
   const AthleteGearScreen({super.key});
   @override
-  State<AthleteGearScreen> createState() => _AthleteGearScreenState();
+  State<AthleteGearScreen> createState() => AthleteGearScreenState();
 }
 
-class _AthleteGearScreenState extends State<AthleteGearScreen> {
+class AthleteGearScreenState extends State<AthleteGearScreen> {
   String? gearMessage;
   bool loading = true;
+  bool _fetched = false;
 
   @override
   void initState() { super.initState(); _fetchGear(); }
 
-  Future<void> _fetchGear() async {
+  void silentRefresh() { if (_fetched) _fetchGear(silent: true); }
+
+  Future<void> _fetchGear({bool silent = false}) async {
     try {
       final api = ApiService();
       final me = await api.get('/users/me');
       final res = await api.get('/gear/${me.data['branch_id']}');
       gearMessage = res.data?['message'] ?? 'No gear updates posted yet.';
+      _fetched = true;
     } catch (_) { gearMessage = 'Error loading gear information.'; }
     finally { if (mounted) setState(() => loading = false); }
   }

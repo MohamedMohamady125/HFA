@@ -8,14 +8,16 @@ import '../../l10n/app_localizations.dart';
 class CoachPaymentsScreen extends StatefulWidget {
   const CoachPaymentsScreen({super.key});
   @override
-  State<CoachPaymentsScreen> createState() => _CoachPaymentsScreenState();
+  State<CoachPaymentsScreen> createState() => CoachPaymentsScreenState();
 }
 
-class _CoachPaymentsScreenState extends State<CoachPaymentsScreen> {
+class CoachPaymentsScreenState extends State<CoachPaymentsScreen> {
   List<dynamic> records = [];
   List<String> sessionDates = [];
   bool loading = true;
   String search = '';
+
+  void silentRefresh() { _fetchSummary(); }
 
   @override
   void initState() { super.initState(); _fetchSummary(); }

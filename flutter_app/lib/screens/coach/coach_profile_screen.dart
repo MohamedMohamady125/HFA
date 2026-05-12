@@ -10,11 +10,13 @@ import '../../l10n/app_localizations.dart';
 class CoachProfileScreen extends StatefulWidget {
   const CoachProfileScreen({super.key});
   @override
-  State<CoachProfileScreen> createState() => _CoachProfileScreenState();
+  State<CoachProfileScreen> createState() => CoachProfileScreenState();
 }
 
-class _CoachProfileScreenState extends State<CoachProfileScreen> {
+class CoachProfileScreenState extends State<CoachProfileScreen> {
   String branchName = '';
+
+  void silentRefresh() { _fetchDetails(); }
 
   @override
   void initState() { super.initState(); _fetchDetails(); }
