@@ -3,6 +3,8 @@ from pydantic import BaseModel, EmailStr
 from app.database import get_connection, get_cursor
 from app.deps import get_current_user
 from passlib.hash import bcrypt
+import secrets
+import string
 
 router = APIRouter()
 
@@ -10,6 +12,11 @@ router = APIRouter()
 def _require_head_coach(user):
     if user["role"] != "head_coach":
         raise HTTPException(status_code=403, detail="Access denied")
+
+
+def _generate_password(length=10):
+    chars = string.ascii_letters + string.digits
+    return ''.join(secrets.choice(chars) for _ in range(length))
 
 
 # ─── Branches ───────────────────────────────────────────────
@@ -48,7 +55,6 @@ def select_branch(branch_id: int, user=Depends(get_current_user)):
 class CreateCoachRequest(BaseModel):
     name: str
     email: EmailStr
-    password: str
     phone: str = ""
     branch_id: int
 
@@ -71,9 +77,11 @@ def list_coaches(user=Depends(get_current_user)):
     cursor = get_cursor(conn)
     cursor.execute("""
         SELECT u.id, u.name, u.email, u.phone, u.approved, u.branch_id,
-               b.name AS branch_name
+               b.name AS branch_name,
+               cc.plain_password
         FROM users u
         LEFT JOIN branches b ON u.branch_id = b.id
+        LEFT JOIN coach_credentials cc ON cc.coach_user_id = u.id
         WHERE u.role = 'coach'
         ORDER BY u.name
     """)
@@ -101,7 +109,10 @@ def create_coach(data: CreateCoachRequest, user=Depends(get_current_user)):
         conn.close()
         raise HTTPException(status_code=404, detail="Branch not found")
 
-    password_hash = bcrypt.hash(data.password)
+    # Auto-generate password
+    plain_password = _generate_password()
+    password_hash = bcrypt.hash(plain_password)
+
     cursor.execute("""
         INSERT INTO users (name, email, phone, password_hash, role, approved, branch_id)
         VALUES (%s, %s, %s, %s, 'coach', TRUE, %s)
@@ -115,10 +126,21 @@ def create_coach(data: CreateCoachRequest, user=Depends(get_current_user)):
         ON CONFLICT (user_id, branch_id) DO NOTHING
     """, (new_id, data.branch_id))
 
+    # Store plain password for head coach reference
+    cursor.execute("""
+        INSERT INTO coach_credentials (coach_user_id, plain_password)
+        VALUES (%s, %s)
+    """, (new_id, plain_password))
+
     conn.commit()
     cursor.close()
     conn.close()
-    return {"message": "Coach created", "id": new_id}
+    return {
+        "message": "Coach created",
+        "id": new_id,
+        "email": data.email,
+        "password": plain_password,
+    }
 
 
 @router.put("/coaches/{coach_id}")
@@ -191,10 +213,18 @@ def reset_coach_password(coach_id: int, data: ResetCoachPasswordRequest, user=De
 
     new_hash = bcrypt.hash(data.new_password)
     cursor.execute("UPDATE users SET password_hash = %s WHERE id = %s", (new_hash, coach_id))
+
+    # Update stored credentials
+    cursor.execute("""
+        INSERT INTO coach_credentials (coach_user_id, plain_password)
+        VALUES (%s, %s)
+        ON CONFLICT (coach_user_id) DO UPDATE SET plain_password = EXCLUDED.plain_password
+    """, (coach_id, data.new_password))
+
     conn.commit()
     cursor.close()
     conn.close()
-    return {"message": "Password reset successfully"}
+    return {"message": "Password reset successfully", "password": data.new_password}
 
 
 @router.delete("/coaches/{coach_id}")
@@ -209,6 +239,7 @@ def delete_coach(coach_id: int, user=Depends(get_current_user)):
         conn.close()
         raise HTTPException(status_code=404, detail="Coach not found")
 
+    cursor.execute("DELETE FROM coach_credentials WHERE coach_user_id = %s", (coach_id,))
     cursor.execute("DELETE FROM coach_assignments WHERE user_id = %s", (coach_id,))
     cursor.execute("DELETE FROM users WHERE id = %s AND role = 'coach'", (coach_id,))
     conn.commit()

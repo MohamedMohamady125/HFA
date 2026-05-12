@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:dio/dio.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
 
@@ -15,10 +17,7 @@ class _ManageCoachesScreenState extends State<ManageCoachesScreen> {
   bool loading = true;
 
   @override
-  void initState() {
-    super.initState();
-    _loadData();
-  }
+  void initState() { super.initState(); _loadData(); }
 
   Future<void> _loadData() async {
     setState(() => loading = true);
@@ -36,43 +35,15 @@ class _ManageCoachesScreenState extends State<ManageCoachesScreen> {
     }
   }
 
-  void _showError(String msg) => ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), backgroundColor: AppColors.error));
+  void _showError(String msg) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: AppColors.error));
+  void _showSuccess(String msg) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: AppColors.success));
 
-  void _showSuccess(String msg) => ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), backgroundColor: AppColors.success));
-
-  Future<void> _deleteCoach(int id, String name) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete Coach'),
-        content: Text('Are you sure you want to delete $name?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Delete', style: TextStyle(color: AppColors.error)),
-          ),
-        ],
-      ),
-    );
-    if (confirm != true) return;
-    try {
-      await ApiService().delete('/head-coach/coaches/$id');
-      _showSuccess('Coach deleted');
-      _loadData();
-    } catch (_) {
-      _showError('Failed to delete coach');
-    }
-  }
-
+  // ─── Create Coach ─────────────────────────────────────
   Future<void> _showCreateDialog() async {
     if (branches.isEmpty) { _showError('No branches available'); return; }
     final nameCtrl = TextEditingController();
     final emailCtrl = TextEditingController();
     final phoneCtrl = TextEditingController();
-    final passCtrl = TextEditingController();
     int selectedBranch = branches.first['id'];
 
     final result = await showDialog<bool>(
@@ -84,16 +55,16 @@ class _ManageCoachesScreenState extends State<ManageCoachesScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                const Text('A password will be auto-generated for the coach.', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+                const SizedBox(height: 16),
                 _dialogField('Name', nameCtrl),
                 _dialogField('Email', emailCtrl, type: TextInputType.emailAddress),
                 _dialogField('Phone', phoneCtrl, type: TextInputType.phone),
-                _dialogField('Password', passCtrl, obscure: true),
-                const SizedBox(height: 8),
+                const SizedBox(height: 4),
                 DropdownButtonFormField<int>(
                   value: selectedBranch,
                   decoration: const InputDecoration(labelText: 'Branch'),
-                  items: branches.map<DropdownMenuItem<int>>((b) =>
-                    DropdownMenuItem(value: b['id'] as int, child: Text(b['name'] ?? ''))).toList(),
+                  items: branches.map<DropdownMenuItem<int>>((b) => DropdownMenuItem(value: b['id'] as int, child: Text(b['name'] ?? ''))).toList(),
                   onChanged: (v) { if (v != null) setDialogState(() => selectedBranch = v); },
                 ),
               ],
@@ -108,27 +79,91 @@ class _ManageCoachesScreenState extends State<ManageCoachesScreen> {
     );
 
     if (result != true) return;
-    if (nameCtrl.text.trim().isEmpty || emailCtrl.text.trim().isEmpty || passCtrl.text.trim().isEmpty) {
-      _showError('Name, email, and password are required');
+    if (nameCtrl.text.trim().isEmpty || emailCtrl.text.trim().isEmpty) {
+      _showError('Name and email are required');
       return;
     }
 
     try {
-      await ApiService().post('/head-coach/coaches', data: {
+      final res = await ApiService().post('/head-coach/coaches', data: {
         'name': nameCtrl.text.trim(),
         'email': emailCtrl.text.trim(),
         'phone': phoneCtrl.text.trim(),
-        'password': passCtrl.text.trim(),
         'branch_id': selectedBranch,
       });
-      _showSuccess('Coach created');
+
+      final email = res.data['email'];
+      final password = res.data['password'];
+
+      if (!mounted) return;
+      // Show credentials dialog
+      _showCredentialsDialog(email, password, isNew: true);
       _loadData();
     } catch (e) {
-      final msg = _extractError(e, 'Failed to create coach');
-      _showError(msg);
+      _showError(_extractError(e, 'Failed to create coach'));
     }
   }
 
+  // ─── Credentials Dialog ───────────────────────────────
+  void _showCredentialsDialog(String email, String password, {bool isNew = false}) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: Row(children: [
+          Icon(isNew ? Icons.check_circle_rounded : Icons.key_rounded, color: isNew ? AppColors.success : AppColors.primary, size: 24),
+          const SizedBox(width: 8),
+          Text(isNew ? 'Coach Created!' : 'Coach Credentials', style: const TextStyle(fontWeight: FontWeight.w700)),
+        ]),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (isNew) const Padding(
+              padding: EdgeInsets.only(bottom: 16),
+              child: Text('Share these credentials with the coach:', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+            ),
+            _credentialRow('Email', email),
+            const SizedBox(height: 12),
+            _credentialRow('Password', password),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: 'Email: $email\nPassword: $password'));
+              ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Credentials copied!'), backgroundColor: AppColors.success, duration: Duration(seconds: 1)));
+            },
+            child: const Row(mainAxisSize: MainAxisSize.min, children: [Icon(Icons.copy_rounded, size: 16), SizedBox(width: 6), Text('Copy All')]),
+          ),
+          ElevatedButton(onPressed: () => Navigator.pop(ctx), child: const Text('Done')),
+        ],
+      ),
+    );
+  }
+
+  Widget _credentialRow(String label, String value) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(color: AppColors.surfaceLight, borderRadius: BorderRadius.circular(10)),
+      child: Row(
+        children: [
+          SizedBox(width: 70, child: Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textSecondary))),
+          Expanded(child: Text(value, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.textPrimary, fontFamily: 'monospace'))),
+          IconButton(
+            icon: const Icon(Icons.copy_rounded, size: 18, color: AppColors.textTertiary),
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: value));
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$label copied!'), backgroundColor: AppColors.success, duration: const Duration(seconds: 1)));
+            },
+            constraints: const BoxConstraints(),
+            padding: EdgeInsets.zero,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─── Edit Coach ───────────────────────────────────────
   Future<void> _showEditDialog(Map<String, dynamic> coach) async {
     final nameCtrl = TextEditingController(text: coach['name'] ?? '');
     final emailCtrl = TextEditingController(text: coach['email'] ?? '');
@@ -147,12 +182,11 @@ class _ManageCoachesScreenState extends State<ManageCoachesScreen> {
                 _dialogField('Name', nameCtrl),
                 _dialogField('Email', emailCtrl, type: TextInputType.emailAddress),
                 _dialogField('Phone', phoneCtrl, type: TextInputType.phone),
-                const SizedBox(height: 8),
+                const SizedBox(height: 4),
                 DropdownButtonFormField<int>(
-                  initialValue: branches.any((b) => b['id'] == selectedBranch) ? selectedBranch : null,
+                  value: branches.any((b) => b['id'] == selectedBranch) ? selectedBranch : null,
                   decoration: const InputDecoration(labelText: 'Branch'),
-                  items: branches.map<DropdownMenuItem<int>>((b) =>
-                    DropdownMenuItem(value: b['id'] as int, child: Text(b['name'] ?? ''))).toList(),
+                  items: branches.map<DropdownMenuItem<int>>((b) => DropdownMenuItem(value: b['id'] as int, child: Text(b['name'] ?? ''))).toList(),
                   onChanged: (v) { if (v != null) setDialogState(() => selectedBranch = v); },
                 ),
               ],
@@ -169,10 +203,8 @@ class _ManageCoachesScreenState extends State<ManageCoachesScreen> {
     if (result != true) return;
     try {
       await ApiService().put('/head-coach/coaches/${coach['id']}', data: {
-        'name': nameCtrl.text.trim(),
-        'email': emailCtrl.text.trim(),
-        'phone': phoneCtrl.text.trim(),
-        'branch_id': selectedBranch,
+        'name': nameCtrl.text.trim(), 'email': emailCtrl.text.trim(),
+        'phone': phoneCtrl.text.trim(), 'branch_id': selectedBranch,
       });
       _showSuccess('Coach updated');
       _loadData();
@@ -181,6 +213,7 @@ class _ManageCoachesScreenState extends State<ManageCoachesScreen> {
     }
   }
 
+  // ─── Reset Password ───────────────────────────────────
   Future<void> _showResetPasswordDialog(Map<String, dynamic> coach) async {
     final passCtrl = TextEditingController();
     final result = await showDialog<bool>(
@@ -198,30 +231,42 @@ class _ManageCoachesScreenState extends State<ManageCoachesScreen> {
     try {
       await ApiService().post('/head-coach/coaches/${coach['id']}/reset-password', data: {'new_password': passCtrl.text.trim()});
       _showSuccess('Password reset');
+      _loadData();
     } catch (_) {
       _showError('Failed to reset password');
     }
   }
 
+  // ─── Delete Coach ─────────────────────────────────────
+  Future<void> _deleteCoach(int id, String name) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Coach'),
+        content: Text('Are you sure you want to delete $name?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete', style: TextStyle(color: AppColors.error))),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+    try {
+      await ApiService().delete('/head-coach/coaches/$id');
+      _showSuccess('Coach deleted');
+      _loadData();
+    } catch (_) { _showError('Failed to delete coach'); }
+  }
+
   Widget _dialogField(String label, TextEditingController ctrl, {TextInputType? type, bool obscure = false}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
-      child: TextField(
-        controller: ctrl,
-        keyboardType: type,
-        obscureText: obscure,
-        decoration: InputDecoration(labelText: label, hintText: 'Enter ${label.toLowerCase()}'),
-      ),
+      child: TextField(controller: ctrl, keyboardType: type, obscureText: obscure, decoration: InputDecoration(labelText: label, hintText: 'Enter ${label.toLowerCase()}')),
     );
   }
 
   String _extractError(dynamic e, String fallback) {
-    if (e is Exception) {
-      try {
-        final dynamic dioErr = e;
-        return dioErr.response?.data?['detail']?.toString() ?? fallback;
-      } catch (_) {}
-    }
+    if (e is DioException && e.response?.data != null) return e.response!.data['detail']?.toString() ?? fallback;
     return fallback;
   }
 
@@ -231,10 +276,7 @@ class _ManageCoachesScreenState extends State<ManageCoachesScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded),
-          onPressed: () => context.go('/head-coach-branches'),
-        ),
+        leading: IconButton(icon: const Icon(Icons.arrow_back_rounded), onPressed: () => context.go('/head-coach-branches')),
         title: const Text('Manage Coaches'),
       ),
       floatingActionButton: FloatingActionButton.extended(
@@ -259,6 +301,7 @@ class _ManageCoachesScreenState extends State<ManageCoachesScreen> {
                 itemCount: coaches.length,
                 itemBuilder: (_, i) {
                   final c = Map<String, dynamic>.from(coaches[i]);
+                  final hasPassword = c['plain_password'] != null && c['plain_password'].toString().isNotEmpty;
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 12),
                     child: AppCard(
@@ -269,16 +312,8 @@ class _ManageCoachesScreenState extends State<ManageCoachesScreen> {
                             children: [
                               Container(
                                 width: 44, height: 44,
-                                decoration: BoxDecoration(
-                                  color: AppColors.primary.withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    (c['name'] ?? '?')[0].toUpperCase(),
-                                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.primary),
-                                  ),
-                                ),
+                                decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
+                                child: Center(child: Text((c['name'] ?? '?')[0].toUpperCase(), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.primary))),
                               ),
                               const SizedBox(width: 12),
                               Expanded(
@@ -294,12 +329,14 @@ class _ManageCoachesScreenState extends State<ManageCoachesScreen> {
                               PopupMenuButton<String>(
                                 onSelected: (action) {
                                   switch (action) {
+                                    case 'credentials': _showCredentialsDialog(c['email'] ?? '', c['plain_password'] ?? 'N/A');
                                     case 'edit': _showEditDialog(c);
                                     case 'password': _showResetPasswordDialog(c);
                                     case 'delete': _deleteCoach(c['id'], c['name'] ?? 'this coach');
                                   }
                                 },
                                 itemBuilder: (_) => [
+                                  if (hasPassword) const PopupMenuItem(value: 'credentials', child: Row(children: [Icon(Icons.key_rounded, size: 18), SizedBox(width: 8), Text('View Credentials')])),
                                   const PopupMenuItem(value: 'edit', child: Row(children: [Icon(Icons.edit_rounded, size: 18), SizedBox(width: 8), Text('Edit')])),
                                   const PopupMenuItem(value: 'password', child: Row(children: [Icon(Icons.lock_reset_rounded, size: 18), SizedBox(width: 8), Text('Reset Password')])),
                                   const PopupMenuItem(value: 'delete', child: Row(children: [Icon(Icons.delete_rounded, size: 18, color: AppColors.error), SizedBox(width: 8), Text('Delete', style: TextStyle(color: AppColors.error))])),
@@ -313,11 +350,20 @@ class _ManageCoachesScreenState extends State<ManageCoachesScreen> {
                               const Icon(Icons.location_city_rounded, size: 16, color: AppColors.textTertiary),
                               const SizedBox(width: 6),
                               Text(c['branch_name'] ?? 'No branch', style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
-                              if (c['phone'] != null && c['phone'].toString().isNotEmpty) ...[
-                                const SizedBox(width: 16),
-                                const Icon(Icons.phone_rounded, size: 16, color: AppColors.textTertiary),
-                                const SizedBox(width: 6),
-                                Text(c['phone'], style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+                              if (hasPassword) ...[
+                                const Spacer(),
+                                GestureDetector(
+                                  onTap: () => _showCredentialsDialog(c['email'] ?? '', c['plain_password'] ?? ''),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
+                                    child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                                      Icon(Icons.key_rounded, size: 14, color: AppColors.accent),
+                                      SizedBox(width: 4),
+                                      Text('Credentials', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.accent)),
+                                    ]),
+                                  ),
+                                ),
                               ],
                             ],
                           ),
