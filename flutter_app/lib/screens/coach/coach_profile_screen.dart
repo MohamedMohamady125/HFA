@@ -63,6 +63,12 @@ class _CoachProfileScreenState extends State<CoachProfileScreen> {
               _menuItem(Icons.person_outline_rounded, l.translate('edit_profile'), () => context.push('/edit-profile')),
               _menuItem(Icons.lock_outline_rounded, l.translate('change_password'), () => context.push('/change-password')),
               _menuItem(Icons.fact_check_outlined, l.translate('attendance_summary'), () => context.push('/coach-manage/attendance')),
+              if (auth.role == 'head_coach') ...[
+                const SizedBox(height: 8),
+                const Align(alignment: Alignment.centerLeft, child: SectionHeader(title: 'Head Coach')),
+                _menuItem(Icons.people_rounded, l.translate('manage_coaches'), () => context.go('/head-coach-manage-coaches')),
+                _menuItem(Icons.swap_horiz_rounded, 'Switch Branch', () => context.go('/head-coach-branches')),
+              ],
               const SizedBox(height: 24),
               SizedBox(
                 width: double.infinity,
