@@ -24,6 +24,7 @@ import 'screens/coach_manage/attendance_summary_screen.dart';
 import 'screens/coach/edit_profile_screen.dart';
 import 'screens/coach/head_coach_branches_screen.dart';
 import 'screens/coach/manage_coaches_screen.dart';
+import 'screens/athlete/athlete_attendance_screen.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -103,6 +104,7 @@ class _HFAAppState extends State<HFAApp> {
         GoRoute(path: '/coach-manage/payment', builder: (_, __) => const PaymentScreen()),
         GoRoute(path: '/coach-manage/attendance', builder: (_, __) => const AttendanceScreen()),
         GoRoute(path: '/coach-manage/summary', builder: (_, __) => const AttendanceSummaryScreen()),
+        GoRoute(path: '/athlete/attendance-history', builder: (_, __) => const AthleteAttendanceScreen()),
         GoRoute(path: '/athlete/home', builder: (_, __) => const AthleteShell(child: SizedBox())),
         GoRoute(path: '/coach/home', builder: (_, __) => const CoachShell(child: SizedBox())),
       ],

@@ -174,6 +174,47 @@ def get_athlete_weekly_attendance(user_id: int, user=Depends(get_current_user)):
         cursor.close()
         conn.close()
 
+@router.get("/athlete/{user_id}/history")
+def get_athlete_attendance_history(user_id: int, user=Depends(get_current_user)):
+    if user["id"] != user_id and user["role"] not in ["coach", "head_coach"]:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    conn = get_connection()
+    cursor = get_cursor(conn)
+
+    try:
+        cursor.execute("""
+            SELECT a.id AS athlete_id, u.branch_id
+            FROM athletes a
+            JOIN users u ON a.user_id = u.id
+            WHERE u.id = %s
+        """, (user_id,))
+        result = cursor.fetchone()
+        if not result:
+            raise HTTPException(status_code=404, detail="Athlete not found")
+
+        athlete_id = result["athlete_id"]
+        branch_id = result["branch_id"]
+
+        if user["role"] == "coach" and user["id"] != user_id:
+            if user["branch_id"] != branch_id:
+                raise HTTPException(status_code=403, detail="Cannot access athletes from other branches")
+
+        cursor.execute("""
+            SELECT session_date, status
+            FROM attendance
+            WHERE athlete_id = %s AND branch_id = %s AND status IS NOT NULL
+            ORDER BY session_date
+        """, (athlete_id, branch_id))
+        rows = cursor.fetchall()
+
+        return [{"date": r["session_date"].isoformat(), "status": r["status"]} for r in rows]
+
+    finally:
+        cursor.close()
+        conn.close()
+
+
 @router.get("/branch/{branch_id}/summary")
 def get_attendance_summary(branch_id: int, user=Depends(get_current_user)):
     can_access_branch(user, branch_id)

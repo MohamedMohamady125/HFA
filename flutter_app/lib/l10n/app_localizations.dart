@@ -121,6 +121,7 @@ class AppLocalizations {
 
       // Profile
       'attendance_tracker': 'Attendance',
+      'view_calendar': 'View Calendar',
       'measurements': 'Measurements',
       'save_measurements': 'Save Measurements',
       'edit': 'Edit',
@@ -329,6 +330,7 @@ class AppLocalizations {
 
       // Profile
       'attendance_tracker': '\u0627\u0644\u062d\u0636\u0648\u0631',
+      'view_calendar': '\u0639\u0631\u0636 \u0627\u0644\u062a\u0642\u0648\u064a\u0645',
       'measurements': '\u0627\u0644\u0642\u064a\u0627\u0633\u0627\u062a',
       'save_measurements': '\u062d\u0641\u0638 \u0627\u0644\u0642\u064a\u0627\u0633\u0627\u062a',
       'edit': '\u062a\u0639\u062f\u064a\u0644',

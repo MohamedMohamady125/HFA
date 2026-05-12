@@ -278,8 +278,15 @@ class AthleteProfileScreenState extends State<AthleteProfileScreen> {
 
                 // ── Attendance ──
                 const SizedBox(height: 16),
-                SectionHeader(title: l.translate('attendance_tracker')),
+                SectionHeader(
+                  title: l.translate('attendance_tracker'),
+                  trailing: TextButton(
+                    onPressed: () => context.push('/athlete/attendance-history'),
+                    child: Text(l.translate('view_calendar'), style: const TextStyle(color: AppColors.accent)),
+                  ),
+                ),
                 AppCard(
+                  onTap: () => context.push('/athlete/attendance-history'),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: labels.asMap().entries.map((e) {
