@@ -17,11 +17,12 @@ class AthleteShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: child,
+      body: AnimatedSwitcher(duration: const Duration(milliseconds: 250), child: child),
       bottomNavigationBar: Container(
-        decoration: BoxDecoration(border: Border(top: BorderSide(color: AppColors.divider, width: 1))),
+        decoration: const BoxDecoration(border: Border(top: BorderSide(color: AppColors.divider))),
         child: NavigationBar(
           selectedIndex: _currentIndex(context),
+          animationDuration: const Duration(milliseconds: 300),
           onDestinationSelected: (i) {
             switch (i) {
               case 0: context.go('/athlete/home');

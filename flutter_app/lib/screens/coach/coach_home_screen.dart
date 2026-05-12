@@ -25,10 +25,10 @@ class _CoachHomeScreenState extends State<CoachHomeScreen> {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
-    if (name.isEmpty) return AppLoadingScreen(message: l.translate('loading'));
+    if (name.isEmpty) return const Scaffold(body: ShimmerList(count: 3));
 
     final isHeadCoach = context.read<AuthProvider>().role == 'head_coach';
-    final tools = [
+    final tools = <Map<String, dynamic>>[
       {'title': l.translate('registration_requests'), 'icon': Icons.person_add_rounded, 'route': '/coach-manage/register-requests', 'color': AppColors.info},
       {'title': l.translate('payment_tracking'), 'icon': Icons.payments_rounded, 'route': '/coach-manage/payment', 'color': AppColors.success},
       {'title': l.translate('attendance'), 'icon': Icons.fact_check_rounded, 'route': '/coach-manage/attendance', 'color': AppColors.warning},
@@ -38,46 +38,33 @@ class _CoachHomeScreenState extends State<CoachHomeScreen> {
     return Scaffold(
       body: SafeArea(
         child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 30),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text('Hi, $name', style: const TextStyle(fontSize: 14, color: AppColors.textSecondary)),
-                      const SizedBox(height: 4),
-                      Text(l.translate('coach_dashboard'), style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: AppColors.textPrimary, letterSpacing: -0.5)),
-                    ]),
-                  ),
-                  Container(
-                    width: 48, height: 48,
-                    decoration: BoxDecoration(color: AppColors.accentLight, borderRadius: BorderRadius.circular(14)),
-                    child: const Icon(Icons.shield_rounded, color: AppColors.primary),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 32),
-
-              SectionHeader(title: l.translate('quick_actions')),
-              ...tools.map((tool) => Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: AppCard(
-                  onTap: () => context.push(tool['route'] as String),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 48, height: 48,
-                        decoration: BoxDecoration(color: (tool['color'] as Color).withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
-                        child: Icon(tool['icon'] as IconData, color: tool['color'] as Color, size: 24),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(child: Text(tool['title'] as String, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.textPrimary))),
-                      const Icon(Icons.chevron_right_rounded, color: AppColors.textTertiary),
-                    ],
-                  ),
+              FadeSlideIn(child: Row(children: [
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('Hi, $name', style: const TextStyle(fontSize: 14, color: AppColors.textSecondary)),
+                  const SizedBox(height: 2),
+                  Text(l.translate('coach_dashboard'), style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: AppColors.textPrimary, letterSpacing: -0.5)),
+                ])),
+                Container(width: 44, height: 44, decoration: BoxDecoration(color: AppColors.accentLight, borderRadius: BorderRadius.circular(12)),
+                  child: const Icon(Icons.shield_rounded, color: AppColors.accent, size: 22)),
+              ])),
+              const SizedBox(height: 28),
+              FadeSlideIn(delay: 100, child: SectionHeader(title: l.translate('quick_actions'))),
+              ...tools.asMap().entries.map((e) => FadeSlideIn(
+                delay: 150 + (e.key * 80),
+                child: ScaleOnTap(
+                  onTap: () => context.push(e.value['route'] as String),
+                  child: AppCard(child: Row(children: [
+                    Container(width: 44, height: 44, decoration: BoxDecoration(color: (e.value['color'] as Color).withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
+                      child: Icon(e.value['icon'] as IconData, color: e.value['color'] as Color, size: 22)),
+                    const SizedBox(width: 14),
+                    Expanded(child: Text(e.value['title'] as String, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.textPrimary))),
+                    const Icon(Icons.chevron_right_rounded, color: AppColors.textTertiary, size: 20),
+                  ])),
                 ),
               )),
             ],
