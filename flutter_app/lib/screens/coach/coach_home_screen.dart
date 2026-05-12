@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
@@ -25,10 +27,12 @@ class _CoachHomeScreenState extends State<CoachHomeScreen> {
     final l = AppLocalizations.of(context);
     if (name.isEmpty) return AppLoadingScreen(message: l.translate('loading'));
 
+    final isHeadCoach = context.read<AuthProvider>().role == 'head_coach';
     final tools = [
       {'title': l.translate('registration_requests'), 'icon': Icons.person_add_rounded, 'route': '/coach-manage/register-requests', 'color': AppColors.info},
       {'title': l.translate('payment_tracking'), 'icon': Icons.payments_rounded, 'route': '/coach-manage/payment', 'color': AppColors.success},
       {'title': l.translate('attendance'), 'icon': Icons.fact_check_rounded, 'route': '/coach-manage/attendance', 'color': AppColors.warning},
+      if (isHeadCoach) {'title': l.translate('manage_coaches'), 'icon': Icons.people_rounded, 'route': '/head-coach-manage-coaches', 'color': AppColors.primary},
     ];
 
     return Scaffold(
