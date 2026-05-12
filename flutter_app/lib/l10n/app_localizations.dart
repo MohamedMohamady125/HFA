@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AppLocalizations {
   final Locale locale;
@@ -214,6 +215,10 @@ class AppLocalizations {
       'password_reset_done': 'Password reset',
       'loading_coaches': 'Loading coaches...',
 
+      // Language
+      'language': 'Language',
+      'language_current': 'English',
+
       // Nav
       'home': 'Home',
       'chat': 'Chat',
@@ -423,6 +428,10 @@ class AppLocalizations {
       'password_reset_done': '\u062a\u0645 \u0625\u0639\u0627\u062f\u0629 \u062a\u0639\u064a\u064a\u0646 \u0643\u0644\u0645\u0629 \u0627\u0644\u0645\u0631\u0648\u0631',
       'loading_coaches': '\u062a\u062d\u0645\u064a\u0644 \u0627\u0644\u0645\u062f\u0631\u0628\u064a\u0646...',
 
+      // Language
+      'language': '\u0627\u0644\u0644\u063a\u0629',
+      'language_current': '\u0627\u0644\u0639\u0631\u0628\u064a\u0629',
+
       // Nav
       'home': '\u0627\u0644\u0631\u0626\u064a\u0633\u064a\u0629',
       'chat': '\u0627\u0644\u0645\u062d\u0627\u062f\u062b\u0629',
@@ -452,16 +461,39 @@ class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> 
 
 class LocaleProvider extends ChangeNotifier {
   Locale _locale = const Locale('en');
+  bool _initialized = false;
 
   Locale get locale => _locale;
 
-  void toggleLocale() {
-    _locale = _locale.languageCode == 'en' ? const Locale('ar') : const Locale('en');
+  LocaleProvider() {
+    _init();
+  }
+
+  Future<void> _init() async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getString('app_locale');
+    if (saved != null) {
+      _locale = Locale(saved);
+    } else {
+      // Auto-detect device language
+      final deviceLocale = WidgetsBinding.instance.platformDispatcher.locale;
+      _locale = deviceLocale.languageCode == 'ar' ? const Locale('ar') : const Locale('en');
+    }
+    _initialized = true;
     notifyListeners();
   }
 
-  void setLocale(Locale locale) {
+  void toggleLocale() async {
+    _locale = _locale.languageCode == 'en' ? const Locale('ar') : const Locale('en');
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('app_locale', _locale.languageCode);
+    notifyListeners();
+  }
+
+  void setLocale(Locale locale) async {
     _locale = locale;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('app_locale', locale.languageCode);
     notifyListeners();
   }
 }

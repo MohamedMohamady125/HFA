@@ -443,6 +443,8 @@ class AthleteProfileScreenState extends State<AthleteProfileScreen> {
                     label: Text(l.translate('logout')),
                   ),
                 ),
+                const SizedBox(height: 12),
+                _languageToggle(context, l),
                 const SizedBox(height: 24),
               ],
             ),
@@ -464,6 +466,26 @@ class AthleteProfileScreenState extends State<AthleteProfileScreen> {
           Expanded(child: Text(value, style: const TextStyle(fontSize: 14, color: AppColors.textPrimary), textAlign: TextAlign.end)),
         ],
       ),
+    );
+  }
+
+  @override
+  Widget _languageToggle(BuildContext context, AppLocalizations l) {
+    final localeProvider = context.watch<LocaleProvider>();
+    return AppCard(
+      onTap: () => localeProvider.toggleLocale(),
+      child: Row(children: [
+        Container(width: 38, height: 38, decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
+          child: const Icon(Icons.language_rounded, color: AppColors.accent, size: 18)),
+        const SizedBox(width: 12),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(l.translate('language'), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+          Text(l.translate('language_current'), style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+        ])),
+        Text(localeProvider.locale.languageCode == 'en' ? '\u0639\u0631\u0628\u064A' : 'EN', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.accent)),
+        const SizedBox(width: 4),
+        const Icon(Icons.swap_horiz_rounded, color: AppColors.textTertiary, size: 18),
+      ]),
     );
   }
 

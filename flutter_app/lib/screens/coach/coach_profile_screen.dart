@@ -69,6 +69,8 @@ class CoachProfileScreenState extends State<CoachProfileScreen> {
                 _menuItem(Icons.people_rounded, l.translate('manage_coaches'), () => context.go('/head-coach-manage-coaches')),
                 _menuItem(Icons.swap_horiz_rounded, 'Switch Branch', () => context.go('/head-coach-branches')),
               ],
+              const SizedBox(height: 8),
+              _languageCard(context, l),
               const SizedBox(height: 24),
               SizedBox(
                 width: double.infinity,
@@ -82,6 +84,25 @@ class CoachProfileScreenState extends State<CoachProfileScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _languageCard(BuildContext context, AppLocalizations l) {
+    final localeProvider = context.watch<LocaleProvider>();
+    return AppCard(
+      onTap: () => localeProvider.toggleLocale(),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      child: Row(children: [
+        const Icon(Icons.language_rounded, color: AppColors.accent, size: 22),
+        const SizedBox(width: 14),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(l.translate('language'), style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: AppColors.textPrimary)),
+          Text(l.translate('language_current'), style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+        ])),
+        Text(localeProvider.locale.languageCode == 'en' ? '\u0639\u0631\u0628\u064A' : 'EN', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.accent)),
+        const SizedBox(width: 4),
+        const Icon(Icons.chevron_right_rounded, color: AppColors.textTertiary, size: 20),
+      ]),
     );
   }
 
