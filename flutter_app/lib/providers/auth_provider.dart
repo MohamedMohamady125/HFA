@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
+import '../services/api_service.dart';
 
 class AuthProvider extends ChangeNotifier {
   Map<String, dynamic>? _user;
   bool _loading = true;
+  SharedPreferences? _prefs;
 
   Map<String, dynamic>? get user => _user;
   bool get loading => _loading;
@@ -18,59 +20,53 @@ class AuthProvider extends ChangeNotifier {
   String? get userEmail => _user?['email'];
 
   AuthProvider() {
-    _loadUser();
+    _init();
   }
 
-  Future<void> _loadUser() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final stored = prefs.getString('authUser');
-      if (stored != null) {
-        _user = jsonDecode(stored);
-      }
-    } catch (e) {
-      debugPrint('Failed to load user: $e');
-    } finally {
-      _loading = false;
-      notifyListeners();
+  Future<void> _init() async {
+    _prefs = await SharedPreferences.getInstance();
+    final stored = _prefs!.getString('authUser');
+    if (stored != null) {
+      _user = jsonDecode(stored);
+      ApiService.setToken(_user?['token']);
     }
+    _loading = false;
+    notifyListeners();
   }
 
   Future<void> login(Map<String, dynamic> userData) async {
     _user = userData;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('authUser', jsonEncode(userData));
+    ApiService.setToken(userData['token']);
+    _prefs ??= await SharedPreferences.getInstance();
+    await _prefs!.setString('authUser', jsonEncode(userData));
     notifyListeners();
   }
 
   Future<void> logout() async {
     _user = null;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('authUser');
-    await prefs.remove('headCoachMode');
+    ApiService.clearToken();
+    _prefs ??= await SharedPreferences.getInstance();
+    await _prefs!.remove('authUser');
+    await _prefs!.remove('headCoachMode');
     notifyListeners();
   }
 
   Future<void> refreshUser() async {
-    final prefs = await SharedPreferences.getInstance();
-    final stored = prefs.getString('authUser');
+    _prefs ??= await SharedPreferences.getInstance();
+    final stored = _prefs!.getString('authUser');
     if (stored != null) {
       _user = jsonDecode(stored);
+      ApiService.setToken(_user?['token']);
       notifyListeners();
     }
   }
 
-  Future<bool> isHeadCoachMode() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('headCoachMode') == 'true';
-  }
-
   Future<void> setHeadCoachMode(bool value) async {
-    final prefs = await SharedPreferences.getInstance();
+    _prefs ??= await SharedPreferences.getInstance();
     if (value) {
-      await prefs.setString('headCoachMode', 'true');
+      await _prefs!.setString('headCoachMode', 'true');
     } else {
-      await prefs.remove('headCoachMode');
+      await _prefs!.remove('headCoachMode');
     }
   }
 }

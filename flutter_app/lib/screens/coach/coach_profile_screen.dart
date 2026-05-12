@@ -20,10 +20,8 @@ class _CoachProfileScreenState extends State<CoachProfileScreen> {
   void initState() { super.initState(); _fetchDetails(); }
 
   Future<void> _fetchDetails() async {
-    final auth = context.read<AuthProvider>();
-    if (auth.token == null) return;
     try {
-      final res = await Dio().get('${ApiService.baseUrl}/users/me', options: Options(headers: {'Authorization': 'Bearer ${auth.token}'}));
+      final res = await ApiService().get('/users/me');
       if (mounted) setState(() => branchName = res.data['branch_name'] ?? '');
     } catch (_) {}
   }

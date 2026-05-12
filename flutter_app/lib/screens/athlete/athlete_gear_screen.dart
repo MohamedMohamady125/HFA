@@ -21,13 +21,9 @@ class _AthleteGearScreenState extends State<AthleteGearScreen> {
 
   Future<void> _fetchGear() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final user = jsonDecode(prefs.getString('authUser')!);
-      final headers = {'Authorization': 'Bearer ${user['token']}'};
-      final dio = Dio();
-      final base = ApiService.baseUrl;
-      final me = await dio.get('$base/users/me', options: Options(headers: headers));
-      final res = await dio.get('$base/gear/${me.data['branch_id']}', options: Options(headers: headers));
+      final api = ApiService();
+      final me = await api.get('/users/me');
+      final res = await api.get('/gear/${me.data['branch_id']}');
       gearMessage = res.data?['message'] ?? 'No gear updates posted yet.';
     } catch (_) { gearMessage = 'Error loading gear information.'; }
     finally { if (mounted) setState(() => loading = false); }

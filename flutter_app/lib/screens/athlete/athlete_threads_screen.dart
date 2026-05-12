@@ -13,7 +13,9 @@ class AthleteThreadsScreen extends StatefulWidget {
   State<AthleteThreadsScreen> createState() => _AthleteThreadsScreenState();
 }
 
-class _AthleteThreadsScreenState extends State<AthleteThreadsScreen> {
+class _AthleteThreadsScreenState extends State<AthleteThreadsScreen> with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
   List<dynamic> threads = [], posts = [];
   Map<String, dynamic>? selectedThread;
   bool loading = true, postsLoading = false;
@@ -25,34 +27,25 @@ class _AthleteThreadsScreenState extends State<AthleteThreadsScreen> {
   Future<void> _fetchData() async {
     setState(() => loading = true);
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final user = jsonDecode(prefs.getString('authUser')!);
-      final h = {'Authorization': 'Bearer ${user['token']}'};
-      final dio = Dio();
-      final base = ApiService.baseUrl;
-
-      final me = await dio.get('$base/users/me', options: Options(headers: h));
+      final api = ApiService();
+      final me = await api.get('/users/me');
       final branchId = me.data['branch_id'];
-      final br = await dio.get('$base/branches/$branchId', options: Options(headers: h));
-      branchName = br.data['name'] ?? '';
-      final tr = await dio.get('$base/threads/branch/$branchId', options: Options(headers: h));
+      final results = await Future.wait([api.get('/branches/$branchId'), api.get('/threads/branch/$branchId')]);
+      branchName = results[0].data['name'] ?? '';
 
-      threads = (tr.data as List).where((t) {
+      threads = (results[1].data as List).where((t) {
         final title = (t['title'] as String).toLowerCase();
         return !title.contains('gear') && !title.contains('equipment');
       }).toList();
 
-      if (threads.isNotEmpty) await _selectThread(threads[0], h);
+      if (threads.isNotEmpty) await _selectThread(threads[0]);
     } catch (_) {} finally { if (mounted) setState(() => loading = false); }
   }
 
-  Future<void> _selectThread(dynamic thread, Map<String, String>? h) async {
+  Future<void> _selectThread(dynamic thread) async {
     setState(() { postsLoading = true; selectedThread = Map<String, dynamic>.from(thread); });
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final user = jsonDecode(prefs.getString('authUser')!);
-      final headers = h ?? {'Authorization': 'Bearer ${user['token']}'};
-      final r = await Dio().get('${ApiService.baseUrl}/threads/${thread['id']}/posts', options: Options(headers: headers));
+      final r = await ApiService().get('/threads/${thread['id']}/posts');
       posts = r.data;
     } catch (_) {} finally { if (mounted) setState(() => postsLoading = false); }
   }
@@ -92,7 +85,7 @@ class _AthleteThreadsScreenState extends State<AthleteThreadsScreen> {
                       child: ChoiceChip(
                         label: Text(t['title']),
                         selected: active,
-                        onSelected: (_) => _selectThread(t, null),
+                        onSelected: (_) => _selectThread(t),
                         selectedColor: AppColors.primary,
                         labelStyle: TextStyle(color: active ? Colors.white : AppColors.textPrimary, fontWeight: FontWeight.w600, fontSize: 13),
                         backgroundColor: AppColors.surfaceLight,
