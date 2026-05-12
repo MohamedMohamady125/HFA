@@ -16,16 +16,7 @@ import 'screens/auth/pending_screen.dart';
 import 'screens/auth/forgot_password_screen.dart';
 import 'screens/auth/change_password_screen.dart';
 import 'screens/athlete/athlete_shell.dart';
-import 'screens/athlete/athlete_home_screen.dart';
-import 'screens/athlete/athlete_threads_screen.dart';
-import 'screens/athlete/athlete_gear_screen.dart';
-import 'screens/athlete/athlete_profile_screen.dart';
 import 'screens/coach/coach_shell.dart';
-import 'screens/coach/coach_home_screen.dart';
-import 'screens/coach/coach_threads_screen.dart';
-import 'screens/coach/coach_gear_screen.dart';
-import 'screens/coach/coach_profile_screen.dart';
-import 'screens/coach/coach_payments_screen.dart';
 import 'screens/coach_manage/register_requests_screen.dart';
 import 'screens/coach_manage/payment_screen.dart';
 import 'screens/coach_manage/attendance_screen.dart';
@@ -35,8 +26,6 @@ import 'screens/coach/head_coach_branches_screen.dart';
 import 'screens/coach/manage_coaches_screen.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
-final _athleteShellKey = GlobalKey<NavigatorState>();
-final _coachShellKey = GlobalKey<NavigatorState>();
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -114,27 +103,8 @@ class _HFAAppState extends State<HFAApp> {
         GoRoute(path: '/coach-manage/payment', builder: (_, __) => const PaymentScreen()),
         GoRoute(path: '/coach-manage/attendance', builder: (_, __) => const AttendanceScreen()),
         GoRoute(path: '/coach-manage/summary', builder: (_, __) => const AttendanceSummaryScreen()),
-        ShellRoute(
-          navigatorKey: _athleteShellKey,
-          builder: (_, __, child) => AthleteShell(child: child),
-          routes: [
-            GoRoute(path: '/athlete/home', builder: (_, __) => const AthleteHomeScreen()),
-            GoRoute(path: '/athlete/threads', builder: (_, __) => const AthleteThreadsScreen()),
-            GoRoute(path: '/athlete/gear', builder: (_, __) => const AthleteGearScreen()),
-            GoRoute(path: '/athlete/profile', builder: (_, __) => const AthleteProfileScreen()),
-          ],
-        ),
-        ShellRoute(
-          navigatorKey: _coachShellKey,
-          builder: (_, __, child) => CoachShell(child: child),
-          routes: [
-            GoRoute(path: '/coach/home', builder: (_, __) => const CoachHomeScreen()),
-            GoRoute(path: '/coach/threads', builder: (_, __) => const CoachThreadsScreen()),
-            GoRoute(path: '/coach/gear', builder: (_, __) => const CoachGearScreen()),
-            GoRoute(path: '/coach/payments', builder: (_, __) => const CoachPaymentsScreen()),
-            GoRoute(path: '/coach/profile', builder: (_, __) => const CoachProfileScreen()),
-          ],
-        ),
+        GoRoute(path: '/athlete/home', builder: (_, __) => const AthleteShell(child: SizedBox())),
+        GoRoute(path: '/coach/home', builder: (_, __) => const CoachShell(child: SizedBox())),
       ],
     );
   }

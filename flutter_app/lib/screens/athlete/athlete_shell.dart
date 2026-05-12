@@ -1,36 +1,38 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../theme/app_theme.dart';
+import 'athlete_home_screen.dart';
+import 'athlete_threads_screen.dart';
+import 'athlete_gear_screen.dart';
+import 'athlete_profile_screen.dart';
 
-class AthleteShell extends StatelessWidget {
+class AthleteShell extends StatefulWidget {
   final Widget child;
   const AthleteShell({super.key, required this.child});
+  @override
+  State<AthleteShell> createState() => _AthleteShellState();
+}
 
-  int _currentIndex(BuildContext context) {
-    final loc = GoRouterState.of(context).matchedLocation;
-    if (loc.startsWith('/athlete/threads')) return 1;
-    if (loc.startsWith('/athlete/gear')) return 2;
-    if (loc.startsWith('/athlete/profile')) return 3;
-    return 0;
-  }
+class _AthleteShellState extends State<AthleteShell> {
+  int _index = 0;
+
+  final _screens = const [
+    AthleteHomeScreen(),
+    AthleteThreadsScreen(),
+    AthleteGearScreen(),
+    AthleteProfileScreen(),
+  ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: AnimatedSwitcher(duration: const Duration(milliseconds: 250), child: child),
+      body: IndexedStack(index: _index, children: _screens),
       bottomNavigationBar: Container(
         decoration: const BoxDecoration(border: Border(top: BorderSide(color: AppColors.divider))),
         child: NavigationBar(
-          selectedIndex: _currentIndex(context),
+          selectedIndex: _index,
           animationDuration: const Duration(milliseconds: 300),
-          onDestinationSelected: (i) {
-            switch (i) {
-              case 0: context.go('/athlete/home');
-              case 1: context.go('/athlete/threads');
-              case 2: context.go('/athlete/gear');
-              case 3: context.go('/athlete/profile');
-            }
-          },
+          onDestinationSelected: (i) => setState(() => _index = i),
           destinations: const [
             NavigationDestination(icon: Icon(Icons.dashboard_outlined), selectedIcon: Icon(Icons.dashboard_rounded), label: 'Home'),
             NavigationDestination(icon: Icon(Icons.forum_outlined), selectedIcon: Icon(Icons.forum_rounded), label: 'Threads'),
