@@ -13,7 +13,9 @@ class MessageCreate(BaseModel):
     message: str
 
 @router.get("/branch/{branch_id}")
-def get_branch_threads(branch_id: int):
+def get_branch_threads(branch_id: int, user=Depends(get_current_user)):
+    can_access_branch(user, branch_id)
+
     conn = get_connection()
     cursor = get_cursor(conn)
 
@@ -91,11 +93,19 @@ def ensure_branch_thread(branch_id: int, user=Depends(get_current_user)):
         conn.close()
 
 @router.get("/{thread_id}/posts")
-def get_posts(thread_id: int):
+def get_posts(thread_id: int, user=Depends(get_current_user)):
     conn = get_connection()
     cursor = get_cursor(conn)
 
     try:
+        # Verify the thread belongs to the user's branch
+        cursor.execute("SELECT branch_id FROM threads WHERE id = %s", (thread_id,))
+        thread = cursor.fetchone()
+        if not thread:
+            raise HTTPException(status_code=404, detail="Thread not found")
+
+        can_access_branch(user, thread["branch_id"])
+
         cursor.execute("""
             SELECT p.id, p.message, p.user_id, u.name AS author, p.created_at
             FROM posts p
@@ -106,6 +116,8 @@ def get_posts(thread_id: int):
         posts = [dict(r) for r in cursor.fetchall()]
         return posts
 
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
     finally:
@@ -150,6 +162,9 @@ def post_message(thread_id: int, data: MessageCreate, user=Depends(get_current_u
 
         if not thread:
             raise HTTPException(status_code=404, detail="Thread not found")
+
+        # Verify the coach can post to this branch's thread
+        can_access_branch(user, thread["branch_id"])
 
         cursor.execute("""
             INSERT INTO posts (thread_id, user_id, message, created_at)

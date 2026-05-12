@@ -13,6 +13,25 @@ class PaymentMark(BaseModel):
     session_date: str
     status: str
 
+
+def _get_coach_branch(user):
+    """Get the branch_id for a coach, checking assignments table too."""
+    branch_id = user.get("branch_id")
+    if user["role"] in ["coach", "head_coach"]:
+        conn = get_connection()
+        cursor = get_cursor(conn)
+        cursor.execute(
+            "SELECT branch_id FROM coach_assignments WHERE user_id = %s LIMIT 1",
+            (user["id"],),
+        )
+        assignment = cursor.fetchone()
+        if assignment:
+            branch_id = assignment["branch_id"]
+        cursor.close()
+        conn.close()
+    return branch_id
+
+
 @router.get("/me")
 def get_current_user_details(user=Depends(get_current_user)):
     conn = get_connection()
@@ -53,12 +72,34 @@ def get_registration_requests(user=Depends(get_current_user)):
 
     conn = get_connection()
     cursor = get_cursor(conn)
-    cursor.execute("""
-        SELECT id, athlete_name, phone, email, submitted_at, approved
-        FROM registration_requests
-        WHERE approved = false
-        ORDER BY submitted_at DESC
-    """)
+
+    # Get the coach's branch name to filter requests
+    cursor.execute("SELECT name FROM branches WHERE id = %s", (user["branch_id"],))
+    branch = cursor.fetchone()
+    if not branch:
+        cursor.close()
+        conn.close()
+        return []
+
+    branch_name = branch["name"]
+
+    if user["role"] == "head_coach":
+        # Head coach sees all pending requests
+        cursor.execute("""
+            SELECT id, athlete_name, phone, email, branch_name, submitted_at, approved
+            FROM registration_requests
+            WHERE approved = false
+            ORDER BY submitted_at DESC
+        """)
+    else:
+        # Regular coach only sees requests for their branch
+        cursor.execute("""
+            SELECT id, athlete_name, phone, email, branch_name, submitted_at, approved
+            FROM registration_requests
+            WHERE approved = false AND branch_name = %s
+            ORDER BY submitted_at DESC
+        """, (branch_name,))
+
     rows = cursor.fetchall()
     cursor.close()
     conn.close()
@@ -76,6 +117,15 @@ def approve_registration_request(request_id: int, user=Depends(get_current_user)
     request = cursor.fetchone()
     if not request:
         raise HTTPException(status_code=404, detail="Request not found")
+
+    # Verify the request belongs to the coach's branch
+    if user["role"] != "head_coach":
+        cursor.execute("SELECT name FROM branches WHERE id = %s", (user["branch_id"],))
+        branch = cursor.fetchone()
+        if not branch or request["branch_name"] != branch["name"]:
+            cursor.close()
+            conn.close()
+            raise HTTPException(status_code=403, detail="You can only approve requests for your branch")
 
     cursor.execute("SELECT * FROM users WHERE email = %s", (request["email"],))
     existing_user = cursor.fetchone()
@@ -149,6 +199,22 @@ def mark_payment(data: PaymentMark, user=Depends(get_current_user)):
     conn = get_connection()
     cursor = get_cursor(conn)
 
+    # Verify athlete belongs to coach's branch
+    cursor.execute("""
+        SELECT u.branch_id FROM athletes a
+        JOIN users u ON a.user_id = u.id
+        WHERE a.id = %s
+    """, (data.athlete_id,))
+    athlete = cursor.fetchone()
+    if not athlete:
+        cursor.close()
+        conn.close()
+        raise HTTPException(status_code=404, detail="Athlete not found")
+    if user["role"] != "head_coach" and int(athlete["branch_id"]) != int(user["branch_id"]):
+        cursor.close()
+        conn.close()
+        raise HTTPException(status_code=403, detail="You can only mark payments for athletes in your branch")
+
     try:
         session_dt = datetime.strptime(data.session_date, "%Y-%m-%d").date()
     except ValueError:
@@ -185,6 +251,15 @@ def reject_registration_request(request_id: int, user=Depends(get_current_user))
     request = cursor.fetchone()
     if not request:
         raise HTTPException(status_code=404, detail="Request not found")
+
+    # Verify the request belongs to the coach's branch
+    if user["role"] != "head_coach":
+        cursor.execute("SELECT name FROM branches WHERE id = %s", (user["branch_id"],))
+        branch = cursor.fetchone()
+        if not branch or request["branch_name"] != branch["name"]:
+            cursor.close()
+            conn.close()
+            raise HTTPException(status_code=403, detail="You can only reject requests for your branch")
 
     cursor.execute("DELETE FROM registration_requests WHERE id = %s", (request_id,))
     conn.commit()

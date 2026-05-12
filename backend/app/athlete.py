@@ -18,10 +18,10 @@ def get_athlete_dashboard(user=Depends(get_current_user)):
             FROM attendance
             WHERE athlete_id = (
                 SELECT id FROM athletes WHERE user_id = %s
-            )
+            ) AND branch_id = %s
             ORDER BY session_date DESC
             LIMIT 1
-        """, (user["id"],))
+        """, (user["id"], user["branch_id"]))
         attendance = cursor.fetchone()
 
         cursor.execute("""
@@ -54,6 +54,25 @@ def get_athlete_dashboard(user=Depends(get_current_user)):
 def get_athlete_by_user(user_id: int, user=Depends(get_current_user)):
     conn = get_connection()
     cursor = get_cursor(conn)
+
+    # Verify the requesting user can access this athlete
+    cursor.execute("SELECT branch_id FROM users WHERE id = %s", (user_id,))
+    target = cursor.fetchone()
+    if not target:
+        cursor.close()
+        conn.close()
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Athletes can only look up themselves; coaches only their branch
+    if user["role"] == "athlete" and user["id"] != user_id:
+        cursor.close()
+        conn.close()
+        raise HTTPException(status_code=403, detail="Access denied")
+    if user["role"] == "coach" and int(target["branch_id"]) != int(user["branch_id"]):
+        cursor.close()
+        conn.close()
+        raise HTTPException(status_code=403, detail="You can only access athletes in your branch")
+
     cursor.execute("SELECT id FROM athletes WHERE user_id = %s", (user_id,))
     athlete = cursor.fetchone()
     cursor.close()

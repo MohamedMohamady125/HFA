@@ -77,6 +77,8 @@ def _fetch_attendance_sync(branch_id: int, session_date: str, user_id: int):
 
 @router.get("/branch/{branch_id}/session-dates")
 def get_branch_session_dates_api(branch_id: int, user=Depends(get_current_user)):
+    can_access_branch(user, branch_id)
+
     conn = get_connection()
     cursor = get_cursor(conn)
     cursor.execute("SELECT practice_days FROM branches WHERE id = %s", (branch_id,))
@@ -91,6 +93,7 @@ def get_branch_session_dates_api(branch_id: int, user=Depends(get_current_user))
 
 @router.get("/branch/{branch_id}/day/{session_date}")
 async def get_attendance_by_day(branch_id: int, session_date: str, user=Depends(get_current_user)):
+    can_access_branch(user, branch_id)
     return await run_in_threadpool(_fetch_attendance_sync, branch_id, session_date, user["id"])
 
 def _mark_attendance_sync(data: AttendanceMark, user: dict):
@@ -101,7 +104,7 @@ def _mark_attendance_sync(data: AttendanceMark, user: dict):
     res = cursor.fetchone()
     if not res:
         raise HTTPException(status_code=404, detail="Athlete not found")
-    if int(res["branch_id"]) != int(user["branch_id"]):
+    if user["role"] != "head_coach" and int(res["branch_id"]) != int(user["branch_id"]):
         raise HTTPException(status_code=403, detail="You can only mark attendance for athletes in your branch")
 
     cursor.execute("""INSERT INTO attendance (athlete_id, session_date, status, branch_id, recorded_by)
@@ -143,7 +146,7 @@ def get_athlete_weekly_attendance(user_id: int, user=Depends(get_current_user)):
         athlete_id = result["athlete_id"]
         branch_id = result["branch_id"]
 
-        if user["role"] in ["coach", "head_coach"] and user["id"] != user_id:
+        if user["role"] in ["coach"] and user["id"] != user_id:
             if user["branch_id"] != branch_id:
                 raise HTTPException(status_code=403, detail="Cannot access athletes from other branches")
 
@@ -160,8 +163,8 @@ def get_athlete_weekly_attendance(user_id: int, user=Depends(get_current_user)):
             cursor.execute("""
                 SELECT status
                 FROM attendance
-                WHERE athlete_id = %s AND session_date = %s
-            """, (athlete_id, session_date))
+                WHERE athlete_id = %s AND session_date = %s AND branch_id = %s
+            """, (athlete_id, session_date, branch_id))
             row = cursor.fetchone()
             records.append({"day_number": i + 1, "status": row["status"] if row else None})
 

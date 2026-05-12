@@ -61,6 +61,22 @@ def mark_payment(data: PaymentMark, user=Depends(get_current_user)):
     conn = get_connection()
     cursor = get_cursor(conn)
 
+    # Verify athlete belongs to coach's branch
+    cursor.execute("""
+        SELECT u.branch_id FROM athletes a
+        JOIN users u ON a.user_id = u.id
+        WHERE a.id = %s
+    """, (data.athlete_id,))
+    athlete = cursor.fetchone()
+    if not athlete:
+        cursor.close()
+        conn.close()
+        raise HTTPException(status_code=404, detail="Athlete not found")
+    if user["role"] != "head_coach" and int(athlete["branch_id"]) != int(user["branch_id"]):
+        cursor.close()
+        conn.close()
+        raise HTTPException(status_code=403, detail="You can only mark payments for athletes in your branch")
+
     try:
         session_dt = datetime.strptime(data.session_date, "%Y-%m-%d").date()
         due_date = session_dt.replace(day=1)
@@ -90,19 +106,28 @@ def get_athlete_payment_status(athlete_id: int, user=Depends(get_current_user)):
     conn = get_connection()
     cursor = get_cursor(conn)
 
-    cursor.execute("SELECT id FROM athletes WHERE user_id = %s", (athlete_id,))
+    cursor.execute("SELECT id, user_id FROM athletes WHERE user_id = %s", (athlete_id,))
     athlete_record = cursor.fetchone()
 
     if not athlete_record:
         raise HTTPException(status_code=404, detail="Athlete not found")
 
+    # Verify the requesting user can access this athlete's data
+    cursor.execute("SELECT branch_id FROM users WHERE id = %s", (athlete_id,))
+    athlete_user = cursor.fetchone()
+    if athlete_user and user["role"] == "coach":
+        if int(athlete_user["branch_id"]) != int(user["branch_id"]):
+            cursor.close()
+            conn.close()
+            raise HTTPException(status_code=403, detail="You can only view payment status for athletes in your branch")
+
     actual_athlete_id = athlete_record["id"]
 
     cursor.execute("""
         SELECT due_date, status, session_date, confirmed_by_coach FROM payments
-        WHERE athlete_id = %s
+        WHERE athlete_id = %s AND branch_id = %s
         ORDER BY due_date DESC, id DESC
-    """, (actual_athlete_id,))
+    """, (actual_athlete_id, athlete_user["branch_id"] if athlete_user else user["branch_id"]))
     rows = [dict(r) for r in cursor.fetchall()]
 
     cursor.close()
