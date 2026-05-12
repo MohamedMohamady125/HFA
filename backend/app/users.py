@@ -83,22 +83,13 @@ def get_registration_requests(user=Depends(get_current_user)):
 
     branch_name = branch["name"]
 
-    if user["role"] == "head_coach":
-        # Head coach sees all pending requests
-        cursor.execute("""
-            SELECT id, athlete_name, phone, email, branch_name, submitted_at, approved
-            FROM registration_requests
-            WHERE approved = false
-            ORDER BY submitted_at DESC
-        """)
-    else:
-        # Regular coach only sees requests for their branch
-        cursor.execute("""
-            SELECT id, athlete_name, phone, email, branch_name, submitted_at, approved
-            FROM registration_requests
-            WHERE approved = false AND branch_name = %s
-            ORDER BY submitted_at DESC
-        """, (branch_name,))
+    # All coaches (including head coach) only see requests for their current branch
+    cursor.execute("""
+        SELECT id, athlete_name, phone, email, branch_name, submitted_at, approved
+        FROM registration_requests
+        WHERE approved = false AND branch_name = %s
+        ORDER BY submitted_at DESC
+    """, (branch_name,))
 
     rows = cursor.fetchall()
     cursor.close()
