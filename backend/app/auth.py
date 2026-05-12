@@ -1,6 +1,7 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, EmailStr
 from app.database import get_connection, get_cursor
+from app.deps import get_current_user
 from app.schemas import UserCreate, UserLogin
 from passlib.hash import bcrypt
 from jose import jwt
@@ -84,6 +85,31 @@ def login(user: UserLogin):
             "approved": db_user.get("approved", False),
         },
     }
+
+
+class ChangePasswordRequest(BaseModel):
+    old_password: str
+    new_password: str
+
+@router.post("/change-password")
+def change_password(data: ChangePasswordRequest, user=Depends(get_current_user)):
+    conn = get_connection()
+    cursor = get_cursor(conn)
+
+    cursor.execute("SELECT password_hash FROM users WHERE id = %s", (user["id"],))
+    row = cursor.fetchone()
+
+    if not row or not bcrypt.verify(data.old_password, row["password_hash"]):
+        cursor.close()
+        conn.close()
+        raise HTTPException(status_code=401, detail="Old password is incorrect")
+
+    new_hash = bcrypt.hash(data.new_password)
+    cursor.execute("UPDATE users SET password_hash = %s WHERE id = %s", (new_hash, user["id"]))
+    conn.commit()
+    cursor.close()
+    conn.close()
+    return {"message": "Password changed successfully"}
 
 
 class ForgotPasswordRequest(BaseModel):

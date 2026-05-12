@@ -17,7 +17,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   Future<void> _handleChange() async {
     final l = AppLocalizations.of(context);
     try {
-      await ApiService().post('/coach/change-password', data: {'old_password': _currentCtrl.text, 'new_password': _newCtrl.text});
+      await ApiService().post('/auth/change-password', data: {'old_password': _currentCtrl.text, 'new_password': _newCtrl.text});
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l.translate('password_changed')), backgroundColor: AppColors.success));
       context.pop();
