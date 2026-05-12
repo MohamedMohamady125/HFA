@@ -40,8 +40,19 @@ class CoachShell extends StatelessWidget {
                     const SizedBox(width: 8),
                     Text(branchName, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
                     const Spacer(),
-                    const Text('Switch', style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w500)),
-                    const SizedBox(width: 4),
+                    GestureDetector(
+                      onTap: () => context.go('/head-coach-manage-coaches'),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(8)),
+                        child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                          Icon(Icons.people_rounded, color: Colors.white, size: 14),
+                          SizedBox(width: 4),
+                          Text('Coaches', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
+                        ]),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
                     const Icon(Icons.swap_horiz_rounded, color: Colors.white70, size: 16),
                   ],
                 ),
