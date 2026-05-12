@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import '../../providers/auth_provider.dart';
 import '../../theme/app_theme.dart';
 
 class CoachShell extends StatelessWidget {
@@ -17,8 +19,37 @@ class CoachShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
+    final isHeadCoach = auth.role == 'head_coach';
+    final branchName = auth.user?['branch_name'];
+
     return Scaffold(
-      body: child,
+      body: Column(
+        children: [
+          // Branch banner for head coach
+          if (isHeadCoach && branchName != null)
+            GestureDetector(
+              onTap: () => context.go('/head-coach-branches'),
+              child: Container(
+                width: double.infinity,
+                padding: EdgeInsets.fromLTRB(16, MediaQuery.of(context).padding.top + 8, 16, 8),
+                color: AppColors.primary,
+                child: Row(
+                  children: [
+                    const Icon(Icons.location_city_rounded, color: Colors.white, size: 16),
+                    const SizedBox(width: 8),
+                    Text(branchName, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
+                    const Spacer(),
+                    const Text('Switch', style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w500)),
+                    const SizedBox(width: 4),
+                    const Icon(Icons.swap_horiz_rounded, color: Colors.white70, size: 16),
+                  ],
+                ),
+              ),
+            ),
+          Expanded(child: child),
+        ],
+      ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(border: Border(top: BorderSide(color: AppColors.divider))),
         child: NavigationBar(
