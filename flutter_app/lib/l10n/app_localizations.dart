@@ -83,6 +83,7 @@ class AppLocalizations {
       'reset_sent': 'Reset link sent!',
 
       // Change Password
+      'change_email': 'Change Email',
       'change_password': 'Change Password',
       'current_password': 'CURRENT PASSWORD',
       'new_password': 'NEW PASSWORD',
@@ -290,6 +291,7 @@ class AppLocalizations {
       'reset_sent': '\u062a\u0645 \u0625\u0631\u0633\u0627\u0644 \u0627\u0644\u0631\u0627\u0628\u0637!',
 
       // Change Password
+      'change_email': '\u062a\u063a\u064a\u064a\u0631 \u0627\u0644\u0628\u0631\u064a\u062f \u0627\u0644\u0625\u0644\u0643\u062a\u0631\u0648\u0646\u064a',
       'change_password': '\u062a\u063a\u064a\u064a\u0631 \u0643\u0644\u0645\u0629 \u0627\u0644\u0645\u0631\u0648\u0631',
       'current_password': '\u0643\u0644\u0645\u0629 \u0627\u0644\u0645\u0631\u0648\u0631 \u0627\u0644\u062d\u0627\u0644\u064a\u0629',
       'new_password': '\u0643\u0644\u0645\u0629 \u0627\u0644\u0645\u0631\u0648\u0631 \u0627\u0644\u062c\u062f\u064a\u062f\u0629',

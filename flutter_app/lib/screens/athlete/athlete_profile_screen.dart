@@ -128,6 +128,53 @@ class _AthleteProfileScreenState extends State<AthleteProfileScreen> {
     }
   }
 
+  Future<void> _showChangeEmail() async {
+    final emailCtrl = TextEditingController(text: user!['email'] ?? '');
+    final passCtrl = TextEditingController();
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Change Email', style: TextStyle(fontWeight: FontWeight.w700)),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(controller: emailCtrl, keyboardType: TextInputType.emailAddress, decoration: const InputDecoration(labelText: 'New Email')),
+              const SizedBox(height: 12),
+              TextField(controller: passCtrl, obscureText: true, decoration: const InputDecoration(labelText: 'Confirm Password')),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Update')),
+        ],
+      ),
+    );
+
+    if (result != true || emailCtrl.text.trim().isEmpty || passCtrl.text.isEmpty) return;
+
+    try {
+      await ApiService().post('/auth/change-email', data: {'new_email': emailCtrl.text.trim(), 'password': passCtrl.text});
+      // Update local stored user
+      final prefs = await SharedPreferences.getInstance();
+      final stored = prefs.getString('authUser');
+      if (stored != null) {
+        final authUser = Map<String, dynamic>.from(jsonDecode(stored));
+        authUser['email'] = emailCtrl.text.trim();
+        await prefs.setString('authUser', jsonEncode(authUser));
+        user = authUser;
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Email updated successfully'), backgroundColor: AppColors.success));
+        setState(() {});
+      }
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to update email'), backgroundColor: AppColors.error));
+    }
+  }
+
   Future<void> _showChangePassword() async {
     final oldCtrl = TextEditingController();
     final newCtrl = TextEditingController();
@@ -344,6 +391,21 @@ class _AthleteProfileScreenState extends State<AthleteProfileScreen> {
                 // ── Settings ──
                 const SizedBox(height: 24),
                 SectionHeader(title: l.translate('settings')),
+                AppCard(
+                  onTap: _showChangeEmail,
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 40, height: 40,
+                        decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
+                        child: const Icon(Icons.email_rounded, color: AppColors.primary, size: 20),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(child: Text(l.translate('change_email'), style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: AppColors.textPrimary))),
+                      const Icon(Icons.chevron_right_rounded, color: AppColors.textTertiary),
+                    ],
+                  ),
+                ),
                 AppCard(
                   onTap: _showChangePassword,
                   child: Row(

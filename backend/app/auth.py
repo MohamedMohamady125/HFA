@@ -87,6 +87,35 @@ def login(user: UserLogin):
     }
 
 
+class ChangeEmailRequest(BaseModel):
+    new_email: EmailStr
+    password: str
+
+@router.post("/change-email")
+def change_email(data: ChangeEmailRequest, user=Depends(get_current_user)):
+    conn = get_connection()
+    cursor = get_cursor(conn)
+
+    cursor.execute("SELECT password_hash FROM users WHERE id = %s", (user["id"],))
+    row = cursor.fetchone()
+    if not row or not bcrypt.verify(data.password, row["password_hash"]):
+        cursor.close()
+        conn.close()
+        raise HTTPException(status_code=401, detail="Incorrect password")
+
+    cursor.execute("SELECT id FROM users WHERE email = %s AND id != %s", (data.new_email, user["id"]))
+    if cursor.fetchone():
+        cursor.close()
+        conn.close()
+        raise HTTPException(status_code=400, detail="Email already in use")
+
+    cursor.execute("UPDATE users SET email = %s WHERE id = %s", (data.new_email, user["id"]))
+    conn.commit()
+    cursor.close()
+    conn.close()
+    return {"message": "Email updated successfully"}
+
+
 class ChangePasswordRequest(BaseModel):
     old_password: str
     new_password: str
