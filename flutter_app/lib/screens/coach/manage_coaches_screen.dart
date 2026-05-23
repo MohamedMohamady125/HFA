@@ -331,6 +331,79 @@ class _ManageCoachesScreenState extends State<ManageCoachesScreen> {
   }
 
   // ═══════════════════════════════════════════════════════
+  // ASSIGN BRANCH
+  // ═══════════════════════════════════════════════════════
+  void _showAssignBranchSheet(Map<String, dynamic> coach) {
+    int? selectedBranch = coach['branch_id'];
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) => Container(
+          padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
+          decoration: const BoxDecoration(color: AppColors.cardBg, borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(width: 40, height: 4, margin: const EdgeInsets.only(bottom: 20), decoration: BoxDecoration(color: AppColors.divider, borderRadius: BorderRadius.circular(2))),
+              Row(children: [
+                Container(width: 44, height: 44, decoration: BoxDecoration(color: AppColors.info.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
+                  child: const Icon(Icons.swap_horiz_rounded, color: AppColors.info, size: 22)),
+                const SizedBox(width: 12),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  const Text('Assign Branch', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
+                  Text(coach['name'] ?? '', style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+                ])),
+              ]),
+              const SizedBox(height: 20),
+              ...branches.map((b) {
+                final active = b['id'] == selectedBranch;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: GestureDetector(
+                    onTap: () => setSheetState(() => selectedBranch = b['id']),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      decoration: BoxDecoration(
+                        color: active ? AppColors.accent.withValues(alpha: 0.08) : AppColors.surfaceLight,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: active ? AppColors.accent : AppColors.divider, width: active ? 2 : 1),
+                      ),
+                      child: Row(children: [
+                        Icon(Icons.location_city_rounded, size: 20, color: active ? AppColors.accent : AppColors.textTertiary),
+                        const SizedBox(width: 12),
+                        Expanded(child: Text(b['name'], style: TextStyle(fontSize: 15, fontWeight: active ? FontWeight.w700 : FontWeight.w500, color: active ? AppColors.accent : AppColors.textPrimary))),
+                        if (active) const Icon(Icons.check_circle_rounded, color: AppColors.accent, size: 22),
+                      ]),
+                    ),
+                  ),
+                );
+              }),
+              const SizedBox(height: 16),
+              SizedBox(width: double.infinity, child: ElevatedButton(
+                onPressed: () async {
+                  if (selectedBranch == null) return;
+                  try {
+                    await ApiService().put('/head-coach/coaches/${coach['id']}', data: {'branch_id': selectedBranch});
+                    if (!ctx.mounted) return;
+                    Navigator.pop(ctx);
+                    _msg('Branch assigned');
+                    _loadData();
+                  } catch (e) { _msg(_extractError(e, 'Failed'), error: true); }
+                },
+                style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
+                child: const Text('Assign Branch'),
+              )),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════
   // DELETE
   // ═══════════════════════════════════════════════════════
   void _deleteCoach(int id, String name) async {
@@ -446,6 +519,8 @@ class _ManageCoachesScreenState extends State<ManageCoachesScreen> {
                             Row(children: [
                               if (hasPassword) _actionChip(Icons.key_rounded, 'Credentials', AppColors.accent, () => _showCredentialsSheet(c['email'] ?? '', c['plain_password'] ?? '')),
                               if (hasPassword) const SizedBox(width: 8),
+                              _actionChip(Icons.swap_horiz_rounded, 'Branch', AppColors.info, () => _showAssignBranchSheet(c)),
+                              const SizedBox(width: 8),
                               _actionChip(Icons.edit_rounded, 'Edit', AppColors.primary, () => _showEditSheet(c)),
                               const SizedBox(width: 8),
                               _actionChip(Icons.lock_reset_rounded, 'Reset', AppColors.warning, () => _showResetSheet(c)),
