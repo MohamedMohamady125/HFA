@@ -31,9 +31,14 @@ class _AttendanceSummaryScreenState extends State<AttendanceSummaryScreen> {
     } catch (_) {} finally { if (mounted) setState(() => loading = false); }
   }
 
-  Map<String, Map<String, String>> _group() {
-    final g = <String, Map<String, String>>{};
-    for (var r in records) { g.putIfAbsent(r['athlete_name'], () => {}); g[r['athlete_name']]![r['session_date']] = r['status']; }
+  Map<String, Map<String, String?>> _group() {
+    final g = <String, Map<String, String?>>{};
+    for (var r in records) {
+      final name = r['athlete_name']?.toString() ?? 'Unknown';
+      final date = r['session_date']?.toString();
+      g.putIfAbsent(name, () => {});
+      if (date != null) g[name]![date] = r['status']?.toString();
+    }
     return g;
   }
 
