@@ -9,32 +9,44 @@ class CoachGearScreen extends StatefulWidget {
   State<CoachGearScreen> createState() => CoachGearScreenState();
 }
 
-class CoachGearScreenState extends State<CoachGearScreen> {
+class CoachGearScreenState extends State<CoachGearScreen> with SingleTickerProviderStateMixin {
   int? branchId;
   String branchName = '';
   final _msgCtrl = TextEditingController();
   bool loading = true, submitting = false;
+  bool _saved = false;
+  late AnimationController _checkAnim;
 
   void silentRefresh() { _loadData(); }
 
   @override
-  void initState() { super.initState(); _loadData(); }
+  void initState() {
+    super.initState();
+    _checkAnim = AnimationController(vsync: this, duration: const Duration(milliseconds: 600));
+    _loadData();
+  }
+
+  @override
+  void dispose() { _msgCtrl.dispose(); _checkAnim.dispose(); super.dispose(); }
 
   Future<void> _loadData() async {
     try {
       final api = ApiService();
       final u = await api.get('/users/me'); branchId = u.data['branch_id'];
-      final b = await api.get('/branches/$branchId'); branchName = b.data['name'] ?? '';
-      final g = await api.get('/gear/$branchId'); if (g.data?['message'] != null) _msgCtrl.text = g.data['message'];
+      final results = await Future.wait([api.get('/branches/$branchId'), api.get('/gear/$branchId')]);
+      branchName = results[0].data['name'] ?? '';
+      if (results[1].data?['message'] != null) _msgCtrl.text = results[1].data['message'];
     } catch (_) {} finally { if (mounted) setState(() => loading = false); }
   }
 
   Future<void> _handlePost() async {
     if (_msgCtrl.text.isEmpty || branchId == null) return;
-    setState(() => submitting = true);
+    setState(() { submitting = true; _saved = false; });
     try {
       await ApiService().post('/gear/$branchId', data: {'content': _msgCtrl.text});
-      if (mounted) { final l = AppLocalizations.of(context); ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l.translate('gear_saved')), backgroundColor: AppColors.success)); }
+      setState(() => _saved = true);
+      _checkAnim.forward(from: 0);
+      Future.delayed(const Duration(seconds: 2), () { if (mounted) setState(() => _saved = false); });
     } catch (_) {
       if (mounted) { final l = AppLocalizations.of(context); ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l.translate('gear_failed')), backgroundColor: AppColors.error)); }
     } finally { if (mounted) setState(() => submitting = false); }
@@ -43,43 +55,60 @@ class CoachGearScreenState extends State<CoachGearScreen> {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
-    if (loading) return const AppLoadingScreen();
+    if (loading) return const Scaffold(body: ShimmerList(count: 2));
 
     return Scaffold(
       body: SafeArea(
         child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
           padding: const EdgeInsets.all(20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SectionHeader(title: l.translate('weekly_gear_update'), subtitle: 'Branch: $branchName'),
+              FadeSlideIn(child: SectionHeader(title: l.translate('weekly_gear_update'), subtitle: 'Branch: $branchName')),
               const SizedBox(height: 8),
-              AppCard(
-                child: Column(
-                  children: [
-                    TextField(
-                      controller: _msgCtrl, maxLines: 8,
-                      style: const TextStyle(fontSize: 15, height: 1.5),
-                      decoration: InputDecoration(hintText: l.translate('enter_gear'), border: InputBorder.none, fillColor: Colors.transparent),
+              FadeSlideIn(delay: 100, child: AppCard(
+                child: Column(children: [
+                  TextField(
+                    controller: _msgCtrl, maxLines: 8,
+                    style: const TextStyle(fontSize: 15, height: 1.6),
+                    decoration: InputDecoration(hintText: l.translate('enter_gear'), border: InputBorder.none, fillColor: Colors.transparent),
+                  ),
+                  const Divider(height: 1),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 300),
+                      child: _saved
+                          ? ScaleTransition(
+                              scale: CurvedAnimation(parent: _checkAnim, curve: Curves.elasticOut),
+                              child: Container(
+                                key: const ValueKey('saved'),
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                                  const Icon(Icons.check_circle_rounded, color: AppColors.success, size: 24),
+                                  const SizedBox(width: 8),
+                                  Text(l.translate('gear_saved'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.success)),
+                                ]),
+                              ),
+                            )
+                          : ElevatedButton(
+                              key: const ValueKey('btn'),
+                              onPressed: submitting || _msgCtrl.text.isEmpty ? null : _handlePost,
+                              style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
+                              child: submitting
+                                  ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white))
+                                  : Text(l.translate('save_gear')),
+                            ),
                     ),
-                    const SizedBox(height: 16),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: submitting || _msgCtrl.text.isEmpty ? null : _handlePost,
-                        child: Text(submitting ? l.translate('saving') : l.translate('save_gear')),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+                  ),
+                ]),
+              )),
             ],
           ),
         ),
       ),
     );
   }
-
-  @override
-  void dispose() { _msgCtrl.dispose(); super.dispose(); }
 }

@@ -16,25 +16,21 @@ class HeadCoachBranchesScreen extends StatefulWidget {
 
 class _HeadCoachBranchesScreenState extends State<HeadCoachBranchesScreen> {
   List<dynamic> branches = [];
-  bool loading = true, switching = false;
+  bool loading = true;
+  int? _switchingId;
 
   @override
   void initState() { super.initState(); _fetchBranches(); }
 
   Future<void> _fetchBranches() async {
-    try {
-      final res = await ApiService().get('/head-coach/branches');
-      branches = res.data;
-    } catch (_) {} finally { if (mounted) setState(() => loading = false); }
+    try { final res = await ApiService().get('/head-coach/branches'); branches = res.data; }
+    catch (_) {} finally { if (mounted) setState(() => loading = false); }
   }
 
   Future<void> _switchToBranch(Map<String, dynamic> branch) async {
-    setState(() => switching = true);
+    setState(() => _switchingId = branch['id']);
     try {
-      // Select branch on backend (updates head_coach's branch_id)
       await ApiService().post('/head-coach/select-branch/${branch['id']}');
-
-      // Update local auth to reflect selected branch, keep head_coach role
       final prefs = await SharedPreferences.getInstance();
       final stored = prefs.getString('authUser');
       if (stored == null) return;
@@ -42,19 +38,13 @@ class _HeadCoachBranchesScreenState extends State<HeadCoachBranchesScreen> {
       authUser['branch_id'] = branch['id'];
       authUser['branch_name'] = branch['name'];
       await prefs.setString('authUser', jsonEncode(authUser));
-
       if (!mounted) return;
       final nav = GoRouter.of(context);
       await context.read<AuthProvider>().login(authUser);
       nav.go('/coach/home');
     } catch (e) {
-      debugPrint('Switch branch error: $e');
-      if (mounted) { final l = AppLocalizations.of(context); ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${l.translate('failed_switch')}: $e'), backgroundColor: AppColors.error),
-      ); }
-    } finally {
-      if (mounted) setState(() => switching = false);
-    }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to switch: $e'), backgroundColor: AppColors.error));
+    } finally { if (mounted) setState(() => _switchingId = null); }
   }
 
   Future<void> _logout() async {
@@ -68,7 +58,7 @@ class _HeadCoachBranchesScreenState extends State<HeadCoachBranchesScreen> {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
-    if (loading || switching) return AppLoadingScreen(message: switching ? l.translate('switching_branch') : l.translate('loading_branches'));
+    if (loading) return const Scaffold(body: ShimmerList(count: 5));
 
     return Scaffold(
       body: SafeArea(
@@ -77,61 +67,61 @@ class _HeadCoachBranchesScreenState extends State<HeadCoachBranchesScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(l.translate('head_coach'), style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: AppColors.textPrimary, letterSpacing: -0.5)),
-                        const SizedBox(height: 4),
-                        Text(l.translate('select_branch_manage'), style: const TextStyle(fontSize: 14, color: AppColors.textSecondary)),
-                      ],
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: _logout,
-                    icon: const Icon(Icons.logout_rounded, color: AppColors.textSecondary),
-                    tooltip: l.translate('logout'),
-                  ),
-                ],
-              ),
+              FadeSlideIn(child: Row(children: [
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(l.translate('head_coach'), style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: AppColors.textPrimary, letterSpacing: -0.5)),
+                  const SizedBox(height: 4),
+                  Text(l.translate('select_branch_manage'), style: const TextStyle(fontSize: 14, color: AppColors.textSecondary)),
+                ])),
+                IconButton(onPressed: _logout, icon: const Icon(Icons.logout_rounded, color: AppColors.textTertiary), tooltip: l.translate('logout')),
+              ])),
               const SizedBox(height: 16),
-              // Manage Coaches button
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: () => context.go('/head-coach-manage-coaches'),
-                  icon: const Icon(Icons.people_rounded),
-                  label: Text(l.translate('manage_coaches')),
-                ),
-              ),
+              FadeSlideIn(delay: 100, child: SizedBox(width: double.infinity, child: OutlinedButton.icon(
+                onPressed: () => context.go('/head-coach-manage-coaches'),
+                icon: const Icon(Icons.people_rounded, size: 18),
+                label: Text(l.translate('manage_coaches')),
+              ))),
               const SizedBox(height: 20),
               Expanded(
                 child: branches.isEmpty
                     ? Center(child: Text(l.translate('no_branches'), style: const TextStyle(color: AppColors.textSecondary)))
                     : ListView.builder(
+                        physics: const BouncingScrollPhysics(),
                         itemCount: branches.length,
                         itemBuilder: (_, i) {
                           final b = branches[i];
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: AppCard(
-                              onTap: () => _switchToBranch(Map<String, dynamic>.from(b)),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    width: 48, height: 48,
-                                    decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
-                                    child: const Icon(Icons.location_city_rounded, color: AppColors.accent),
+                          final isSwitching = _switchingId == b['id'];
+                          return FadeSlideIn(
+                            delay: 150 + (i * 60),
+                            child: Padding(
+                              padding: const EdgeInsets.only(bottom: 10),
+                              child: ScaleOnTap(
+                                onTap: isSwitching ? null : () => _switchToBranch(Map<String, dynamic>.from(b)),
+                                child: AnimatedOpacity(
+                                  duration: const Duration(milliseconds: 200),
+                                  opacity: _switchingId != null && !isSwitching ? 0.4 : 1.0,
+                                  child: AppCard(
+                                    child: Row(children: [
+                                      AnimatedContainer(
+                                        duration: const Duration(milliseconds: 300),
+                                        width: 48, height: 48,
+                                        decoration: BoxDecoration(
+                                          color: isSwitching ? AppColors.accent : AppColors.accent.withValues(alpha: 0.1),
+                                          borderRadius: BorderRadius.circular(14),
+                                        ),
+                                        child: isSwitching
+                                            ? const Center(child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white)))
+                                            : const Icon(Icons.location_city_rounded, color: AppColors.accent, size: 22),
+                                      ),
+                                      const SizedBox(width: 14),
+                                      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                        Text(b['name'] ?? '', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+                                        if (b['address'] != null) Text(b['address'], style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+                                      ])),
+                                      const Icon(Icons.chevron_right_rounded, color: AppColors.textTertiary, size: 20),
+                                    ]),
                                   ),
-                                  const SizedBox(width: 16),
-                                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                    Text(b['name'] ?? '', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
-                                    if (b['address'] != null) Text(b['address'], style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
-                                  ])),
-                                  const Icon(Icons.chevron_right_rounded, color: AppColors.textTertiary),
-                                ],
+                                ),
                               ),
                             ),
                           );
