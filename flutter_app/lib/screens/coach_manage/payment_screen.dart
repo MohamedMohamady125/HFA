@@ -121,39 +121,23 @@ class _PaymentScreenState extends State<PaymentScreen> {
                                       duration: const Duration(milliseconds: 200),
                                       opacity: isAnimating ? 0.5 : 1.0,
                                       child: Padding(
-                                        padding: const EdgeInsets.only(bottom: 8),
-                                        child: Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                          decoration: BoxDecoration(color: AppColors.surfaceLight, borderRadius: BorderRadius.circular(10)),
-                                          child: Row(
-                                            children: [
-                                              Expanded(child: Text(date, style: const TextStyle(fontSize: 13, color: AppColors.textSecondary, fontWeight: FontWeight.w500))),
-                                              if (isAnimating)
-                                                const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accent))
-                                              else
-                                                ...['paid', 'pending', 'late'].map((s) {
-                                                  final active = cs == s;
-                                                  final color = s == 'paid' ? AppColors.success : s == 'late' ? AppColors.error : AppColors.warning;
-                                                  return Padding(
-                                                    padding: const EdgeInsets.only(left: 6),
-                                                    child: ScaleOnTap(
-                                                      onTap: () => _markPayment(item['athlete_id'], date, s),
-                                                      child: AnimatedContainer(
-                                                        duration: const Duration(milliseconds: 250),
-                                                        width: 36, height: 36,
-                                                        decoration: BoxDecoration(
-                                                          color: active ? color : Colors.white,
-                                                          borderRadius: BorderRadius.circular(10),
-                                                          border: active ? null : Border.all(color: AppColors.divider),
-                                                          boxShadow: active ? [BoxShadow(color: color.withValues(alpha: 0.3), blurRadius: 6, offset: const Offset(0, 2))] : null,
-                                                        ),
-                                                        child: Center(child: Text(s[0].toUpperCase(), style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: active ? Colors.white : AppColors.textTertiary))),
-                                                      ),
-                                                    ),
-                                                  );
-                                                }),
-                                            ],
-                                          ),
+                                        padding: const EdgeInsets.only(bottom: 10),
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(date, style: const TextStyle(fontSize: 12, color: AppColors.textTertiary, fontWeight: FontWeight.w500)),
+                                            const SizedBox(height: 6),
+                                            if (isAnimating)
+                                              const Center(child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accent)))
+                                            else
+                                              Row(children: [
+                                                _payBtn('Paid', Icons.check_circle_rounded, AppColors.success, cs == 'paid', () => _markPayment(item['athlete_id'], date, 'paid')),
+                                                const SizedBox(width: 8),
+                                                _payBtn('Pending', Icons.schedule_rounded, AppColors.warning, cs == 'pending', () => _markPayment(item['athlete_id'], date, 'pending')),
+                                                const SizedBox(width: 8),
+                                                _payBtn('Late', Icons.warning_rounded, AppColors.error, cs == 'late', () => _markPayment(item['athlete_id'], date, 'late')),
+                                              ]),
+                                          ],
                                         ),
                                       ),
                                     );
@@ -168,6 +152,29 @@ class _PaymentScreenState extends State<PaymentScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _payBtn(String label, IconData icon, Color color, bool active, VoidCallback onTap) {
+    return Expanded(
+      child: ScaleOnTap(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 250),
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: active ? color : AppColors.surfaceLight,
+            borderRadius: BorderRadius.circular(10),
+            border: active ? null : Border.all(color: AppColors.divider),
+            boxShadow: active ? [BoxShadow(color: color.withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 3))] : null,
+          ),
+          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+            Icon(icon, size: 16, color: active ? Colors.white : AppColors.textTertiary),
+            const SizedBox(width: 4),
+            Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: active ? Colors.white : AppColors.textTertiary)),
+          ]),
+        ),
       ),
     );
   }
