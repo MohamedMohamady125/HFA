@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../services/api_service.dart';
+import '../services/offline/hive_cache.dart';
 
 class AuthProvider extends ChangeNotifier {
   Map<String, dynamic>? _user;
@@ -48,6 +49,7 @@ class AuthProvider extends ChangeNotifier {
     _prefs ??= await SharedPreferences.getInstance();
     await _prefs!.remove('authUser');
     await _prefs!.remove('headCoachMode');
+    await HiveCache.clearAll();
     notifyListeners();
   }
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
+import '../../services/offline/offline_repository.dart';
 import '../../theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
 import 'package:intl/intl.dart';
@@ -23,8 +24,8 @@ class _AttendanceSummaryScreenState extends State<AttendanceSummaryScreen> {
   Future<void> _fetch() async {
     final branchId = context.read<AuthProvider>().branchId;
     try {
-      final res = await ApiService().get('/attendance/branch/$branchId/athletes-stats');
-      athletes = res.data;
+      final data = await OfflineRepository.getAthletesStats(branchId!);
+      athletes = data;
     } catch (_) {} finally { if (mounted) setState(() => loading = false); }
   }
 

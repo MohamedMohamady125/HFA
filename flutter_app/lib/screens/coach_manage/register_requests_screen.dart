@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../services/api_service.dart';
+import '../../services/offline/offline_repository.dart';
 import '../../theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
 
@@ -23,8 +24,8 @@ class _RegisterRequestsScreenState extends State<RegisterRequestsScreen> {
   Future<void> _fetchRequests() async {
     setState(() => loading = true);
     try {
-      final res = await ApiService().get('/users/requests');
-      requests = res.data;
+      final data = await OfflineRepository.getRequests();
+      requests = data;
     } catch (_) {}
     finally { if (mounted) setState(() => loading = false); }
   }

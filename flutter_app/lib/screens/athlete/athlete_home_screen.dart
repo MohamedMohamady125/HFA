@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:dio/dio.dart';
 import 'dart:convert';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/api_service.dart';
+import '../../services/offline/offline_repository.dart';
 import '../../theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
 import 'athlete_shell.dart';
@@ -43,32 +43,29 @@ class AthleteHomeScreenState extends State<AthleteHomeScreen> with AutomaticKeep
       final stored = prefs.getString('authUser');
       if (stored == null) return;
       final user = jsonDecode(stored);
-      final api = ApiService();
+      final attFuture = OfflineRepository.getAttendanceWeek(user['id']);
+      final gearFuture = OfflineRepository.getGear(user['branch_id']);
+      final threadsFuture = OfflineRepository.getThreads(user['branch_id']);
+      final payFuture = OfflineRepository.getPaymentStatus(user['id']);
 
-      final results = await Future.wait([
-        api.get('/attendance/athlete/${user['id']}/week').catchError((_) => _emptyResponse([])),
-        api.get('/gear/${user['branch_id']}').catchError((_) => _emptyResponse({})),
-        api.get('/threads/branch/${user['branch_id']}').catchError((_) => _emptyResponse([])),
-        api.get('/payments/${user['id']}/status').catchError((_) => _emptyResponse({})),
-      ]);
+      final results = await Future.wait([attFuture, gearFuture, threadsFuture, payFuture]);
 
-      attendance = results[0].data is List ? results[0].data : [];
-      gearMessage = results[1].data?['message'] ?? 'No gear updates.';
+      attendance = results[0] is List ? results[0] as List : [];
+      gearMessage = (results[1] is Map ? (results[1] as Map)['message'] : null) ?? 'No gear updates.';
 
-      final threads = (results[2].data is List ? results[2].data as List : []).where((t) => !(t['title'] as String).toLowerCase().contains('gear')).toList();
+      final threads = (results[2] is List ? results[2] as List : []).where((t) => !(t['title'] as String).toLowerCase().contains('gear')).toList();
       if (threads.isNotEmpty) {
         try {
-          final p = await api.get('/threads/${threads[0]['id']}/posts');
-          lastThreadMessage = (p.data as List).isNotEmpty ? p.data[0]['message'] ?? '' : 'No posts yet.';
+          final p = await OfflineRepository.getPosts(threads[0]['id']);
+          lastThreadMessage = (p as List).isNotEmpty ? p[0]['message'] ?? '' : 'No posts yet.';
         } catch (_) { lastThreadMessage = 'No posts yet.'; }
       } else { lastThreadMessage = 'No threads available.'; }
 
-      paymentStatus = (results[3].data is Map ? results[3].data : {})[_dueDateKey()] ?? 'pending';
+      paymentStatus = (results[3] is Map ? results[3] as Map : {})[_dueDateKey()] ?? 'pending';
       _fetched = true;
     } catch (_) {} finally { if (mounted) setState(() => loading = false); }
   }
 
-  dynamic _emptyResponse(dynamic data) => Response(requestOptions: RequestOptions(), data: data);
 
   @override
   Widget build(BuildContext context) {

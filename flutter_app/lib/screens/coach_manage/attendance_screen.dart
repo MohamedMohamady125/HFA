@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
+import '../../services/offline/offline_repository.dart';
 import '../../theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
 
@@ -35,7 +36,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> with SingleTickerPr
   int? get _branchId => context.read<AuthProvider>().branchId;
 
   Future<void> _fetchSessionDates() async {
-    try { final res = await ApiService().get('/attendance/branch/$_branchId/session-dates'); sessionDates = List<String>.from(res.data); if (sessionDates.length == 3) _fetchAttendance(); }
+    try { final data = await OfflineRepository.getSessionDates(_branchId!); sessionDates = List<String>.from(data); if (sessionDates.length == 3) _fetchAttendance(); }
     catch (_) { if (mounted) setState(() => error = 'Failed to load session dates'); }
   }
 
@@ -43,8 +44,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> with SingleTickerPr
     if (!silent) setState(() { loading = true; error = null; });
     try {
       if (selectedDay >= sessionDates.length) throw Exception('No date');
-      final res = await ApiService().get('/attendance/branch/$_branchId/day/${sessionDates[selectedDay]}');
-      attendance = res.data;
+      final data = await OfflineRepository.getAttendanceDay(_branchId!, sessionDates[selectedDay]);
+      attendance = data;
       if (!silent) { _listAnim.reset(); _listAnim.forward(); }
     } catch (e) { error = e.toString(); }
     finally { if (mounted) setState(() => loading = false); }
@@ -53,7 +54,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> with SingleTickerPr
   Future<void> _mark(int athleteId, String status, int index) async {
     setState(() => _animating.add(athleteId));
     try {
-      await ApiService().post('/attendance/mark', data: {'athlete_id': athleteId, 'session_date': sessionDates[selectedDay], 'status': status});
+      await OfflineRepository.markAttendance(athleteId, sessionDates[selectedDay], status, _branchId!);
       // Update locally without refetching
       setState(() {
         for (int i = 0; i < attendance.length; i++) {

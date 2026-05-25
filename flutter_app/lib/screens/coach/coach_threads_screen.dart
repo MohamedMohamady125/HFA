@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import '../../services/api_service.dart';
+import '../../services/offline/offline_repository.dart';
 import '../../theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -36,13 +37,12 @@ class CoachThreadsScreenState extends State<CoachThreadsScreen> {
     try {
       final prefs = await SharedPreferences.getInstance();
       user = jsonDecode(prefs.getString('authUser')!);
-      final api = ApiService();
-      final me = await api.get('/users/me');
-      displayBranchId = me.data['branch_id'];
-      branchName = me.data['branch_name'] ?? 'Branch $displayBranchId';
-      final tr = await api.get('/threads/branch/$displayBranchId');
-      if (tr.data is List && (tr.data as List).isNotEmpty) {
-        threadId = tr.data[0]['id'];
+      final me = await OfflineRepository.getUserMe();
+      displayBranchId = me['branch_id'];
+      branchName = me['branch_name'] ?? 'Branch $displayBranchId';
+      final tr = await OfflineRepository.getThreads(displayBranchId!);
+      if (tr is List && tr.isNotEmpty) {
+        threadId = tr[0]['id'];
         await _loadMessages();
       }
     } catch (_) {} finally { if (mounted) setState(() => loading = false); }
@@ -51,8 +51,7 @@ class CoachThreadsScreenState extends State<CoachThreadsScreen> {
   Future<void> _loadMessages() async {
     if (threadId == null) return;
     try {
-      final res = await ApiService().get('/threads/$threadId/posts');
-      final data = res.data as List;
+      final data = await OfflineRepository.getPosts(threadId!) as List;
       data.sort((a, b) => DateTime.parse(a['created_at']).compareTo(DateTime.parse(b['created_at'])));
       messages = data;
       _scrollToBottom();
@@ -75,7 +74,7 @@ class CoachThreadsScreenState extends State<CoachThreadsScreen> {
     _msgCtrl.clear();
     _scrollToBottom();
     try {
-      await ApiService().post('/threads/$threadId/post', data: {'message': text});
+      await OfflineRepository.postMessage(threadId!, text);
       await _loadMessages();
     } catch (_) { setState(() { messages.removeWhere((m) => m['id'] == optimistic['id']); }); }
     finally { if (mounted) setState(() => sending = false); }

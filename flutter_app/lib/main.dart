@@ -26,14 +26,23 @@ import 'screens/coach/head_coach_branches_screen.dart';
 import 'screens/coach/manage_coaches_screen.dart';
 import 'screens/athlete/athlete_attendance_screen.dart';
 
+import 'services/offline/hive_cache.dart';
+import 'services/offline/sync_queue.dart';
+import 'services/offline/connectivity_service.dart';
+
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
     statusBarIconBrightness: Brightness.dark,
   ));
+
+  // Initialize offline layer
+  await HiveCache.init();
+  await SyncQueue.init();
+  await ConnectivityService.init();
 
   final authProvider = AuthProvider();
 

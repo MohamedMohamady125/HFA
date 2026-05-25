@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
+import '../../services/offline/offline_repository.dart';
 import '../../theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
 
@@ -31,11 +32,10 @@ class CoachGearScreenState extends State<CoachGearScreen> with SingleTickerProvi
 
   Future<void> _loadData() async {
     try {
-      final api = ApiService();
-      final u = await api.get('/users/me'); branchId = u.data['branch_id'];
-      final results = await Future.wait([api.get('/branches/$branchId'), api.get('/gear/$branchId')]);
-      branchName = results[0].data['name'] ?? '';
-      if (results[1].data?['message'] != null) _msgCtrl.text = results[1].data['message'];
+      final u = await OfflineRepository.getUserMe(); branchId = u['branch_id'];
+      final results = await Future.wait([OfflineRepository.cachedGet('/branches/$branchId'), OfflineRepository.getGear(branchId!)]);
+      branchName = results[0]['name'] ?? '';
+      if (results[1]?['message'] != null) _msgCtrl.text = results[1]['message'];
     } catch (_) {} finally { if (mounted) setState(() => loading = false); }
   }
 
@@ -43,7 +43,7 @@ class CoachGearScreenState extends State<CoachGearScreen> with SingleTickerProvi
     if (_msgCtrl.text.isEmpty || branchId == null) return;
     setState(() { submitting = true; _saved = false; });
     try {
-      await ApiService().post('/gear/$branchId', data: {'content': _msgCtrl.text});
+      await OfflineRepository.postGear(branchId!, _msgCtrl.text);
       setState(() => _saved = true);
       _checkAnim.forward(from: 0);
       Future.delayed(const Duration(seconds: 2), () { if (mounted) setState(() => _saved = false); });

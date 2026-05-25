@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
+import '../../services/offline/offline_repository.dart';
 import '../../theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
 
@@ -21,7 +22,7 @@ class CoachHomeScreenState extends State<CoachHomeScreen> {
   void initState() { super.initState(); _fetchUser(); }
 
   Future<void> _fetchUser() async {
-    try { final res = await ApiService().get('/users/me'); if (mounted) setState(() => name = res.data['name'] ?? ''); } catch (_) {}
+    try { final data = await OfflineRepository.getUserMe(); if (mounted) setState(() => name = data['name'] ?? ''); } catch (_) {}
   }
 
   @override

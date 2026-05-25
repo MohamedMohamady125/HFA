@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
+import '../../services/offline/offline_repository.dart';
 import '../../theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
 
@@ -22,8 +23,8 @@ class CoachProfileScreenState extends State<CoachProfileScreen> {
 
   Future<void> _fetchDetails() async {
     try {
-      final res = await ApiService().get('/users/me');
-      if (mounted) setState(() => branchName = res.data['branch_name'] ?? '');
+      final data = await OfflineRepository.getUserMe();
+      if (mounted) setState(() => branchName = data['branch_name'] ?? '');
     } catch (_) {}
   }
 

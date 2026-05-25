@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
+import '../../services/offline/offline_repository.dart';
 import '../../theme/app_theme.dart';
 
 class CoachAthletesScreen extends StatefulWidget {
@@ -25,8 +26,8 @@ class CoachAthletesScreenState extends State<CoachAthletesScreen> {
     if (!silent) setState(() => loading = true);
     final branchId = context.read<AuthProvider>().branchId;
     try {
-      final res = await ApiService().get('/athletes/branch/$branchId/full');
-      athletes = res.data;
+      final data = await OfflineRepository.getAthletesFull(branchId!);
+      athletes = data;
     } catch (_) {} finally { if (mounted) setState(() => loading = false); }
   }
 

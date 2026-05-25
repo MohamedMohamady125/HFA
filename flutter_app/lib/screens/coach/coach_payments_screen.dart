@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
+import '../../services/offline/offline_repository.dart';
 import '../../theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
 
@@ -27,17 +28,18 @@ class CoachPaymentsScreenState extends State<CoachPaymentsScreen> {
     if (!silent) setState(() => loading = true);
     final branchId = context.read<AuthProvider>().branchId;
     try {
-      final res = await ApiService().get('/payments/summary/$branchId');
-      records = res.data['records'] ?? [];
-      sessionDates = List<String>.from(res.data['session_dates'] ?? []);
+      final data = await OfflineRepository.getPaymentSummary(branchId!);
+      records = data['records'] ?? [];
+      sessionDates = List<String>.from(data['session_dates'] ?? []);
     } catch (_) {} finally { if (mounted) setState(() => loading = false); }
   }
 
   Future<void> _markPayment(int athleteId, String date, String status) async {
+    final branchId = context.read<AuthProvider>().branchId;
     final key = '$athleteId-$date';
     setState(() => _animating.add(key));
     try {
-      await ApiService().post('/payments/mark', data: {'athlete_id': athleteId, 'session_date': date, 'status': status});
+      await OfflineRepository.markPayment(athleteId, date, status, branchId!);
       setState(() { for (var r in records) { if (r['athlete_id'] == athleteId) { (r['statuses'] as Map)[date] = status; break; } } });
     } catch (_) {}
     finally { setState(() => _animating.remove(key)); }
