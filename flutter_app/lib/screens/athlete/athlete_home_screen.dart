@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
+import 'athlete_shell.dart';
 
 class AthleteHomeScreen extends StatefulWidget {
   const AthleteHomeScreen({super.key});
@@ -125,7 +126,7 @@ class AthleteHomeScreenState extends State<AthleteHomeScreen> with AutomaticKeep
               const SizedBox(height: 4),
 
               FadeSlideIn(delay: 160, child: SectionHeader(title: l.translate('latest_thread'))),
-              FadeSlideIn(delay: 200, child: ScaleOnTap(onTap: () => context.go('/athlete/threads'), child: AppCard(child: Row(children: [
+              FadeSlideIn(delay: 200, child: ScaleOnTap(onTap: () => AthleteTabSwitcher.of(context)?.switchTo(1), child: AppCard(child: Row(children: [
                 _iconBox(Icons.forum_rounded, AppColors.info), const SizedBox(width: 12),
                 Expanded(child: Text(lastThreadMessage, style: const TextStyle(fontSize: 14, color: AppColors.textSecondary, height: 1.4), maxLines: 2, overflow: TextOverflow.ellipsis)),
                 const Icon(Icons.chevron_right_rounded, color: AppColors.textTertiary, size: 20),
@@ -133,7 +134,7 @@ class AthleteHomeScreenState extends State<AthleteHomeScreen> with AutomaticKeep
               const SizedBox(height: 4),
 
               FadeSlideIn(delay: 240, child: SectionHeader(title: l.translate('gear_check'))),
-              FadeSlideIn(delay: 280, child: ScaleOnTap(onTap: () => context.go('/athlete/gear'), child: AppCard(child: Row(children: [
+              FadeSlideIn(delay: 280, child: ScaleOnTap(onTap: () => AthleteTabSwitcher.of(context)?.switchTo(2), child: AppCard(child: Row(children: [
                 _iconBox(Icons.backpack_rounded, AppColors.warning), const SizedBox(width: 12),
                 Expanded(child: Text(gearMessage, style: const TextStyle(fontSize: 14, color: AppColors.textSecondary, height: 1.4), maxLines: 2, overflow: TextOverflow.ellipsis)),
                 const Icon(Icons.chevron_right_rounded, color: AppColors.textTertiary, size: 20),

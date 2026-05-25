@@ -5,6 +5,17 @@ import 'athlete_threads_screen.dart';
 import 'athlete_gear_screen.dart';
 import 'athlete_profile_screen.dart';
 
+// Allows child screens to switch tabs
+class AthleteTabSwitcher extends InheritedWidget {
+  final void Function(int) switchTo;
+  const AthleteTabSwitcher({super.key, required this.switchTo, required super.child});
+
+  static AthleteTabSwitcher? of(BuildContext context) => context.dependOnInheritedWidgetOfExactType<AthleteTabSwitcher>();
+
+  @override
+  bool updateShouldNotify(covariant AthleteTabSwitcher oldWidget) => false;
+}
+
 class AthleteShell extends StatefulWidget {
   final Widget child;
   const AthleteShell({super.key, required this.child});
@@ -33,10 +44,9 @@ class _AthleteShellState extends State<AthleteShell> {
     ];
   }
 
-  void _onTabSelected(int i) {
+  void _switchTab(int i) {
     if (i == _index) return;
     setState(() => _index = i);
-    // Silent background refresh when switching to a tab
     switch (i) {
       case 0: _homeKey.currentState?.silentRefresh();
       case 1: _threadsKey.currentState?.silentRefresh();
@@ -47,20 +57,23 @@ class _AthleteShellState extends State<AthleteShell> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: IndexedStack(index: _index, children: _screens),
-      bottomNavigationBar: Container(
-        decoration: const BoxDecoration(border: Border(top: BorderSide(color: AppColors.divider))),
-        child: NavigationBar(
-          selectedIndex: _index,
-          animationDuration: const Duration(milliseconds: 300),
-          onDestinationSelected: _onTabSelected,
-          destinations: const [
-            NavigationDestination(icon: Icon(Icons.dashboard_outlined), selectedIcon: Icon(Icons.dashboard_rounded), label: 'Home'),
-            NavigationDestination(icon: Icon(Icons.forum_outlined), selectedIcon: Icon(Icons.forum_rounded), label: 'Threads'),
-            NavigationDestination(icon: Icon(Icons.backpack_outlined), selectedIcon: Icon(Icons.backpack_rounded), label: 'Gear'),
-            NavigationDestination(icon: Icon(Icons.person_outline_rounded), selectedIcon: Icon(Icons.person_rounded), label: 'Profile'),
-          ],
+    return AthleteTabSwitcher(
+      switchTo: _switchTab,
+      child: Scaffold(
+        body: IndexedStack(index: _index, children: _screens),
+        bottomNavigationBar: Container(
+          decoration: const BoxDecoration(border: Border(top: BorderSide(color: AppColors.divider))),
+          child: NavigationBar(
+            selectedIndex: _index,
+            animationDuration: const Duration(milliseconds: 300),
+            onDestinationSelected: _switchTab,
+            destinations: const [
+              NavigationDestination(icon: Icon(Icons.dashboard_outlined), selectedIcon: Icon(Icons.dashboard_rounded), label: 'Home'),
+              NavigationDestination(icon: Icon(Icons.forum_outlined), selectedIcon: Icon(Icons.forum_rounded), label: 'Threads'),
+              NavigationDestination(icon: Icon(Icons.backpack_outlined), selectedIcon: Icon(Icons.backpack_rounded), label: 'Gear'),
+              NavigationDestination(icon: Icon(Icons.person_outline_rounded), selectedIcon: Icon(Icons.person_rounded), label: 'Profile'),
+            ],
+          ),
         ),
       ),
     );
