@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
@@ -41,6 +42,7 @@ class _CoachShellState extends State<CoachShell> {
 
   void _onTabSelected(int i) {
     if (i == _index) return;
+    HapticFeedback.selectionClick();
     setState(() => _index = i);
     switch (i) {
       case 0: _homeKey.currentState?.silentRefresh();
@@ -82,7 +84,7 @@ class _CoachShellState extends State<CoachShell> {
         ],
       ),
       bottomNavigationBar: Container(
-        decoration: const BoxDecoration(border: Border(top: BorderSide(color: AppColors.divider))),
+        decoration: BoxDecoration(color: AppColors.cardBg, boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 8, offset: const Offset(0, -2))]),
         child: NavigationBar(
           selectedIndex: _index,
           animationDuration: const Duration(milliseconds: 300),

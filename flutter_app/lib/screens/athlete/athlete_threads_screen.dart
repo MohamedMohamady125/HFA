@@ -88,8 +88,7 @@ class AthleteThreadsScreenState extends State<AthleteThreadsScreen> with Automat
             decoration: const BoxDecoration(color: AppColors.primary),
             child: Column(children: [
               Row(children: [
-                CircleAvatar(radius: 20, backgroundColor: Colors.white12,
-                  child: Text(branchName.isNotEmpty ? branchName[0] : '?', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 18))),
+                GradientAvatar(name: branchName, size: 40),
                 const SizedBox(width: 12),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text(branchName, style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w600)),
@@ -177,7 +176,7 @@ class AthleteThreadsScreenState extends State<AthleteThreadsScreen> with Automat
               bottomLeft: const Radius.circular(12),
               bottomRight: const Radius.circular(12),
             ),
-            border: isMine ? null : Border.all(color: AppColors.divider),
+            border: null,
             boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 2, offset: const Offset(0, 1))],
           ),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

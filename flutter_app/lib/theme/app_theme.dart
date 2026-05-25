@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shimmer/shimmer.dart';
 
 // ═══════════════════════════════════════════════════════════
@@ -30,6 +31,20 @@ class AppColors {
 }
 
 // ═══════════════════════════════════════════════════════════
+// TYPOGRAPHY
+// ═══════════════════════════════════════════════════════════
+class AppTypography {
+  static const displayLarge = TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: AppColors.textPrimary, letterSpacing: -0.5);
+  static const displayMedium = TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.textPrimary, letterSpacing: -0.4);
+  static const titleLarge = TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: AppColors.textPrimary, letterSpacing: -0.3);
+  static const titleMedium = TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.textPrimary);
+  static const bodyLarge = TextStyle(fontSize: 15, fontWeight: FontWeight.w400, color: AppColors.textPrimary, height: 1.4);
+  static const bodyMedium = TextStyle(fontSize: 14, fontWeight: FontWeight.w400, color: AppColors.textSecondary, height: 1.4);
+  static const caption = TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.textTertiary);
+  static const label = TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textSecondary, letterSpacing: 0.3);
+}
+
+// ═══════════════════════════════════════════════════════════
 // THEME
 // ═══════════════════════════════════════════════════════════
 class AppTheme {
@@ -37,7 +52,6 @@ class AppTheme {
     useMaterial3: true,
     brightness: Brightness.light,
     scaffoldBackgroundColor: AppColors.scaffoldBg,
-    fontFamily: '.SF Pro Text',
 
     colorScheme: ColorScheme.fromSeed(
       seedColor: AppColors.primary,
@@ -59,7 +73,7 @@ class AppTheme {
     cardTheme: CardThemeData(
       color: AppColors.cardBg,
       elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: AppColors.divider)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       margin: EdgeInsets.zero,
     ),
 
@@ -69,7 +83,7 @@ class AppTheme {
         foregroundColor: Colors.white,
         elevation: 0,
         padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: -0.2),
       ),
     ),
@@ -79,7 +93,7 @@ class AppTheme {
         foregroundColor: AppColors.primary,
         side: const BorderSide(color: AppColors.divider, width: 1.5),
         padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
       ),
     ),
@@ -88,9 +102,9 @@ class AppTheme {
       filled: true,
       fillColor: AppColors.surfaceLight,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
-      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: AppColors.accent, width: 2)),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.accent, width: 1.5)),
       hintStyle: const TextStyle(color: AppColors.textTertiary, fontSize: 15),
     ),
 
@@ -98,17 +112,17 @@ class AppTheme {
       backgroundColor: AppColors.cardBg,
       elevation: 0,
       height: 64,
-      indicatorColor: AppColors.accent.withValues(alpha: 0.12),
+      indicatorColor: AppColors.accent.withValues(alpha: 0.1),
       surfaceTintColor: Colors.transparent,
       labelTextStyle: WidgetStateProperty.resolveWith((s) =>
-        TextStyle(fontSize: 11, fontWeight: s.contains(WidgetState.selected) ? FontWeight.w700 : FontWeight.w500, color: s.contains(WidgetState.selected) ? AppColors.accent : AppColors.textTertiary)),
+        TextStyle(fontSize: 10, fontWeight: s.contains(WidgetState.selected) ? FontWeight.w700 : FontWeight.w500, color: s.contains(WidgetState.selected) ? AppColors.accent : AppColors.textTertiary)),
       iconTheme: WidgetStateProperty.resolveWith((s) =>
         IconThemeData(color: s.contains(WidgetState.selected) ? AppColors.accent : AppColors.textTertiary, size: 24)),
     ),
 
     pageTransitionsTheme: const PageTransitionsTheme(builders: {
       TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
-      TargetPlatform.android: FadeUpwardsPageTransitionsBuilder(),
+      TargetPlatform.android: CupertinoPageTransitionsBuilder(),
     }),
 
     snackBarTheme: SnackBarThemeData(
@@ -139,7 +153,9 @@ class AppCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: color ?? AppColors.cardBg,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.divider),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 2)),
+        ],
       ),
       child: Material(
         color: Colors.transparent,
@@ -147,13 +163,47 @@ class AppCard extends StatelessWidget {
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
           onTap: onTap,
-          splashColor: AppColors.accent.withValues(alpha: 0.08),
-          highlightColor: AppColors.accent.withValues(alpha: 0.04),
-          child: Padding(padding: padding ?? const EdgeInsets.all(16), child: child),
+          splashColor: AppColors.accent.withValues(alpha: 0.06),
+          highlightColor: AppColors.accent.withValues(alpha: 0.03),
+          child: Padding(padding: padding ?? const EdgeInsets.all(20), child: child),
         ),
       ),
     );
   }
+}
+
+class GradientAvatar extends StatelessWidget {
+  final String name;
+  final double size;
+  final List<Color>? colors;
+
+  const GradientAvatar({super.key, required this.name, this.size = 44, this.colors});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size, height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: LinearGradient(
+          begin: Alignment.topLeft, end: Alignment.bottomRight,
+          colors: colors ?? [AppColors.accent, AppColors.primary],
+        ),
+      ),
+      child: Center(
+        child: Text(
+          name.isNotEmpty ? name[0].toUpperCase() : '?',
+          style: TextStyle(fontSize: size * 0.38, fontWeight: FontWeight.w800, color: Colors.white),
+        ),
+      ),
+    );
+  }
+}
+
+class AppDivider extends StatelessWidget {
+  const AppDivider({super.key});
+  @override
+  Widget build(BuildContext context) => const Divider(height: 1, thickness: 0.5, color: AppColors.divider);
 }
 
 class SectionHeader extends StatelessWidget {
@@ -171,8 +221,8 @@ class SectionHeader extends StatelessWidget {
         children: [
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(title, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.textPrimary, letterSpacing: -0.4)),
-              if (subtitle != null) Padding(padding: const EdgeInsets.only(top: 2), child: Text(subtitle!, style: const TextStyle(fontSize: 13, color: AppColors.textSecondary))),
+              Text(title, style: AppTypography.titleLarge),
+              if (subtitle != null) Padding(padding: const EdgeInsets.only(top: 2), child: Text(subtitle!, style: AppTypography.caption)),
             ]),
           ),
           if (trailing != null) trailing!,
@@ -192,7 +242,7 @@ class StatusBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(20)),
+      decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20)),
       child: Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: color)),
     );
   }
@@ -207,8 +257,8 @@ class AppLoadingScreen extends StatelessWidget {
     return Scaffold(
       body: Center(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          const SizedBox(width: 36, height: 36, child: CircularProgressIndicator(strokeWidth: 3, color: AppColors.accent)),
-          if (message != null) Padding(padding: const EdgeInsets.only(top: 16), child: Text(message!, style: const TextStyle(fontSize: 14, color: AppColors.textSecondary))),
+          const SizedBox(width: 32, height: 32, child: CircularProgressIndicator(strokeWidth: 2.5, color: AppColors.accent)),
+          if (message != null) Padding(padding: const EdgeInsets.only(top: 16), child: Text(message!, style: AppTypography.bodyMedium)),
         ]),
       ),
     );
@@ -230,7 +280,7 @@ class AppFormField extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textSecondary, letterSpacing: 0.5)),
+        Text(label, style: AppTypography.label),
         const SizedBox(height: 8),
         TextField(
           controller: controller, obscureText: obscure, keyboardType: keyboardType, enabled: enabled,
@@ -267,11 +317,11 @@ class ShimmerCard extends StatelessWidget {
       highlightColor: AppColors.shimmerHighlight,
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
-            const ShimmerBox(width: 44, height: 44, radius: 12),
+            const ShimmerBox(width: 44, height: 44, radius: 22),
             const SizedBox(width: 12),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               ShimmerBox(width: MediaQuery.of(context).size.width * 0.4, height: 14),
@@ -307,7 +357,7 @@ class FadeSlideIn extends StatefulWidget {
   final Duration duration;
   final Offset offset;
 
-  const FadeSlideIn({super.key, required this.child, this.delay = 0, this.duration = const Duration(milliseconds: 400), this.offset = const Offset(0, 20)});
+  const FadeSlideIn({super.key, required this.child, this.delay = 0, this.duration = const Duration(milliseconds: 300), this.offset = const Offset(0, 8)});
 
   @override
   State<FadeSlideIn> createState() => _FadeSlideInState();
@@ -322,8 +372,8 @@ class _FadeSlideInState extends State<FadeSlideIn> with SingleTickerProviderStat
   void initState() {
     super.initState();
     _controller = AnimationController(vsync: this, duration: widget.duration);
-    final curve = CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic);
-    _opacity = Tween<double>(begin: 0, end: 1).animate(curve);
+    final curve = CurvedAnimation(parent: _controller, curve: Curves.easeOutBack);
+    _opacity = Tween<double>(begin: 0, end: 1).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
     _slide = Tween<Offset>(begin: widget.offset, end: Offset.zero).animate(curve);
 
     Future.delayed(Duration(milliseconds: widget.delay), () {
@@ -362,7 +412,7 @@ class _ScaleOnTapState extends State<ScaleOnTap> with SingleTickerProviderStateM
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 100), lowerBound: 0.96, upperBound: 1.0, value: 1.0);
+    _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 100), lowerBound: 0.98, upperBound: 1.0, value: 1.0);
   }
 
   @override
@@ -371,7 +421,7 @@ class _ScaleOnTapState extends State<ScaleOnTap> with SingleTickerProviderStateM
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTapDown: (_) => _controller.reverse(),
+      onTapDown: (_) { _controller.reverse(); HapticFeedback.lightImpact(); },
       onTapUp: (_) { _controller.forward(); widget.onTap?.call(); },
       onTapCancel: () => _controller.forward(),
       child: ScaleTransition(scale: _controller, child: widget.child),

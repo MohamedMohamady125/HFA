@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../theme/app_theme.dart';
 import 'athlete_home_screen.dart';
 import 'athlete_threads_screen.dart';
@@ -46,6 +47,7 @@ class _AthleteShellState extends State<AthleteShell> {
 
   void _switchTab(int i) {
     if (i == _index) return;
+    HapticFeedback.selectionClick();
     setState(() => _index = i);
     switch (i) {
       case 0: _homeKey.currentState?.silentRefresh();
@@ -62,7 +64,7 @@ class _AthleteShellState extends State<AthleteShell> {
       child: Scaffold(
         body: IndexedStack(index: _index, children: _screens),
         bottomNavigationBar: Container(
-          decoration: const BoxDecoration(border: Border(top: BorderSide(color: AppColors.divider))),
+          decoration: BoxDecoration(color: AppColors.cardBg, boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 8, offset: const Offset(0, -2))]),
           child: NavigationBar(
             selectedIndex: _index,
             animationDuration: const Duration(milliseconds: 300),

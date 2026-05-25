@@ -41,7 +41,10 @@ class _GuestHomeScreenState extends State<GuestHomeScreen> with TickerProviderSt
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   _pill(localeProvider.locale.languageCode == 'en' ? '\u0639\u0631\u0628\u064A' : 'EN', () => localeProvider.toggleLocale()),
-                  _pill('HC', () => context.push('/head-coach-login')),
+                  IconButton(
+                    icon: Icon(Icons.shield_outlined, color: Colors.white.withValues(alpha: 0.5), size: 20),
+                    onPressed: () => context.push('/head-coach-login'),
+                  ),
                 ],
               ),
             ),
@@ -126,7 +129,7 @@ class _GuestHomeScreenState extends State<GuestHomeScreen> with TickerProviderSt
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-        decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(20), border: Border.all(color: Colors.white.withValues(alpha: 0.1))),
+        decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(20), border: Border.all(color: Colors.white.withValues(alpha: 0.1))),
         child: Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white70)),
       ),
     );

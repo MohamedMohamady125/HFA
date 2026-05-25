@@ -91,13 +91,12 @@ class AthleteHomeScreenState extends State<AthleteHomeScreen> with AutomaticKeep
                   const SizedBox(height: 2),
                   Text(DateFormat('EEEE, MMM d').format(DateTime.now()), style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
                 ])),
-                Container(width: 40, height: 40, decoration: BoxDecoration(color: AppColors.accentLight, borderRadius: BorderRadius.circular(12)),
-                  child: const Icon(Icons.pool_rounded, color: AppColors.accent, size: 20)),
+                GradientAvatar(name: 'HFA', size: 40),
               ])),
               const SizedBox(height: 24),
 
-              FadeSlideIn(delay: 80, child: const SectionHeader(title: 'Attendance')),
-              FadeSlideIn(delay: 120, child: ScaleOnTap(
+              FadeSlideIn(delay: 0, child: const SectionHeader(title: 'Attendance')),
+              FadeSlideIn(delay: 30, child: ScaleOnTap(
                 onTap: () => context.push('/athlete/attendance-history'),
                 child: AppCard(
                   child: Column(
@@ -125,24 +124,24 @@ class AthleteHomeScreenState extends State<AthleteHomeScreen> with AutomaticKeep
               )),
               const SizedBox(height: 4),
 
-              FadeSlideIn(delay: 160, child: SectionHeader(title: l.translate('latest_thread'))),
-              FadeSlideIn(delay: 200, child: ScaleOnTap(onTap: () => AthleteTabSwitcher.of(context)?.switchTo(1), child: AppCard(child: Row(children: [
+              FadeSlideIn(delay: 50, child: SectionHeader(title: l.translate('latest_thread'))),
+              FadeSlideIn(delay: 70, child: ScaleOnTap(onTap: () => AthleteTabSwitcher.of(context)?.switchTo(1), child: AppCard(child: Row(children: [
                 _iconBox(Icons.forum_rounded, AppColors.info), const SizedBox(width: 12),
                 Expanded(child: Text(lastThreadMessage, style: const TextStyle(fontSize: 14, color: AppColors.textSecondary, height: 1.4), maxLines: 2, overflow: TextOverflow.ellipsis)),
                 const Icon(Icons.chevron_right_rounded, color: AppColors.textTertiary, size: 20),
               ])))),
               const SizedBox(height: 4),
 
-              FadeSlideIn(delay: 240, child: SectionHeader(title: l.translate('gear_check'))),
-              FadeSlideIn(delay: 280, child: ScaleOnTap(onTap: () => AthleteTabSwitcher.of(context)?.switchTo(2), child: AppCard(child: Row(children: [
+              FadeSlideIn(delay: 90, child: SectionHeader(title: l.translate('gear_check'))),
+              FadeSlideIn(delay: 110, child: ScaleOnTap(onTap: () => AthleteTabSwitcher.of(context)?.switchTo(2), child: AppCard(child: Row(children: [
                 _iconBox(Icons.backpack_rounded, AppColors.warning), const SizedBox(width: 12),
                 Expanded(child: Text(gearMessage, style: const TextStyle(fontSize: 14, color: AppColors.textSecondary, height: 1.4), maxLines: 2, overflow: TextOverflow.ellipsis)),
                 const Icon(Icons.chevron_right_rounded, color: AppColors.textTertiary, size: 20),
               ])))),
               const SizedBox(height: 4),
 
-              FadeSlideIn(delay: 320, child: SectionHeader(title: l.translate('payment'), subtitle: _monthName())),
-              FadeSlideIn(delay: 360, child: AppCard(child: Row(children: [
+              FadeSlideIn(delay: 130, child: SectionHeader(title: l.translate('payment'), subtitle: _monthName())),
+              FadeSlideIn(delay: 150, child: AppCard(child: Row(children: [
                 _iconBox(_paymentIcon(), _paymentColor()), const SizedBox(width: 12),
                 Expanded(child: Text(l.translate('status'), style: const TextStyle(fontSize: 14, color: AppColors.textSecondary))),
                 StatusBadge(label: _paymentLabel(), color: _paymentColor()),
@@ -161,7 +160,7 @@ class AthleteHomeScreenState extends State<AthleteHomeScreen> with AutomaticKeep
     return Column(children: [
       Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
       const SizedBox(height: 6),
-      Container(width: 42, height: 42, decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
+      Container(width: 42, height: 42, decoration: BoxDecoration(color: color.withValues(alpha: 0.1), shape: BoxShape.circle),
         child: Icon(status == 'present' ? Icons.check_circle_rounded : status == 'absent' ? Icons.cancel_rounded : Icons.remove_circle_outline, color: color, size: 22)),
     ]);
   }

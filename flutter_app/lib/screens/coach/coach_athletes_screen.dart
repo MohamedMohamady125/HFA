@@ -75,8 +75,7 @@ class CoachAthletesScreenState extends State<CoachAthletesScreen> {
                             child: ScaleOnTap(
                               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => _AthleteDetailScreen(athlete: a))),
                               child: AppCard(child: Row(children: [
-                                Container(width: 48, height: 48, decoration: BoxDecoration(gradient: LinearGradient(colors: [AppColors.accent, AppColors.accent.withValues(alpha: 0.7)]), borderRadius: BorderRadius.circular(14)),
-                                  child: Center(child: Text((a['name'] ?? '?')[0].toUpperCase(), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: Colors.white)))),
+                                GradientAvatar(name: a['name'] ?? '?', size: 48),
                                 const SizedBox(width: 14),
                                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                                   Text(a['name'] ?? '', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),

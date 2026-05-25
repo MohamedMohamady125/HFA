@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
@@ -67,6 +68,7 @@ class CoachThreadsScreenState extends State<CoachThreadsScreen> {
 
   Future<void> _postMessage() async {
     if (_msgCtrl.text.trim().isEmpty || threadId == null || sending) return;
+    HapticFeedback.mediumImpact();
     final text = _msgCtrl.text.trim();
     final optimistic = {'id': 'temp_${DateTime.now().millisecondsSinceEpoch}', 'user_id': user?['id'], 'message': text, 'author': user?['name'] ?? 'You', 'created_at': DateTime.now().toIso8601String(), '_sending': true};
     setState(() { messages.add(optimistic); sending = true; });
@@ -106,8 +108,7 @@ class CoachThreadsScreenState extends State<CoachThreadsScreen> {
             padding: EdgeInsets.fromLTRB(16, MediaQuery.of(context).padding.top + 8, 8, 12),
             decoration: const BoxDecoration(color: AppColors.primary),
             child: Row(children: [
-              CircleAvatar(radius: 20, backgroundColor: Colors.white12,
-                child: Text(branchName.isNotEmpty ? branchName[0] : '?', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 18))),
+              GradientAvatar(name: branchName, size: 40),
               const SizedBox(width: 12),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(branchName, style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w600)),
@@ -213,7 +214,7 @@ class CoachThreadsScreenState extends State<CoachThreadsScreen> {
                 bottomLeft: const Radius.circular(12),
                 bottomRight: const Radius.circular(12),
               ),
-              border: isMine ? null : Border.all(color: AppColors.divider),
+              border: null,
               boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 2, offset: const Offset(0, 1))],
             ),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

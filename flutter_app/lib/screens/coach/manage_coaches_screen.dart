@@ -479,14 +479,7 @@ class _ManageCoachesScreenState extends State<ManageCoachesScreen> {
                             // Coach info row
                             Row(children: [
                               // Avatar
-                              Container(
-                                width: 48, height: 48,
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(colors: [AppColors.accent, AppColors.accent.withValues(alpha: 0.7)]),
-                                  borderRadius: BorderRadius.circular(14),
-                                ),
-                                child: Center(child: Text((c['name'] ?? '?')[0].toUpperCase(), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: Colors.white))),
-                              ),
+                              GradientAvatar(name: c['name'] ?? '?', size: 48),
                               const SizedBox(width: 14),
                               // Info
                               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

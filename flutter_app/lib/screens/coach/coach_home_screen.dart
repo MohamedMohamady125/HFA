@@ -51,17 +51,16 @@ class CoachHomeScreenState extends State<CoachHomeScreen> {
                   const SizedBox(height: 2),
                   Text(l.translate('coach_dashboard'), style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: AppColors.textPrimary, letterSpacing: -0.5)),
                 ])),
-                Container(width: 44, height: 44, decoration: BoxDecoration(color: AppColors.accentLight, borderRadius: BorderRadius.circular(12)),
-                  child: const Icon(Icons.shield_rounded, color: AppColors.accent, size: 22)),
+                GradientAvatar(name: name, size: 44),
               ])),
               const SizedBox(height: 28),
-              FadeSlideIn(delay: 100, child: SectionHeader(title: l.translate('quick_actions'))),
+              FadeSlideIn(delay: 0, child: SectionHeader(title: l.translate('quick_actions'))),
               ...tools.asMap().entries.map((e) => FadeSlideIn(
-                delay: 150 + (e.key * 80),
+                delay: 60 + (e.key * 40),
                 child: ScaleOnTap(
                   onTap: () => context.push(e.value['route'] as String),
                   child: AppCard(child: Row(children: [
-                    Container(width: 44, height: 44, decoration: BoxDecoration(color: (e.value['color'] as Color).withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
+                    Container(width: 44, height: 44, decoration: BoxDecoration(color: (e.value['color'] as Color).withValues(alpha: 0.1), shape: BoxShape.circle),
                       child: Icon(e.value['icon'] as IconData, color: e.value['color'] as Color, size: 22)),
                     const SizedBox(width: 14),
                     Expanded(child: Text(e.value['title'] as String, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.textPrimary))),

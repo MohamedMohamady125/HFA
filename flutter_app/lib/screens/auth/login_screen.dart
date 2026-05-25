@@ -56,13 +56,16 @@ class _LoginScreenState extends State<LoginScreen> {
         child: Column(
           children: [
             const SizedBox(height: 16),
-            FadeSlideIn(child: Container(width: 64, height: 64, decoration: BoxDecoration(color: AppColors.accentLight, borderRadius: BorderRadius.circular(18)),
-              child: const Icon(Icons.pool_rounded, size: 32, color: AppColors.accent))),
+            FadeSlideIn(child: Container(
+              width: 64, height: 64,
+              decoration: const BoxDecoration(shape: BoxShape.circle),
+              child: ClipOval(child: Image.asset('assets/images/hfanew.png', fit: BoxFit.cover)),
+            )),
             const SizedBox(height: 20),
             FadeSlideIn(delay: 100, child: Text(l.translate('welcome_back'), style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: AppColors.textPrimary, letterSpacing: -0.5))),
             const SizedBox(height: 6),
             FadeSlideIn(delay: 150, child: Text(l.translate('sign_in_athlete'), style: const TextStyle(fontSize: 14, color: AppColors.textSecondary))),
-            const SizedBox(height: 36),
+            const SizedBox(height: 44),
             FadeSlideIn(delay: 200, child: AppFormField(label: l.translate('email'), controller: _emailCtrl, keyboardType: TextInputType.emailAddress, hint: l.translate('enter_email'))),
             FadeSlideIn(delay: 250, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(l.translate('password'), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textSecondary, letterSpacing: 0.5)),
