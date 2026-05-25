@@ -96,8 +96,14 @@ class AthleteHomeScreenState extends State<AthleteHomeScreen> with AutomaticKeep
               const SizedBox(height: 24),
 
               FadeSlideIn(delay: 80, child: SectionHeader(title: l.translate('weekly_attendance'))),
-              FadeSlideIn(delay: 120, child: AppCard(child: Row(mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: List.generate(3, (i) => _attDay('${l.translate('day')} ${i + 1}', attendance.where((d) => d['day_number'] == i + 1).firstOrNull?['status']))))),
+              FadeSlideIn(delay: 120, child: ScaleOnTap(
+                onTap: () => context.push('/athlete/attendance-history'),
+                child: AppCard(child: Row(children: [
+                  ...List.generate(3, (i) => Expanded(child: _attDay('${l.translate('day')} ${i + 1}', attendance.where((d) => d['day_number'] == i + 1).firstOrNull?['status']))),
+                  Container(width: 36, height: 36, decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
+                    child: const Icon(Icons.calendar_month_rounded, color: AppColors.accent, size: 18)),
+                ])),
+              )),
               const SizedBox(height: 4),
 
               FadeSlideIn(delay: 160, child: SectionHeader(title: l.translate('latest_thread'))),
