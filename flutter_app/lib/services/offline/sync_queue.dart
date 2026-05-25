@@ -41,25 +41,30 @@ class SyncTask {
 }
 
 class SyncQueue {
-  static late Box _box;
+  static Box? _box;
 
   static Future<void> init() async {
-    _box = await Hive.openBox('sync_queue');
+    try {
+      _box = await Hive.openBox('sync_queue');
+    } catch (_) {
+      _box = null;
+    }
   }
 
   static Future<void> enqueue(SyncTask task) async {
-    await _box.put(task.id, task.toMap());
+    await _box?.put(task.id, task.toMap());
   }
 
   static List<SyncTask> getAll() {
-    final tasks = _box.values.map((v) => SyncTask.fromMap(Map<String, dynamic>.from(v))).toList();
+    if (_box == null) return [];
+    final tasks = _box!.values.map((v) => SyncTask.fromMap(Map<String, dynamic>.from(v))).toList();
     tasks.sort((a, b) => a.createdAt.compareTo(b.createdAt));
     return tasks;
   }
 
-  static Future<void> remove(String id) async => await _box.delete(id);
+  static Future<void> remove(String id) async => await _box?.delete(id);
 
-  static Future<void> update(SyncTask task) async => await _box.put(task.id, task.toMap());
+  static Future<void> update(SyncTask task) async => await _box?.put(task.id, task.toMap());
 
-  static int get pendingCount => _box.length;
+  static int get pendingCount => _box?.length ?? 0;
 }
