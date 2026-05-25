@@ -6,7 +6,7 @@ import '../../theme/app_theme.dart';
 import 'coach_home_screen.dart';
 import 'coach_threads_screen.dart';
 import 'coach_gear_screen.dart';
-import 'coach_payments_screen.dart';
+import 'coach_athletes_screen.dart';
 import 'coach_profile_screen.dart';
 
 class CoachShell extends StatefulWidget {
@@ -22,7 +22,7 @@ class _CoachShellState extends State<CoachShell> {
   final _homeKey = GlobalKey<CoachHomeScreenState>();
   final _threadsKey = GlobalKey<CoachThreadsScreenState>();
   final _gearKey = GlobalKey<CoachGearScreenState>();
-  final _paymentsKey = GlobalKey<CoachPaymentsScreenState>();
+  final _athletesKey = GlobalKey<CoachAthletesScreenState>();
   final _profileKey = GlobalKey<CoachProfileScreenState>();
 
   late final List<Widget> _screens;
@@ -34,7 +34,7 @@ class _CoachShellState extends State<CoachShell> {
       CoachHomeScreen(key: _homeKey),
       CoachThreadsScreen(key: _threadsKey),
       CoachGearScreen(key: _gearKey),
-      CoachPaymentsScreen(key: _paymentsKey),
+      CoachAthletesScreen(key: _athletesKey),
       CoachProfileScreen(key: _profileKey),
     ];
   }
@@ -46,7 +46,7 @@ class _CoachShellState extends State<CoachShell> {
       case 0: _homeKey.currentState?.silentRefresh();
       case 1: _threadsKey.currentState?.silentRefresh();
       case 2: _gearKey.currentState?.silentRefresh();
-      case 3: _paymentsKey.currentState?.silentRefresh();
+      case 3: _athletesKey.currentState?.silentRefresh();
       case 4: _profileKey.currentState?.silentRefresh();
     }
   }
@@ -91,7 +91,7 @@ class _CoachShellState extends State<CoachShell> {
             NavigationDestination(icon: Icon(Icons.dashboard_outlined), selectedIcon: Icon(Icons.dashboard_rounded), label: 'Home'),
             NavigationDestination(icon: Icon(Icons.forum_outlined), selectedIcon: Icon(Icons.forum_rounded), label: 'Chat'),
             NavigationDestination(icon: Icon(Icons.backpack_outlined), selectedIcon: Icon(Icons.backpack_rounded), label: 'Gear'),
-            NavigationDestination(icon: Icon(Icons.payments_outlined), selectedIcon: Icon(Icons.payments_rounded), label: 'Payments'),
+            NavigationDestination(icon: Icon(Icons.groups_outlined), selectedIcon: Icon(Icons.groups_rounded), label: 'Athletes'),
             NavigationDestination(icon: Icon(Icons.person_outline_rounded), selectedIcon: Icon(Icons.person_rounded), label: 'Profile'),
           ],
         ),

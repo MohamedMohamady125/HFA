@@ -50,6 +50,66 @@ def get_athlete_dashboard(user=Depends(get_current_user)):
         cursor.close()
         conn.close()
 
+@router.get("/athletes/branch/{branch_id}/full")
+def get_branch_athletes_full(branch_id: int, user=Depends(get_current_user)):
+    if user["role"] not in ["coach", "head_coach"]:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    conn = get_connection()
+    cursor = get_cursor(conn)
+
+    try:
+        cursor.execute("""
+            SELECT a.id AS athlete_id, u.id AS user_id, u.name, u.email, u.phone
+            FROM athletes a JOIN users u ON a.user_id = u.id
+            WHERE u.branch_id = %s AND u.approved = true
+            ORDER BY u.name
+        """, (branch_id,))
+        athletes = [dict(r) for r in cursor.fetchall()]
+
+        for ath in athletes:
+            # Attendance stats
+            cursor.execute("""
+                SELECT COUNT(*) FILTER (WHERE status='present') AS present,
+                       COUNT(*) FILTER (WHERE status='absent') AS absent,
+                       COUNT(*) AS total
+                FROM attendance WHERE athlete_id=%s AND branch_id=%s
+            """, (ath['athlete_id'], branch_id))
+            s = cursor.fetchone()
+            ath['present'] = s['present'] or 0
+            ath['absent'] = s['absent'] or 0
+            ath['total_sessions'] = s['total'] or 0
+            ath['attendance_rate'] = round((ath['present'] / s['total'] * 100)) if s['total'] else 0
+
+            # Measurements
+            cursor.execute("""
+                SELECT height, weight, arm, leg, fat, muscle
+                FROM measurement_logs WHERE athlete_id=%s ORDER BY id DESC LIMIT 1
+            """, (ath['athlete_id'],))
+            m = cursor.fetchone()
+            ath['measurements'] = dict(m) if m else None
+
+            # Performance logs
+            cursor.execute("""
+                SELECT event_name, result_time FROM performance_logs
+                WHERE athlete_id=%s ORDER BY id DESC
+            """, (ath['athlete_id'],))
+            ath['events'] = [dict(r) for r in cursor.fetchall()]
+
+            # Payment status current month
+            cursor.execute("""
+                SELECT status FROM payments
+                WHERE athlete_id=%s AND branch_id=%s
+                ORDER BY due_date DESC LIMIT 1
+            """, (ath['athlete_id'], branch_id))
+            p = cursor.fetchone()
+            ath['payment_status'] = p['status'] if p else 'none'
+
+        return athletes
+    finally:
+        cursor.close()
+        conn.close()
+
 @router.get("/athletes/user/{user_id}")
 def get_athlete_by_user(user_id: int, user=Depends(get_current_user)):
     conn = get_connection()
