@@ -254,6 +254,42 @@ def get_athlete_monthly_attendance(user_id: int, year: int, month: int, user=Dep
         cursor.close()
         conn.close()
 
+@router.get("/branch/{branch_id}/athletes-stats")
+def get_branch_athletes_stats(branch_id: int, user=Depends(get_current_user)):
+    can_access_branch(user, branch_id)
+    conn = get_connection()
+    cursor = get_cursor(conn)
+
+    try:
+        cursor.execute("""
+            SELECT a.id AS athlete_id, u.id AS user_id, u.name AS athlete_name
+            FROM athletes a
+            JOIN users u ON a.user_id = u.id
+            WHERE u.branch_id = %s AND u.role = 'athlete' AND u.approved = true
+            ORDER BY u.name
+        """, (branch_id,))
+        athletes = [dict(r) for r in cursor.fetchall()]
+
+        for ath in athletes:
+            cursor.execute("""
+                SELECT
+                    COUNT(*) FILTER (WHERE status = 'present') AS present,
+                    COUNT(*) FILTER (WHERE status = 'absent') AS absent,
+                    COUNT(*) AS total
+                FROM attendance
+                WHERE athlete_id = %s AND branch_id = %s
+            """, (ath['athlete_id'], branch_id))
+            stats = cursor.fetchone()
+            ath['present'] = stats['present'] or 0
+            ath['absent'] = stats['absent'] or 0
+            ath['total'] = stats['total'] or 0
+            ath['rate'] = round((ath['present'] / ath['total'] * 100)) if ath['total'] > 0 else 0
+
+        return athletes
+    finally:
+        cursor.close()
+        conn.close()
+
 @router.get("/branch/{branch_id}/summary")
 def get_attendance_summary(branch_id: int, user=Depends(get_current_user)):
     can_access_branch(user, branch_id)

@@ -4,6 +4,7 @@ import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
+import 'package:intl/intl.dart';
 
 class AttendanceSummaryScreen extends StatefulWidget {
   const AttendanceSummaryScreen({super.key});
@@ -12,113 +13,286 @@ class AttendanceSummaryScreen extends StatefulWidget {
 }
 
 class _AttendanceSummaryScreenState extends State<AttendanceSummaryScreen> {
-  List<dynamic> records = [];
-  List<String> sessionDates = [];
+  List<dynamic> athletes = [];
   bool loading = true;
+  String search = '';
 
   @override
-  void initState() { super.initState(); _fetchSummary(); }
+  void initState() { super.initState(); _fetch(); }
 
-  Future<void> _fetchSummary() async {
+  Future<void> _fetch() async {
     final branchId = context.read<AuthProvider>().branchId;
     try {
-      final results = await Future.wait([
-        ApiService().get('/attendance/branch/$branchId/summary'),
-        ApiService().get('/attendance/branch/$branchId/session-dates'),
-      ]);
-      records = results[0].data['records'] ?? [];
-      sessionDates = List<String>.from(results[1].data ?? []);
+      final res = await ApiService().get('/attendance/branch/$branchId/athletes-stats');
+      athletes = res.data;
     } catch (_) {} finally { if (mounted) setState(() => loading = false); }
-  }
-
-  Map<String, Map<String, String?>> _group() {
-    final g = <String, Map<String, String?>>{};
-    for (var r in records) {
-      final name = r['athlete_name']?.toString() ?? 'Unknown';
-      final date = r['session_date']?.toString();
-      g.putIfAbsent(name, () => {});
-      if (date != null) g[name]![date] = r['status']?.toString();
-    }
-    return g;
   }
 
   @override
   Widget build(BuildContext context) {
-    final l = AppLocalizations.of(context);
-    if (loading) return const Scaffold(body: ShimmerList(count: 5));
-    final grouped = _group();
+    if (loading) return const Scaffold(body: ShimmerList(count: 6));
+
+    final filtered = athletes.where((a) => (a['athlete_name'] as String).toLowerCase().contains(search.toLowerCase())).toList();
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(l.translate('attendance_summary_title')),
+        title: const Text('Attendance Summary'),
         actions: [
           Padding(padding: const EdgeInsets.only(right: 16), child: Center(child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
-            child: Text('${grouped.length}', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.accent)),
+            child: Text('${athletes.length}', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.accent)),
           ))),
         ],
       ),
-      body: grouped.isEmpty
-          ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-              Container(width: 80, height: 80, decoration: BoxDecoration(color: AppColors.surfaceLight, shape: BoxShape.circle),
-                child: const Icon(Icons.assessment_outlined, size: 40, color: AppColors.textTertiary)),
-              const SizedBox(height: 16),
-              const Text('No attendance data', style: TextStyle(fontSize: 16, color: AppColors.textSecondary)),
-            ]))
-          : ListView.builder(
-              physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
-              itemCount: grouped.length,
-              itemBuilder: (_, i) {
-                final entry = grouped.entries.elementAt(i);
-                return FadeSlideIn(
-                  delay: i * 50,
-                  child: Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: AppCard(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(children: [
-                            Container(
-                              width: 42, height: 42,
-                              decoration: BoxDecoration(gradient: LinearGradient(colors: [AppColors.primary, AppColors.primaryLight]), borderRadius: BorderRadius.circular(12)),
-                              child: Center(child: Text(entry.key[0].toUpperCase(), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Colors.white))),
-                            ),
-                            const SizedBox(width: 12),
-                            Text(entry.key, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
-                          ]),
-                          const SizedBox(height: 14),
-                          ...sessionDates.asMap().entries.map((d) {
-                            final status = entry.value[d.value];
-                            final color = status == 'present' ? AppColors.success : status == 'absent' ? AppColors.error : AppColors.textTertiary;
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: 6),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                decoration: BoxDecoration(color: AppColors.surfaceLight, borderRadius: BorderRadius.circular(8)),
-                                child: Row(children: [
-                                  Container(
-                                    width: 24, height: 24,
-                                    decoration: BoxDecoration(color: color.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(6)),
-                                    child: Icon(status == 'present' ? Icons.check_rounded : status == 'absent' ? Icons.close_rounded : Icons.remove_rounded, color: color, size: 16),
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Text('Day ${d.key + 1}', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: AppColors.textPrimary)),
-                                  const Spacer(),
-                                  Text(status ?? '\u{2014}', style: TextStyle(fontSize: 13, color: color, fontWeight: FontWeight.w600)),
-                                ]),
-                              ),
-                            );
-                          }),
-                        ],
-                      ),
-                    ),
-                  ),
-                );
-              },
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
+            child: TextField(
+              onChanged: (v) => setState(() => search = v),
+              decoration: const InputDecoration(hintText: 'Search athlete...', prefixIcon: Icon(Icons.search_rounded, color: AppColors.textTertiary)),
             ),
+          ),
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: _fetch,
+              color: AppColors.accent,
+              child: filtered.isEmpty
+                  ? ListView(physics: const AlwaysScrollableScrollPhysics(), children: [
+                      const SizedBox(height: 100),
+                      Center(child: Icon(Icons.people_outline_rounded, size: 56, color: AppColors.textTertiary.withValues(alpha: 0.4))),
+                      const SizedBox(height: 16),
+                      const Center(child: Text('No athletes found', style: TextStyle(color: AppColors.textSecondary))),
+                    ])
+                  : ListView.builder(
+                      physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      itemCount: filtered.length,
+                      itemBuilder: (_, i) {
+                        final a = filtered[i];
+                        final rate = a['rate'] ?? 0;
+                        final rateColor = rate >= 75 ? AppColors.success : rate >= 50 ? AppColors.warning : AppColors.error;
+
+                        return FadeSlideIn(
+                          delay: i * 40,
+                          child: Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: ScaleOnTap(
+                              onTap: () => Navigator.push(context, MaterialPageRoute(
+                                builder: (_) => _AthleteAttendanceDetail(userId: a['user_id'], athleteName: a['athlete_name']),
+                              )),
+                              child: AppCard(
+                                child: Row(
+                                  children: [
+                                    // Avatar
+                                    Container(
+                                      width: 46, height: 46,
+                                      decoration: BoxDecoration(gradient: LinearGradient(colors: [AppColors.accent, AppColors.accent.withValues(alpha: 0.7)]), borderRadius: BorderRadius.circular(13)),
+                                      child: Center(child: Text((a['athlete_name'] ?? '?')[0].toUpperCase(), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Colors.white))),
+                                    ),
+                                    const SizedBox(width: 14),
+                                    // Name + stats
+                                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                      Text(a['athlete_name'] ?? '', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+                                      const SizedBox(height: 4),
+                                      Row(children: [
+                                        _miniStat('${a['present']}', AppColors.success),
+                                        const SizedBox(width: 6),
+                                        _miniStat('${a['absent']}', AppColors.error),
+                                        const SizedBox(width: 6),
+                                        Text('of ${a['total']} sessions', style: const TextStyle(fontSize: 11, color: AppColors.textTertiary)),
+                                      ]),
+                                    ])),
+                                    // Rate badge
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                      decoration: BoxDecoration(color: rateColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
+                                      child: Text('$rate%', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: rateColor)),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    const Icon(Icons.chevron_right_rounded, color: AppColors.textTertiary, size: 20),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+            ),
+          ),
+        ],
+      ),
     );
+  }
+
+  Widget _miniStat(String val, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(color == AppColors.success ? Icons.check_rounded : Icons.close_rounded, size: 12, color: color),
+        const SizedBox(width: 2),
+        Text(val, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: color)),
+      ]),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// ATHLETE DETAIL - Monthly Calendar (Coach view)
+// ═══════════════════════════════════════════════════════════
+class _AthleteAttendanceDetail extends StatefulWidget {
+  final int userId;
+  final String athleteName;
+  const _AthleteAttendanceDetail({required this.userId, required this.athleteName});
+
+  @override
+  State<_AthleteAttendanceDetail> createState() => _AthleteAttendanceDetailState();
+}
+
+class _AthleteAttendanceDetailState extends State<_AthleteAttendanceDetail> {
+  DateTime _currentMonth = DateTime(DateTime.now().year, DateTime.now().month);
+  Map<String, String> _attendanceMap = {};
+  bool _loading = true;
+
+  @override
+  void initState() { super.initState(); _fetchMonth(); }
+
+  Future<void> _fetchMonth() async {
+    setState(() => _loading = true);
+    try {
+      final res = await ApiService().get('/attendance/athlete/${widget.userId}/month/${_currentMonth.year}/${_currentMonth.month}');
+      final data = res.data as List;
+      _attendanceMap = { for (var r in data) r['date'].toString(): r['status']?.toString() ?? '' };
+    } catch (_) { _attendanceMap = {}; }
+    finally { if (mounted) setState(() => _loading = false); }
+  }
+
+  void _prevMonth() { setState(() => _currentMonth = DateTime(_currentMonth.year, _currentMonth.month - 1)); _fetchMonth(); }
+  void _nextMonth() {
+    final now = DateTime.now();
+    final next = DateTime(_currentMonth.year, _currentMonth.month + 1);
+    if (next.isAfter(DateTime(now.year, now.month + 1))) return;
+    setState(() => _currentMonth = next);
+    _fetchMonth();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final now = DateTime.now();
+    final isCurrentMonth = _currentMonth.year == now.year && _currentMonth.month == now.month;
+    final presentCount = _attendanceMap.values.where((s) => s == 'present').length;
+    final absentCount = _attendanceMap.values.where((s) => s == 'absent').length;
+    final total = presentCount + absentCount;
+    final rate = total > 0 ? (presentCount / total * 100).round() : 0;
+
+    return Scaffold(
+      appBar: AppBar(title: Text(widget.athleteName)),
+      body: Column(
+        children: [
+          // Month nav
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            child: Row(children: [
+              _navBtn(Icons.chevron_left_rounded, _prevMonth),
+              Expanded(child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 200),
+                child: Text(DateFormat('MMMM yyyy').format(_currentMonth), key: ValueKey(_currentMonth),
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.textPrimary), textAlign: TextAlign.center),
+              )),
+              _navBtn(Icons.chevron_right_rounded, isCurrentMonth ? null : _nextMonth),
+            ]),
+          ),
+
+          // Stats
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Row(children: [
+              _statCard('Present', '$presentCount', AppColors.success),
+              const SizedBox(width: 10),
+              _statCard('Absent', '$absentCount', AppColors.error),
+              const SizedBox(width: 10),
+              _statCard('Rate', '$rate%', AppColors.accent),
+            ]),
+          ),
+          const SizedBox(height: 16),
+
+          // Day headers
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+                  .map((d) => Expanded(child: Center(child: Text(d, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textTertiary)))))
+                  .toList(),
+            ),
+          ),
+          const SizedBox(height: 8),
+
+          if (_loading)
+            const Expanded(child: Center(child: CircularProgressIndicator(color: AppColors.accent)))
+          else
+            _buildCalendar(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCalendar() {
+    final firstDay = DateTime(_currentMonth.year, _currentMonth.month, 1);
+    final daysInMonth = DateTime(_currentMonth.year, _currentMonth.month + 1, 0).day;
+    final startWeekday = firstDay.weekday % 7;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+
+    final cells = <Widget>[];
+    for (int i = 0; i < startWeekday; i++) cells.add(const SizedBox());
+
+    for (int day = 1; day <= daysInMonth; day++) {
+      final date = DateTime(_currentMonth.year, _currentMonth.month, day);
+      final dateStr = DateFormat('yyyy-MM-dd').format(date);
+      final status = _attendanceMap[dateStr];
+      final isToday = date == today;
+      final isFuture = date.isAfter(today);
+
+      Color? bgColor;
+      Color textColor = AppColors.textPrimary;
+      IconData? icon;
+
+      if (status == 'present') { bgColor = AppColors.success; textColor = Colors.white; icon = Icons.check_rounded; }
+      else if (status == 'absent') { bgColor = AppColors.error; textColor = Colors.white; icon = Icons.close_rounded; }
+      else if (isFuture) { textColor = AppColors.textTertiary; }
+
+      cells.add(AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        margin: const EdgeInsets.all(3),
+        decoration: BoxDecoration(
+          color: bgColor?.withValues(alpha: 0.9),
+          borderRadius: BorderRadius.circular(10),
+          border: isToday ? Border.all(color: AppColors.accent, width: 2.5) : null,
+        ),
+        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Text('$day', style: TextStyle(fontSize: 14, fontWeight: isToday ? FontWeight.w800 : FontWeight.w500, color: bgColor != null ? textColor : textColor)),
+          if (icon != null) Icon(icon, size: 14, color: textColor),
+        ]),
+      ));
+    }
+
+    return GridView.count(crossAxisCount: 7, padding: const EdgeInsets.symmetric(horizontal: 12), childAspectRatio: 1, physics: const NeverScrollableScrollPhysics(), shrinkWrap: true, children: cells);
+  }
+
+  Widget _navBtn(IconData icon, VoidCallback? onTap) {
+    return GestureDetector(onTap: onTap, child: Container(width: 40, height: 40, decoration: BoxDecoration(color: onTap != null ? AppColors.surfaceLight : Colors.transparent, borderRadius: BorderRadius.circular(10)),
+      child: Icon(icon, color: onTap != null ? AppColors.textPrimary : AppColors.textTertiary, size: 24)));
+  }
+
+  Widget _statCard(String label, String value, Color color) {
+    return Expanded(child: Container(padding: const EdgeInsets.symmetric(vertical: 12), decoration: BoxDecoration(color: color.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(12)),
+      child: Column(children: [
+        Text(value, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: color)),
+        const SizedBox(height: 2),
+        Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: color.withValues(alpha: 0.7))),
+      ])));
   }
 }
