@@ -68,7 +68,11 @@ class AthleteThreadsScreenState extends State<AthleteThreadsScreen> with Automat
     return DateFormat('MMM d, yyyy').format(d);
   }
 
-  bool _sameDay(String a, String b) { final da = DateTime.parse(a); final db = DateTime.parse(b); return da.year == db.year && da.month == db.month && da.day == db.day; }
+  bool _sameDay(String a, String b) {
+    final da = DateTime.tryParse(a); final db = DateTime.tryParse(b);
+    if (da == null || db == null) return false;
+    return da.year == db.year && da.month == db.month && da.day == db.day;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -141,12 +145,15 @@ class AthleteThreadsScreenState extends State<AthleteThreadsScreen> with Automat
   }
 
   Widget _buildMsg(int i) {
-    final msg = posts[i];
+    final msg = Map<String, dynamic>.from(posts[i]);
+    final createdAt = msg['created_at']?.toString() ?? DateTime.now().toIso8601String();
+    final author = msg['author']?.toString() ?? 'Unknown';
+    final message = msg['message']?.toString() ?? '';
     final isMine = msg['user_id'] == user?['id'];
-    final showDate = i == 0 || !_sameDay(msg['created_at'], posts[i - 1]['created_at']);
+    final showDate = i == 0 || !_sameDay(createdAt, posts[i - 1]['created_at']?.toString() ?? '');
     final showAuthor = !isMine && (i == 0 || posts[i - 1]['user_id'] != msg['user_id'] || showDate);
-    final isLast = i == posts.length - 1 || posts[i + 1]['user_id'] != msg['user_id'] || (i < posts.length - 1 && !_sameDay(msg['created_at'], posts[i + 1]['created_at']));
-    final time = DateFormat('h:mm a').format(DateTime.parse(msg['created_at']));
+    final isLast = i == posts.length - 1 || posts[i + 1]['user_id'] != msg['user_id'] || (i < posts.length - 1 && !_sameDay(createdAt, posts[i + 1]['created_at']?.toString() ?? ''));
+    final time = DateFormat('h:mm a').format(DateTime.tryParse(createdAt) ?? DateTime.now());
 
     return Column(children: [
       if (showDate) Padding(
@@ -154,7 +161,7 @@ class AthleteThreadsScreenState extends State<AthleteThreadsScreen> with Automat
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
           decoration: BoxDecoration(color: AppColors.accentLight, borderRadius: BorderRadius.circular(8)),
-          child: Text(_dateLabel(DateTime.parse(msg['created_at'])), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.primary)),
+          child: Text(_dateLabel(DateTime.tryParse(createdAt) ?? DateTime.now()), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.primary)),
         ),
       ),
       Align(
@@ -175,9 +182,9 @@ class AthleteThreadsScreenState extends State<AthleteThreadsScreen> with Automat
           ),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             if (showAuthor && !isMine)
-              Padding(padding: const EdgeInsets.only(bottom: 3), child: Text(msg['author'] ?? '', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: _colorFor(msg['author'] ?? '')))),
+              Padding(padding: const EdgeInsets.only(bottom: 3), child: Text(author, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: _colorFor(author)))),
             Row(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.end, children: [
-              Flexible(child: Text(msg['message'] ?? '', style: const TextStyle(fontSize: 15, height: 1.35, color: AppColors.textPrimary))),
+              Flexible(child: Text(message, style: const TextStyle(fontSize: 15, height: 1.35, color: AppColors.textPrimary))),
               const SizedBox(width: 8),
               Text(time, style: const TextStyle(fontSize: 10.5, color: AppColors.textTertiary)),
             ]),
