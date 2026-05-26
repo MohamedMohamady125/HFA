@@ -12,6 +12,53 @@ class OfflineRepository {
   static const _uuid = Uuid();
 
   // ═══════════════════════════════════════════════════════
+  // PREFETCH - Call after login to warm the cache
+  // ═══════════════════════════════════════════════════════
+  static Future<void> prefetchForUser(Map<String, dynamic> user) async {
+    if (!ConnectivityService.isOnline) return;
+    final role = user['role'];
+    final branchId = user['branch_id'];
+    final userId = user['id'];
+
+    // Fire all in parallel - don't await individually
+    final futures = <Future>[];
+    futures.add(_prefetch('/users/me', ttl: const Duration(hours: 8)));
+
+    if (role == 'athlete' && branchId != null) {
+      futures.add(_prefetch('/attendance/athlete/$userId/week', ttl: const Duration(hours: 1)));
+      futures.add(_prefetch('/gear/$branchId', ttl: const Duration(hours: 4)));
+      futures.add(_prefetch('/threads/branch/$branchId', ttl: const Duration(hours: 1)));
+      futures.add(_prefetch('/payments/$userId/status', ttl: const Duration(hours: 2)));
+      futures.add(_prefetch('/branches/$branchId', ttl: const Duration(days: 1)));
+      futures.add(_prefetch('/athlete/measurements', ttl: const Duration(hours: 8)));
+      futures.add(_prefetch('/athlete/performance-logs', ttl: const Duration(hours: 8)));
+    } else if (role == 'coach' || role == 'head_coach') {
+      if (branchId != null) {
+        futures.add(_prefetch('/athletes/branch/$branchId/full', ttl: const Duration(hours: 4)));
+        futures.add(_prefetch('/payments/summary/$branchId', ttl: const Duration(hours: 2)));
+        futures.add(_prefetch('/attendance/branch/$branchId/session-dates', ttl: const Duration(hours: 2)));
+        futures.add(_prefetch('/threads/branch/$branchId', ttl: const Duration(hours: 1)));
+        futures.add(_prefetch('/gear/$branchId', ttl: const Duration(hours: 4)));
+        futures.add(_prefetch('/users/requests', ttl: const Duration(hours: 1)));
+      }
+      if (role == 'head_coach') {
+        futures.add(_prefetch('/head-coach/branches', ttl: const Duration(days: 1)));
+        futures.add(_prefetch('/head-coach/coaches', ttl: const Duration(hours: 4)));
+      }
+    }
+
+    // Fire all, ignore individual failures
+    await Future.wait(futures.map((f) => f.catchError((_) {})));
+  }
+
+  static Future<void> _prefetch(String path, {Duration ttl = const Duration(hours: 4)}) async {
+    try {
+      final res = await _api.get(path);
+      await HiveCache.put(HiveCache.pathToKey(path), res.data, ttl: ttl);
+    } catch (_) {}
+  }
+
+  // ═══════════════════════════════════════════════════════
   // CACHED READ
   // ═══════════════════════════════════════════════════════
 
@@ -40,8 +87,7 @@ class OfflineRepository {
         final res = await _api.get(path);
         await HiveCache.put(key, res.data, ttl: ttl);
         return res.data;
-      } catch (e) {
-        debugPrint('OfflineRepo: fetch failed for $path: $e');
+      } catch (_) {
         return null;
       }
     }

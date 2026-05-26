@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../services/api_service.dart';
 import '../services/offline/hive_cache.dart';
+import '../services/offline/offline_repository.dart';
 
 class AuthProvider extends ChangeNotifier {
   Map<String, dynamic>? _user;
@@ -30,6 +31,8 @@ class AuthProvider extends ChangeNotifier {
     if (stored != null) {
       _user = jsonDecode(stored);
       ApiService.setToken(_user?['token']);
+      // Background prefetch for instant screens
+      OfflineRepository.prefetchForUser(_user!);
     }
     _loading = false;
     notifyListeners();
@@ -41,6 +44,8 @@ class AuthProvider extends ChangeNotifier {
     _prefs ??= await SharedPreferences.getInstance();
     await _prefs!.setString('authUser', jsonEncode(userData));
     notifyListeners();
+    // Prefetch all data in background for instant screens
+    OfflineRepository.prefetchForUser(userData);
   }
 
   Future<void> logout() async {
