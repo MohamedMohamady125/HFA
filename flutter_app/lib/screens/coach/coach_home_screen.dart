@@ -19,7 +19,13 @@ class CoachHomeScreenState extends State<CoachHomeScreen> {
   void silentRefresh() { _fetchUser(); }
 
   @override
-  void initState() { super.initState(); _fetchUser(); }
+  void initState() {
+    super.initState();
+    // Sync cache read - instant, no shimmer
+    final cached = OfflineRepository.getCached('/users/me');
+    if (cached is Map) name = cached['name']?.toString() ?? '';
+    _fetchUser();
+  }
 
   Future<void> _fetchUser() async {
     try { final data = await OfflineRepository.getUserMe(); if (mounted) setState(() => name = data['name'] ?? ''); } catch (_) {}

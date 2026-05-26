@@ -22,10 +22,22 @@ class CoachPaymentsScreenState extends State<CoachPaymentsScreen> {
   void silentRefresh() { _fetchSummary(silent: true); }
 
   @override
-  void initState() { super.initState(); _fetchSummary(); }
+  void initState() {
+    super.initState();
+    final branchId = context.read<AuthProvider>().branchId;
+    if (branchId != null) {
+      final cached = OfflineRepository.getCached('/payments/summary/$branchId');
+      if (cached is Map) {
+        records = (cached['records'] as List?) ?? [];
+        sessionDates = List<String>.from(cached['session_dates'] ?? []);
+        if (records.isNotEmpty) loading = false;
+      }
+    }
+    _fetchSummary();
+  }
 
   Future<void> _fetchSummary({bool silent = false}) async {
-    if (!silent) setState(() => loading = true);
+    if (!silent && records.isEmpty) setState(() => loading = true);
     final branchId = context.read<AuthProvider>().branchId;
     try {
       final data = await OfflineRepository.getPaymentSummary(branchId!);

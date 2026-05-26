@@ -59,6 +59,16 @@ class OfflineRepository {
   }
 
   // ═══════════════════════════════════════════════════════
+  // SYNC CACHE READ (instant, no await needed)
+  // ═══════════════════════════════════════════════════════
+
+  /// Returns cached data synchronously. Returns null if no cache.
+  /// Use in initState to populate data before first build.
+  static dynamic getCached(String path) {
+    return HiveCache.get(HiveCache.pathToKey(path));
+  }
+
+  // ═══════════════════════════════════════════════════════
   // CACHED READ
   // ═══════════════════════════════════════════════════════
 

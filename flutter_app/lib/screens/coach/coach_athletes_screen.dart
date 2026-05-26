@@ -20,10 +20,18 @@ class CoachAthletesScreenState extends State<CoachAthletesScreen> {
   void silentRefresh() { _fetch(silent: true); }
 
   @override
-  void initState() { super.initState(); _fetch(); }
+  void initState() {
+    super.initState();
+    final branchId = context.read<AuthProvider>().branchId;
+    if (branchId != null) {
+      final cached = OfflineRepository.getCached('/athletes/branch/$branchId/full');
+      if (cached is List && cached.isNotEmpty) { athletes = cached; loading = false; }
+    }
+    _fetch();
+  }
 
   Future<void> _fetch({bool silent = false}) async {
-    if (!silent) setState(() => loading = true);
+    if (!silent && athletes.isEmpty) setState(() => loading = true);
     final branchId = context.read<AuthProvider>().branchId;
     try {
       final data = await OfflineRepository.getAthletesFull(branchId!);

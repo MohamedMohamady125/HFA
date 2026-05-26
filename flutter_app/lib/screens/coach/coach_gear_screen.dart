@@ -24,6 +24,16 @@ class CoachGearScreenState extends State<CoachGearScreen> with SingleTickerProvi
   void initState() {
     super.initState();
     _checkAnim = AnimationController(vsync: this, duration: const Duration(milliseconds: 600));
+    // Sync cache
+    final cachedMe = OfflineRepository.getCached('/users/me');
+    if (cachedMe is Map && cachedMe['branch_id'] != null) {
+      branchId = cachedMe['branch_id'];
+      final cachedBranch = OfflineRepository.getCached('/branches/$branchId');
+      if (cachedBranch is Map) branchName = cachedBranch['name']?.toString() ?? '';
+      final cachedGear = OfflineRepository.getCached('/gear/$branchId');
+      if (cachedGear is Map && cachedGear['message'] != null) _msgCtrl.text = cachedGear['message'];
+      if (branchName.isNotEmpty) loading = false;
+    }
     _loadData();
   }
 

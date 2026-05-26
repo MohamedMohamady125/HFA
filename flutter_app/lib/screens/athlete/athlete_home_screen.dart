@@ -29,7 +29,29 @@ class AthleteHomeScreenState extends State<AthleteHomeScreen> with AutomaticKeep
   String _monthName() => DateFormat('MMMM yyyy').format(DateTime.now());
 
   @override
-  void initState() { super.initState(); _fetchData(); }
+  void initState() {
+    super.initState();
+    // Sync cache read - instant data before first build
+    try {
+      final prefs = SharedPreferences.getInstance();
+      prefs.then((p) {
+        final stored = p.getString('authUser');
+        if (stored == null) return;
+        final user = jsonDecode(stored);
+        final cachedAtt = OfflineRepository.getCached('/attendance/athlete/${user['id']}/week');
+        final cachedGear = OfflineRepository.getCached('/gear/${user['branch_id']}');
+        final cachedPay = OfflineRepository.getCached('/payments/${user['id']}/status');
+        if (cachedAtt is List) attendance = cachedAtt;
+        if (cachedGear is Map) gearMessage = cachedGear['message']?.toString() ?? 'No gear updates.';
+        if (cachedPay is Map) paymentStatus = (cachedPay)[_dueDateKey()]?.toString() ?? 'pending';
+        if (attendance.isNotEmpty || gearMessage.isNotEmpty) {
+          _fetched = true;
+          if (mounted) setState(() => loading = false);
+        }
+      });
+    } catch (_) {}
+    _fetchData();
+  }
 
   // Called by shell on tab switch - silent refresh
   void silentRefresh() {

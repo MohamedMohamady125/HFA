@@ -28,12 +28,32 @@ class CoachThreadsScreenState extends State<CoachThreadsScreen> {
   void silentRefresh() { if (threadId != null) _loadMessages(); }
 
   @override
-  void initState() { super.initState(); _loadThread(); }
+  void initState() {
+    super.initState();
+    // Sync cache read
+    final prefs = SharedPreferences.getInstance();
+    prefs.then((p) {
+      final stored = p.getString('authUser');
+      if (stored != null) user = jsonDecode(stored);
+    });
+    final cachedMe = OfflineRepository.getCached('/users/me');
+    if (cachedMe is Map) {
+      displayBranchId = cachedMe['branch_id'];
+      branchName = cachedMe['branch_name']?.toString() ?? '';
+      final cachedThreads = OfflineRepository.getCached('/threads/branch/$displayBranchId');
+      if (cachedThreads is List && cachedThreads.isNotEmpty) {
+        threadId = cachedThreads[0]['id'];
+        final cachedPosts = OfflineRepository.getCached('/threads/$threadId/posts');
+        if (cachedPosts is List) { messages = cachedPosts; loading = false; }
+      }
+    }
+    _loadThread();
+  }
 
   Color _colorFor(String name) => _authorColors.putIfAbsent(name, () => _nameColors[_authorColors.length % _nameColors.length]);
 
   Future<void> _loadThread() async {
-    setState(() => loading = true);
+    if (messages.isEmpty) setState(() => loading = true);
     try {
       final prefs = await SharedPreferences.getInstance();
       user = jsonDecode(prefs.getString('authUser')!);

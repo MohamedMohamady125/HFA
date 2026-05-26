@@ -19,7 +19,12 @@ class CoachProfileScreenState extends State<CoachProfileScreen> {
   void silentRefresh() { _fetchDetails(); }
 
   @override
-  void initState() { super.initState(); _fetchDetails(); }
+  void initState() {
+    super.initState();
+    final cached = OfflineRepository.getCached('/users/me');
+    if (cached is Map) branchName = cached['branch_name']?.toString() ?? '';
+    _fetchDetails();
+  }
 
   Future<void> _fetchDetails() async {
     try {
