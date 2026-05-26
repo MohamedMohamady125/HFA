@@ -17,8 +17,6 @@ class CoachPaymentsScreenState extends State<CoachPaymentsScreen> {
   List<String> sessionDates = [];
   bool loading = true;
   String search = '';
-  final Set<String> _animating = {};
-
   void silentRefresh() { _fetchSummary(silent: true); }
 
   @override
@@ -46,15 +44,12 @@ class CoachPaymentsScreenState extends State<CoachPaymentsScreen> {
     } catch (_) {} finally { if (mounted) setState(() => loading = false); }
   }
 
-  Future<void> _markPayment(int athleteId, String date, String status) async {
+  void _markPayment(int athleteId, String date, String status) {
     final branchId = context.read<AuthProvider>().branchId;
-    final key = '$athleteId-$date';
-    setState(() => _animating.add(key));
-    try {
-      await OfflineRepository.markPayment(athleteId, date, status, branchId!);
-      setState(() { for (var r in records) { if (r['athlete_id'] == athleteId) { (r['statuses'] as Map)[date] = status; break; } } });
-    } catch (_) {}
-    finally { setState(() => _animating.remove(key)); }
+    // Instant local update
+    setState(() { for (var r in records) { if (r['athlete_id'] == athleteId) { (r['statuses'] as Map)[date] = status; break; } } });
+    // Fire and forget
+    OfflineRepository.markPayment(athleteId, date, status, branchId!);
   }
 
   @override
@@ -107,26 +102,20 @@ class CoachPaymentsScreenState extends State<CoachPaymentsScreen> {
                               const SizedBox(height: 14),
                               ...sessionDates.map((date) {
                                 final cs = (item['statuses'] ?? {})[date] ?? 'pending';
-                                final key = '${item['athlete_id']}-$date';
-                                final isAnim = _animating.contains(key);
-                                return AnimatedOpacity(duration: const Duration(milliseconds: 200), opacity: isAnim ? 0.5 : 1.0,
-                                  child: Padding(padding: const EdgeInsets.only(bottom: 10), child: Column(
+                                return Padding(padding: const EdgeInsets.only(bottom: 8), child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(date, style: const TextStyle(fontSize: 12, color: AppColors.textTertiary, fontWeight: FontWeight.w500)),
                                       const SizedBox(height: 6),
-                                      if (isAnim)
-                                        const Center(child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accent)))
-                                      else
-                                        Row(children: [
-                                          _payBtn('Paid', Icons.check_circle_rounded, AppColors.success, cs == 'paid', () => _markPayment(item['athlete_id'], date, 'paid')),
-                                          const SizedBox(width: 8),
-                                          _payBtn('Pending', Icons.schedule_rounded, AppColors.warning, cs == 'pending', () => _markPayment(item['athlete_id'], date, 'pending')),
-                                          const SizedBox(width: 8),
-                                          _payBtn('Late', Icons.warning_rounded, AppColors.error, cs == 'late', () => _markPayment(item['athlete_id'], date, 'late')),
-                                        ]),
+                                      Row(children: [
+                                        _payBtn('Paid', Icons.check_circle_rounded, AppColors.success, cs == 'paid', () => _markPayment(item['athlete_id'], date, 'paid')),
+                                        const SizedBox(width: 8),
+                                        _payBtn('Pending', Icons.schedule_rounded, AppColors.warning, cs == 'pending', () => _markPayment(item['athlete_id'], date, 'pending')),
+                                        const SizedBox(width: 8),
+                                        _payBtn('Late', Icons.warning_rounded, AppColors.error, cs == 'late', () => _markPayment(item['athlete_id'], date, 'late')),
+                                      ]),
                                     ],
-                                  )));
+                                  ));
                               }),
                             ])),
                           ));

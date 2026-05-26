@@ -20,7 +20,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> with SingleTickerPr
   List<dynamic> attendance = [];
   List<String> sessionDates = [];
   String? error;
-  final Set<int> _animating = {};
   late AnimationController _listAnim;
 
   @override
@@ -51,21 +50,18 @@ class _AttendanceScreenState extends State<AttendanceScreen> with SingleTickerPr
     finally { if (mounted) setState(() => loading = false); }
   }
 
-  Future<void> _mark(int athleteId, String status, int index) async {
-    setState(() => _animating.add(athleteId));
-    try {
-      await OfflineRepository.markAttendance(athleteId, sessionDates[selectedDay], status, _branchId!);
-      // Update locally without refetching
-      setState(() {
-        for (int i = 0; i < attendance.length; i++) {
-          if (attendance[i]['athlete_id'] == athleteId) {
-            attendance[i] = {...Map<String, dynamic>.from(attendance[i]), 'status': status};
-            break;
-          }
+  void _mark(int athleteId, String status, int index) {
+    // Instant local update - zero await, zero spinner
+    setState(() {
+      for (int i = 0; i < attendance.length; i++) {
+        if (attendance[i]['athlete_id'] == athleteId) {
+          attendance[i] = {...Map<String, dynamic>.from(attendance[i]), 'status': status};
+          break;
         }
-      });
-    } catch (_) { _msg('Failed', error: true); }
-    finally { setState(() => _animating.remove(athleteId)); }
+      }
+    });
+    // Fire and forget - syncs in background or queues offline
+    OfflineRepository.markAttendance(athleteId, sessionDates[selectedDay], status, _branchId!);
   }
 
   void _msg(String msg, {bool error = false}) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: error ? AppColors.error : AppColors.success));
@@ -127,44 +123,29 @@ class _AttendanceScreenState extends State<AttendanceScreen> with SingleTickerPr
                     final item = attendance[i];
                     final id = item['athlete_id'];
                     final status = item['status'];
-                    final isAnimating = _animating.contains(id);
 
-                    return FadeSlideIn(
-                      delay: i * 40,
-                      child: Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
-                        child: AnimatedOpacity(
-                          duration: const Duration(milliseconds: 200),
-                          opacity: isAnimating ? 0.5 : 1.0,
-                          child: AppCard(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                            child: Row(
-                              children: [
-                                // Avatar
-                                Container(
-                                  width: 42, height: 42,
-                                  decoration: BoxDecoration(
-                                    color: status == 'present' ? AppColors.success.withValues(alpha: 0.1) : status == 'absent' ? AppColors.error.withValues(alpha: 0.1) : AppColors.surfaceLight,
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Center(child: Text((item['athlete_name'] ?? '?')[0].toUpperCase(), style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700,
-                                    color: status == 'present' ? AppColors.success : status == 'absent' ? AppColors.error : AppColors.textTertiary))),
-                                ),
-                                const SizedBox(width: 14),
-                                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                  Text(item['athlete_name'] ?? '', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
-                                  if (status != null) Text(status == 'present' ? 'Present' : 'Absent', style: TextStyle(fontSize: 12, color: status == 'present' ? AppColors.success : AppColors.error, fontWeight: FontWeight.w500)),
-                                ])),
-                                if (isAnimating)
-                                  const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accent))
-                                else ...[
-                                  _statusBtn(Icons.check_rounded, status == 'present', AppColors.success, () => _mark(id, 'present', i)),
-                                  const SizedBox(width: 8),
-                                  _statusBtn(Icons.close_rounded, status == 'absent', AppColors.error, () => _mark(id, 'absent', i)),
-                                ],
-                              ],
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: AppCard(
+                        margin: EdgeInsets.zero,
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 36, height: 36,
+                              decoration: BoxDecoration(
+                                color: status == 'present' ? AppColors.success.withValues(alpha: 0.1) : status == 'absent' ? AppColors.error.withValues(alpha: 0.1) : AppColors.surfaceLight,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Center(child: Text((item['athlete_name'] ?? '?')[0].toUpperCase(), style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700,
+                                color: status == 'present' ? AppColors.success : status == 'absent' ? AppColors.error : AppColors.textTertiary))),
                             ),
-                          ),
+                            const SizedBox(width: 12),
+                            Expanded(child: Text(item['athlete_name'] ?? '', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary))),
+                            _statusBtn(Icons.check_rounded, status == 'present', AppColors.success, () => _mark(id, 'present', i)),
+                            const SizedBox(width: 6),
+                            _statusBtn(Icons.close_rounded, status == 'absent', AppColors.error, () => _mark(id, 'absent', i)),
+                          ],
                         ),
                       ),
                     );
