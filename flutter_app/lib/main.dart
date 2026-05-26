@@ -124,7 +124,9 @@ class _HFAAppState extends State<HFAApp> {
   Widget build(BuildContext context) {
     final localeProvider = context.watch<LocaleProvider>();
 
-    return MaterialApp.router(
+    return GestureDetector(
+      onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+      child: MaterialApp.router(
       title: 'HFA Academy',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.theme,
@@ -137,6 +139,6 @@ class _HFAAppState extends State<HFAApp> {
         GlobalCupertinoLocalizations.delegate,
       ],
       routerConfig: _router,
-    );
+    ));
   }
 }
