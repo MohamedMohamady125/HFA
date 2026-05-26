@@ -58,6 +58,19 @@ class OfflineRepository {
     } catch (_) {}
   }
 
+  // Keys that were recently written to — don't let background refresh overwrite these
+  static final Map<String, DateTime> _writeLocks = {};
+
+  static bool _isWriteLocked(String key) {
+    final lock = _writeLocks[key];
+    if (lock == null) return false;
+    if (DateTime.now().difference(lock).inSeconds > 3) {
+      _writeLocks.remove(key);
+      return false;
+    }
+    return true;
+  }
+
   // ═══════════════════════════════════════════════════════
   // SYNC CACHE READ (instant, no await needed)
   // ═══════════════════════════════════════════════════════
@@ -111,8 +124,11 @@ class OfflineRepository {
     Future(() async {
       try {
         final res = await _api.get(path);
-        await HiveCache.put(key, res.data, ttl: ttl);
-        onFresh?.call(res.data);
+        // Don't overwrite if a write just happened to this key
+        if (!_isWriteLocked(key)) {
+          await HiveCache.put(key, res.data, ttl: ttl);
+          onFresh?.call(res.data);
+        }
       } catch (_) {}
     });
   }
@@ -136,7 +152,10 @@ class OfflineRepository {
     if (optimisticCacheKey != null && optimisticUpdate != null) {
       final current = HiveCache.get(optimisticCacheKey);
       final updated = optimisticUpdate(current, data);
-      if (updated != null) await HiveCache.put(optimisticCacheKey, updated);
+      if (updated != null) {
+        await HiveCache.put(optimisticCacheKey, updated);
+        _writeLocks[optimisticCacheKey] = DateTime.now(); // prevent background refresh from overwriting
+      }
     }
 
     // 2. Try immediately if online
@@ -148,7 +167,6 @@ class OfflineRepository {
           case 'PUT': res = await _api.put(path, data: data);
           case 'DELETE': res = await _api.delete(path);
         }
-        // Invalidate cache so next read gets fresh
         if (cacheInvalidationKey != null) {
           await HiveCache.clearPrefix(cacheInvalidationKey);
         }
@@ -225,7 +243,19 @@ class OfflineRepository {
       queueWrite(
         method: 'POST', path: '/payments/mark',
         data: {'athlete_id': athleteId, 'session_date': sessionDate, 'status': status},
-        cacheInvalidationKey: HiveCache.pathToKey('/payments/summary/$branchId'),
+        optimisticCacheKey: HiveCache.pathToKey('/payments/summary/$branchId'),
+        optimisticUpdate: (cache, data) {
+          if (cache is! Map) return cache;
+          final m = Map<String, dynamic>.from(cache);
+          final records = m['records'] as List? ?? [];
+          for (var r in records) {
+            if (r['athlete_id'] == data?['athlete_id']) {
+              (r['statuses'] as Map?)?[sessionDate] = status;
+              break;
+            }
+          }
+          return m;
+        },
       );
 
   // --- Threads ---
