@@ -39,13 +39,25 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> login(Map<String, dynamic> userData) async {
+    final oldBranchId = _user?['branch_id'];
+    final newBranchId = userData['branch_id'];
     _user = userData;
     ApiService.setToken(userData['token']);
     _prefs ??= await SharedPreferences.getInstance();
     await _prefs!.setString('authUser', jsonEncode(userData));
+
+    // Branch changed — nuke stale cache so screens don't flash old data
+    if (oldBranchId != null && newBranchId != null && oldBranchId != newBranchId) {
+      await HiveCache.clearAll();
+    }
+
     notifyListeners();
-    // Prefetch all data in background for instant screens
-    OfflineRepository.prefetchForUser(userData);
+    // Prefetch all data — await on branch switch so cache is warm before screens load
+    if (oldBranchId != null && newBranchId != null && oldBranchId != newBranchId) {
+      await OfflineRepository.prefetchForUser(userData);
+    } else {
+      OfflineRepository.prefetchForUser(userData);
+    }
   }
 
   Future<void> logout() async {

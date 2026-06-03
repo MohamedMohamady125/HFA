@@ -7,6 +7,7 @@ import 'dart:convert';
 import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
+import '../../l10n/app_localizations.dart';
 
 class HeadCoachLoginScreen extends StatefulWidget {
   const HeadCoachLoginScreen({super.key});
@@ -20,12 +21,13 @@ class _HeadCoachLoginScreenState extends State<HeadCoachLoginScreen> {
   bool _loading = false;
 
   Future<void> _handleLogin() async {
-    if (_emailCtrl.text.trim().isEmpty || _passCtrl.text.trim().isEmpty) { _showError('Please enter email and password'); return; }
+    final l = AppLocalizations.of(context);
+    if (_emailCtrl.text.trim().isEmpty || _passCtrl.text.trim().isEmpty) { _showError(l.translate('fill_all_fields')); return; }
     setState(() => _loading = true);
     try {
       final res = await ApiService().post('/auth/login', data: {'email': _emailCtrl.text.trim(), 'password': _passCtrl.text.trim()});
       final token = res.data['token']; final user = res.data['user'];
-      if (user['role'] != 'head_coach') { _showError('Only head coach can login here.'); return; }
+      if (user['role'] != 'head_coach') { _showError(l.translate('head_coach_only')); return; }
       final authUser = {...Map<String, dynamic>.from(user), 'isLoggedIn': true, 'isApproved': true, 'token': token};
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('authUser', jsonEncode(authUser));
@@ -34,7 +36,7 @@ class _HeadCoachLoginScreenState extends State<HeadCoachLoginScreen> {
       await context.read<AuthProvider>().login(authUser);
       context.go('/head-coach-branches');
     } catch (e) {
-      String msg = 'Login failed';
+      String msg = l.translate('login_failed');
       if (e is DioException && e.response?.data != null) msg = e.response!.data['detail']?.toString() ?? msg;
       _showError(msg);
     } finally {
@@ -55,23 +57,26 @@ class _HeadCoachLoginScreenState extends State<HeadCoachLoginScreen> {
             children: [
               const Icon(Icons.admin_panel_settings_rounded, size: 56, color: AppColors.primary),
               const SizedBox(height: 16),
-              const Text('Head Coach', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
+              Text(AppLocalizations.of(context).translate('head_coach'), style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
               const SizedBox(height: 36),
               AppCard(
-                child: Column(
+                child: Builder(builder: (context) {
+                  final l = AppLocalizations.of(context);
+                  return Column(
                   children: [
-                    AppFormField(label: 'EMAIL', controller: _emailCtrl, keyboardType: TextInputType.emailAddress, enabled: !_loading),
-                    AppFormField(label: 'PASSWORD', controller: _passCtrl, obscure: true, enabled: !_loading),
+                    AppFormField(label: l.translate('email'), controller: _emailCtrl, keyboardType: TextInputType.emailAddress, enabled: !_loading),
+                    AppFormField(label: l.translate('password'), controller: _passCtrl, obscure: true, enabled: !_loading),
                     const SizedBox(height: 4),
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
                         onPressed: _loading ? null : _handleLogin,
-                        child: _loading ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white)) : const Text('Sign In'),
+                        child: _loading ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white)) : Text(l.translate('sign_in')),
                       ),
                     ),
                   ],
-                ),
+                );
+                }),
               ),
             ],
           ),

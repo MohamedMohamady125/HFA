@@ -5,6 +5,7 @@ import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
 import '../../services/offline/offline_repository.dart';
 import '../../theme/app_theme.dart';
+import '../../l10n/app_localizations.dart';
 
 class CoachAthletesScreen extends StatefulWidget {
   const CoachAthletesScreen({super.key});
@@ -41,6 +42,7 @@ class CoachAthletesScreenState extends State<CoachAthletesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     if (loading) return const Scaffold(body: ShimmerList(count: 5));
 
     final filtered = athletes.where((a) => (a['name'] as String).toLowerCase().contains(search.toLowerCase())).toList();
@@ -54,12 +56,12 @@ class CoachAthletesScreenState extends State<CoachAthletesScreen> {
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 FadeSlideIn(child: Row(children: [
-                  const Expanded(child: Text('Athletes', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: AppColors.textPrimary, letterSpacing: -0.5))),
+                  Expanded(child: Text(l.translate('athletes'), style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: AppColors.textPrimary, letterSpacing: -0.5))),
                   Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4), decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
                     child: Text('${athletes.length}', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.accent))),
                 ])),
                 const SizedBox(height: 14),
-                TextField(onChanged: (v) => setState(() => search = v), decoration: const InputDecoration(hintText: 'Search athlete...', prefixIcon: Icon(Icons.search_rounded, color: AppColors.textTertiary))),
+                TextField(onChanged: (v) => setState(() => search = v), decoration: InputDecoration(hintText: l.translate('search_athlete'), prefixIcon: const Icon(Icons.search_rounded, color: AppColors.textTertiary))),
               ]),
             ),
             const SizedBox(height: 12),
@@ -67,7 +69,7 @@ class CoachAthletesScreenState extends State<CoachAthletesScreen> {
               child: RefreshIndicator(
                 onRefresh: () => _fetch(silent: true), color: AppColors.accent,
                 child: filtered.isEmpty
-                    ? ListView(physics: const AlwaysScrollableScrollPhysics(), children: [const SizedBox(height: 100), Center(child: Icon(Icons.people_outline_rounded, size: 56, color: AppColors.textTertiary.withValues(alpha: 0.4))), const SizedBox(height: 16), const Center(child: Text('No athletes found', style: TextStyle(color: AppColors.textSecondary)))])
+                    ? ListView(physics: const AlwaysScrollableScrollPhysics(), children: [const SizedBox(height: 100), Center(child: Icon(Icons.people_outline_rounded, size: 56, color: AppColors.textTertiary.withValues(alpha: 0.4))), const SizedBox(height: 16), Center(child: Text(l.translate('no_athletes'), style: const TextStyle(color: AppColors.textSecondary)))])
                     : ListView.builder(
                         physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
                         padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -92,7 +94,7 @@ class CoachAthletesScreenState extends State<CoachAthletesScreen> {
                                   Row(children: [
                                     StatusBadge(label: '$rate%', color: rateColor),
                                     const SizedBox(width: 6),
-                                    StatusBadge(label: payStatus == 'none' ? 'No payment' : payStatus[0].toUpperCase() + payStatus.substring(1), color: payColor),
+                                    StatusBadge(label: payStatus == 'none' ? l.translate('no_payment') : l.translate(payStatus), color: payColor),
                                   ]),
                                 ])),
                                 const Icon(Icons.chevron_right_rounded, color: AppColors.textTertiary, size: 20),
@@ -159,7 +161,7 @@ class _AthleteDetailScreenState extends State<_AthleteDetailScreen> {
     final absentCount = _attMap.values.where((s) => s == 'absent').length;
 
     return Scaffold(
-      appBar: AppBar(title: Text(a['name'] ?? 'Athlete')),
+      appBar: AppBar(title: Text(a['name'] ?? AppLocalizations.of(context).translate('athlete'))),
       body: SingleChildScrollView(
         physics: const BouncingScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 30),
@@ -175,30 +177,30 @@ class _AthleteDetailScreenState extends State<_AthleteDetailScreen> {
               if (a['phone'] != null) Text(a['phone'], style: const TextStyle(fontSize: 13, color: AppColors.textTertiary)),
             ])),
             Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8), decoration: BoxDecoration(color: rateColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
-              child: Column(children: [Text('$rate%', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: rateColor)), Text('Rate', style: TextStyle(fontSize: 10, color: rateColor))])),
+              child: Column(children: [Text('$rate%', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: rateColor)), Text(AppLocalizations.of(context).translate('rate'), style: TextStyle(fontSize: 10, color: rateColor))])),
           ]))),
 
           // ─── Monthly Attendance ───────────────────────────
           const SizedBox(height: 8),
-          FadeSlideIn(delay: 100, child: const SectionHeader(title: 'Monthly Attendance')),
+          FadeSlideIn(delay: 100, child: SectionHeader(title: AppLocalizations.of(context).translate('monthly_attendance'))),
           FadeSlideIn(delay: 120, child: AppCard(child: Column(children: [
             // Month nav
             Row(children: [
               _navBtn(Icons.chevron_left_rounded, _prevMonth),
               Expanded(child: AnimatedSwitcher(duration: const Duration(milliseconds: 200),
-                child: Text(DateFormat('MMMM yyyy').format(_currentMonth), key: ValueKey(_currentMonth), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.textPrimary), textAlign: TextAlign.center))),
+                child: Text(DateFormat('MMMM yyyy', AppLocalizations.of(context).locale.languageCode).format(_currentMonth), key: ValueKey(_currentMonth), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.textPrimary), textAlign: TextAlign.center))),
               _navBtn(Icons.chevron_right_rounded, isCurrentMonth ? null : _nextMonth),
             ]),
             const SizedBox(height: 8),
             // Stats
             Row(children: [
-              _miniStat('$presentCount', 'Present', AppColors.success),
+              _miniStat('$presentCount', AppLocalizations.of(context).translate('present'), AppColors.success),
               const SizedBox(width: 8),
-              _miniStat('$absentCount', 'Absent', AppColors.error),
+              _miniStat('$absentCount', AppLocalizations.of(context).translate('absent'), AppColors.error),
             ]),
             const SizedBox(height: 10),
             // Day headers
-            Row(children: ['S','M','T','W','T','F','S'].map((d) => Expanded(child: Center(child: Text(d, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.textTertiary))))).toList()),
+            Row(children: [for (int i = 0; i < 7; i++) Expanded(child: Center(child: Text(DateFormat.E(AppLocalizations.of(context).locale.languageCode).format(DateTime(2025, 1, 5 + i)), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.textTertiary))))]),
             const SizedBox(height: 4),
             // Calendar
             if (_loadingCal)
@@ -209,7 +211,7 @@ class _AthleteDetailScreenState extends State<_AthleteDetailScreen> {
 
           // ─── Measurements ─────────────────────────────────
           const SizedBox(height: 8),
-          FadeSlideIn(delay: 200, child: const SectionHeader(title: 'Body Measurements')),
+          FadeSlideIn(delay: 200, child: SectionHeader(title: AppLocalizations.of(context).translate('body_measurements'))),
           FadeSlideIn(delay: 220, child: measurements != null
               ? AppCard(child: Wrap(spacing: 8, runSpacing: 8, children: [
                   _measureChip('Height', '${measurements['height']} cm'),
@@ -221,12 +223,12 @@ class _AthleteDetailScreenState extends State<_AthleteDetailScreen> {
                 ]))
               : AppCard(child: Row(children: [
                   Icon(Icons.info_outline_rounded, color: AppColors.textTertiary, size: 18), const SizedBox(width: 8),
-                  const Text('No measurements recorded yet', style: TextStyle(color: AppColors.textSecondary, fontSize: 14)),
+                  Text(AppLocalizations.of(context).translate('no_measurements'), style: const TextStyle(color: AppColors.textSecondary, fontSize: 14)),
                 ]))),
 
           // ─── Swim Events ──────────────────────────────────
           const SizedBox(height: 8),
-          FadeSlideIn(delay: 300, child: const SectionHeader(title: 'Swim Events & Times')),
+          FadeSlideIn(delay: 300, child: SectionHeader(title: AppLocalizations.of(context).translate('swim_events_times'))),
           FadeSlideIn(delay: 320, child: events.isNotEmpty
               ? AppCard(child: Column(children: events.map((e) => Padding(
                   padding: const EdgeInsets.only(bottom: 8),
@@ -243,7 +245,7 @@ class _AthleteDetailScreenState extends State<_AthleteDetailScreen> {
                 )).toList()))
               : AppCard(child: Row(children: [
                   Icon(Icons.info_outline_rounded, color: AppColors.textTertiary, size: 18), const SizedBox(width: 8),
-                  const Text('No swim events recorded yet', style: TextStyle(color: AppColors.textSecondary, fontSize: 14)),
+                  Text(AppLocalizations.of(context).translate('no_swim_events'), style: const TextStyle(color: AppColors.textSecondary, fontSize: 14)),
                 ]))),
         ]),
       ),

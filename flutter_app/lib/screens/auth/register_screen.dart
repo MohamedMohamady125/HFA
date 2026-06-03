@@ -41,7 +41,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (!mounted) return;
       _showMsg(l.translate('registration_submitted'));
     } catch (e) {
-      String msg = 'Server error';
+      String msg = l.translate('server_error');
       if (e is DioException && e.response?.data != null) msg = e.response!.data['detail']?.toString() ?? msg;
       _showMsg(msg, isError: true);
     } finally { if (mounted) setState(() => _loading = false); }

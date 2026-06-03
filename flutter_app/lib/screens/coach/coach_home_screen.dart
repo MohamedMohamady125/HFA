@@ -54,7 +54,7 @@ class CoachHomeScreenState extends State<CoachHomeScreen> {
             children: [
               FadeSlideIn(child: Row(children: [
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('Hi, $name', style: const TextStyle(fontSize: 14, color: AppColors.textSecondary)),
+                  Text('${l.translate('hi')}, $name', style: const TextStyle(fontSize: 14, color: AppColors.textSecondary)),
                   const SizedBox(height: 2),
                   Text(l.translate('coach_dashboard'), style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: AppColors.textPrimary, letterSpacing: -0.5)),
                 ])),

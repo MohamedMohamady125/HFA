@@ -62,10 +62,12 @@ class AthleteThreadsScreenState extends State<AthleteThreadsScreen> with Automat
   String _dateLabel(DateTime d) {
     final now = DateTime.now();
     final diff = DateTime(now.year, now.month, now.day).difference(DateTime(d.year, d.month, d.day)).inDays;
-    if (diff == 0) return 'Today';
-    if (diff == 1) return 'Yesterday';
-    if (diff < 7) return DateFormat('EEEE').format(d);
-    return DateFormat('MMM d, yyyy').format(d);
+    final l = AppLocalizations.of(context);
+    if (diff == 0) return l.translate('today');
+    if (diff == 1) return l.translate('yesterday');
+    final locale = l.locale.languageCode;
+    if (diff < 7) return DateFormat('EEEE', locale).format(d);
+    return DateFormat('MMM d, yyyy', locale).format(d);
   }
 
   bool _sameDay(String a, String b) {
@@ -92,7 +94,7 @@ class AthleteThreadsScreenState extends State<AthleteThreadsScreen> with Automat
                 const SizedBox(width: 12),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text(branchName, style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w600)),
-                  Text('${posts.length} messages', style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 12)),
+                  Text('${posts.length} ${AppLocalizations.of(context).translate('messages')}', style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 12)),
                 ])),
               ]),
               if (threads.length > 1)
@@ -127,7 +129,7 @@ class AthleteThreadsScreenState extends State<AthleteThreadsScreen> with Automat
                       ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
                           Icon(Icons.chat_bubble_outline_rounded, size: 48, color: AppColors.textTertiary.withValues(alpha: 0.4)),
                           const SizedBox(height: 12),
-                          const Text('No messages yet', style: TextStyle(color: AppColors.textSecondary)),
+                          Text(AppLocalizations.of(context).translate('no_messages'), style: const TextStyle(color: AppColors.textSecondary)),
                         ]))
                       : ListView.builder(
                           controller: _scrollCtrl,
@@ -152,7 +154,7 @@ class AthleteThreadsScreenState extends State<AthleteThreadsScreen> with Automat
     final showDate = i == 0 || !_sameDay(createdAt, posts[i - 1]['created_at']?.toString() ?? '');
     final showAuthor = !isMine && (i == 0 || posts[i - 1]['user_id'] != msg['user_id'] || showDate);
     final isLast = i == posts.length - 1 || posts[i + 1]['user_id'] != msg['user_id'] || (i < posts.length - 1 && !_sameDay(createdAt, posts[i + 1]['created_at']?.toString() ?? ''));
-    final time = DateFormat('h:mm a').format(DateTime.tryParse(createdAt) ?? DateTime.now());
+    final time = DateFormat('h:mm a', AppLocalizations.of(context).locale.languageCode).format(DateTime.tryParse(createdAt) ?? DateTime.now());
 
     return Column(children: [
       if (showDate) Padding(

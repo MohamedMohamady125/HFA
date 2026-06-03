@@ -27,9 +27,9 @@ class AthleteGearScreenState extends State<AthleteGearScreen> {
       final api = ApiService();
       final me = await api.get('/users/me');
       final res = await api.get('/gear/${me.data['branch_id']}');
-      gearMessage = res.data?['message'] ?? 'No gear updates posted yet.';
+      gearMessage = res.data?['message'];
       _fetched = true;
-    } catch (_) { gearMessage = 'Error loading gear information.'; }
+    } catch (_) { gearMessage = null; }
     finally { if (mounted) setState(() => loading = false); }
   }
 
@@ -57,7 +57,7 @@ class AthleteGearScreenState extends State<AthleteGearScreen> {
                       child: const Icon(Icons.backpack_rounded, color: AppColors.warning),
                     ),
                     const SizedBox(width: 16),
-                    Expanded(child: Text(gearMessage ?? '', style: const TextStyle(fontSize: 15, color: AppColors.textPrimary, height: 1.6))),
+                    Expanded(child: Text(gearMessage ?? l.translate('no_gear_posted'), style: const TextStyle(fontSize: 15, color: AppColors.textPrimary, height: 1.6))),
                   ],
                 ),
               ),

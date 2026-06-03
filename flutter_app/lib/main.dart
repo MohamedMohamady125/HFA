@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:intl/date_symbol_data_local.dart';
 
 import 'providers/auth_provider.dart';
 import 'l10n/app_localizations.dart';
@@ -15,6 +16,7 @@ import 'screens/auth/head_coach_login_screen.dart';
 import 'screens/auth/pending_screen.dart';
 import 'screens/auth/forgot_password_screen.dart';
 import 'screens/auth/change_password_screen.dart';
+import 'screens/auth/parent_code_screen.dart';
 import 'screens/athlete/athlete_shell.dart';
 import 'screens/coach/coach_shell.dart';
 import 'screens/coach_manage/register_requests_screen.dart';
@@ -38,6 +40,9 @@ void main() async {
     statusBarColor: Colors.transparent,
     statusBarIconBrightness: Brightness.dark,
   ));
+
+  // Initialize date formatting for Arabic
+  await initializeDateFormatting('ar');
 
   // Initialize offline layer
   await HiveCache.init();
@@ -80,7 +85,7 @@ class _HFAAppState extends State<HFAApp> {
         if (auth.loading) return null;
         final loc = state.matchedLocation;
 
-        final guestOnly = ['/guest-home', '/login', '/register', '/admin-login', '/head-coach-login', '/forgot-password'];
+        final guestOnly = ['/guest-home', '/login', '/register', '/admin-login', '/head-coach-login', '/forgot-password', '/parent-code'];
         final isGuestOnly = guestOnly.any((r) => loc.startsWith(r));
 
         if (!auth.isLoggedIn) {
@@ -105,6 +110,7 @@ class _HFAAppState extends State<HFAApp> {
         GoRoute(path: '/head-coach-login', builder: (_, __) => const HeadCoachLoginScreen()),
         GoRoute(path: '/pending', builder: (_, __) => const PendingScreen()),
         GoRoute(path: '/forgot-password', builder: (_, __) => const ForgotPasswordScreen()),
+        GoRoute(path: '/parent-code', builder: (_, __) => const ParentCodeScreen()),
         GoRoute(path: '/change-password', builder: (_, __) => const ChangePasswordScreen()),
         GoRoute(path: '/edit-profile', builder: (_, __) => const EditProfileScreen()),
         GoRoute(path: '/head-coach-branches', builder: (_, __) => const HeadCoachBranchesScreen()),

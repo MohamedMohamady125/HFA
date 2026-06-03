@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../theme/app_theme.dart';
+import '../../l10n/app_localizations.dart';
 import 'athlete_home_screen.dart';
 import 'athlete_threads_screen.dart';
 import 'athlete_gear_screen.dart';
@@ -65,17 +66,20 @@ class _AthleteShellState extends State<AthleteShell> {
         body: IndexedStack(index: _index, children: _screens),
         bottomNavigationBar: Container(
           decoration: BoxDecoration(color: AppColors.cardBg, boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 8, offset: const Offset(0, -2))]),
-          child: NavigationBar(
-            selectedIndex: _index,
-            animationDuration: const Duration(milliseconds: 300),
-            onDestinationSelected: _switchTab,
-            destinations: const [
-              NavigationDestination(icon: Icon(Icons.dashboard_outlined), selectedIcon: Icon(Icons.dashboard_rounded), label: 'Home'),
-              NavigationDestination(icon: Icon(Icons.forum_outlined), selectedIcon: Icon(Icons.forum_rounded), label: 'Threads'),
-              NavigationDestination(icon: Icon(Icons.backpack_outlined), selectedIcon: Icon(Icons.backpack_rounded), label: 'Gear'),
-              NavigationDestination(icon: Icon(Icons.person_outline_rounded), selectedIcon: Icon(Icons.person_rounded), label: 'Profile'),
-            ],
-          ),
+          child: Builder(builder: (context) {
+            final l = AppLocalizations.of(context);
+            return NavigationBar(
+              selectedIndex: _index,
+              animationDuration: const Duration(milliseconds: 300),
+              onDestinationSelected: _switchTab,
+              destinations: [
+                NavigationDestination(icon: const Icon(Icons.dashboard_outlined), selectedIcon: const Icon(Icons.dashboard_rounded), label: l.translate('home')),
+                NavigationDestination(icon: const Icon(Icons.forum_outlined), selectedIcon: const Icon(Icons.forum_rounded), label: l.translate('threads_nav')),
+                NavigationDestination(icon: const Icon(Icons.backpack_outlined), selectedIcon: const Icon(Icons.backpack_rounded), label: l.translate('gear')),
+                NavigationDestination(icon: const Icon(Icons.person_outline_rounded), selectedIcon: const Icon(Icons.person_rounded), label: l.translate('profile')),
+              ],
+            );
+          }),
         ),
       ),
     );

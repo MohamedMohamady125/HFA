@@ -36,7 +36,7 @@ class _RegisterRequestsScreenState extends State<RegisterRequestsScreen> {
       await ApiService().post('/users/approve/$id');
       _removeItem(index, AppColors.success);
     } catch (_) {
-      _msg('Failed to approve', error: true);
+      _msg(AppLocalizations.of(context).translate('failed_to_approve'), error: true);
       setState(() => _processing.remove(id));
     }
   }
@@ -77,7 +77,7 @@ class _RegisterRequestsScreenState extends State<RegisterRequestsScreen> {
       await ApiService().post('/users/reject/$id');
       _removeItem(index, AppColors.error);
     } catch (_) {
-      _msg('Failed to reject', error: true);
+      _msg(AppLocalizations.of(context).translate('failed_to_reject'), error: true);
       setState(() => _processing.remove(id));
     }
   }
@@ -130,7 +130,7 @@ class _RegisterRequestsScreenState extends State<RegisterRequestsScreen> {
                 Icon(color == AppColors.success ? Icons.check_circle_rounded : Icons.cancel_rounded, color: color, size: 32),
                 const SizedBox(width: 12),
                 Text(
-                  color == AppColors.success ? 'Approved!' : 'Rejected',
+                  color == AppColors.success ? AppLocalizations.of(context).translate('approved_text') : AppLocalizations.of(context).translate('rejected_text'),
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: color),
                 ),
               ]),
@@ -173,7 +173,7 @@ class _RegisterRequestsScreenState extends State<RegisterRequestsScreen> {
               const SizedBox(height: 20),
               Text(l.translate('no_requests'), style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
               const SizedBox(height: 8),
-              const Text('All caught up!', style: TextStyle(fontSize: 14, color: AppColors.textTertiary)),
+              Text(AppLocalizations.of(context).translate('all_caught_up'), style: const TextStyle(fontSize: 14, color: AppColors.textTertiary)),
             ]))
           : AnimatedList(
               key: _listKey,

@@ -60,7 +60,7 @@ class CoachProfileScreenState extends State<CoachProfileScreen> {
                   Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                     const Icon(Icons.location_on_rounded, size: 14, color: AppColors.accent),
                     const SizedBox(width: 4),
-                    Text(branchName.isNotEmpty ? branchName : 'Branch', style: const TextStyle(fontSize: 14, color: AppColors.textSecondary)),
+                    Text(branchName.isNotEmpty ? branchName : l.translate('branch_label'), style: const TextStyle(fontSize: 14, color: AppColors.textSecondary)),
                   ]),
                   const SizedBox(height: 2),
                   Text(auth.userEmail ?? '', style: const TextStyle(fontSize: 13, color: AppColors.textTertiary)),
@@ -75,9 +75,9 @@ class CoachProfileScreenState extends State<CoachProfileScreen> {
 
               if (auth.role == 'head_coach') ...[
                 const SizedBox(height: 8),
-                FadeSlideIn(delay: 260, child: const Align(alignment: Alignment.centerLeft, child: SectionHeader(title: 'Head Coach'))),
+                FadeSlideIn(delay: 260, child: Align(alignment: Alignment.centerLeft, child: SectionHeader(title: l.translate('head_coach')))),
                 FadeSlideIn(delay: 300, child: _menuItem(Icons.people_rounded, l.translate('manage_coaches'), () => context.go('/head-coach-manage-coaches'))),
-                FadeSlideIn(delay: 340, child: _menuItem(Icons.swap_horiz_rounded, 'Switch Branch', () => context.go('/head-coach-branches'))),
+                FadeSlideIn(delay: 340, child: _menuItem(Icons.swap_horiz_rounded, l.translate('switch_branch'), () => context.go('/head-coach-branches'))),
               ],
 
               const SizedBox(height: 8),

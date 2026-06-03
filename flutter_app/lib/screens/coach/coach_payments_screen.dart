@@ -108,11 +108,11 @@ class CoachPaymentsScreenState extends State<CoachPaymentsScreen> {
                                       Text(date, style: const TextStyle(fontSize: 12, color: AppColors.textTertiary, fontWeight: FontWeight.w500)),
                                       const SizedBox(height: 6),
                                       Row(children: [
-                                        _payBtn('Paid', Icons.check_circle_rounded, AppColors.success, cs == 'paid', () => _markPayment(item['athlete_id'], date, 'paid')),
+                                        _payBtn(l.translate('paid'), Icons.check_circle_rounded, AppColors.success, cs == 'paid', () => _markPayment(item['athlete_id'], date, 'paid')),
                                         const SizedBox(width: 8),
-                                        _payBtn('Pending', Icons.schedule_rounded, AppColors.warning, cs == 'pending', () => _markPayment(item['athlete_id'], date, 'pending')),
+                                        _payBtn(l.translate('pending'), Icons.schedule_rounded, AppColors.warning, cs == 'pending', () => _markPayment(item['athlete_id'], date, 'pending')),
                                         const SizedBox(width: 8),
-                                        _payBtn('Late', Icons.warning_rounded, AppColors.error, cs == 'late', () => _markPayment(item['athlete_id'], date, 'late')),
+                                        _payBtn(l.translate('late'), Icons.warning_rounded, AppColors.error, cs == 'late', () => _markPayment(item['athlete_id'], date, 'late')),
                                       ]),
                                     ],
                                   ));

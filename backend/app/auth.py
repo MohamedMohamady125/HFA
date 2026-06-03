@@ -1,3 +1,6 @@
+import random
+import string
+from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, EmailStr
 from app.database import get_connection, get_cursor
@@ -155,3 +158,80 @@ async def forgot_password(data: ForgotPasswordRequest):
     token = create_reset_token(user["id"])
     send_reset_email(data.email, token)
     return {"detail": "Reset email sent"}
+
+
+@router.post("/generate-parent-code")
+def generate_parent_code(user=Depends(get_current_user)):
+    if user["role"] != "athlete":
+        raise HTTPException(status_code=403, detail="Only athletes can generate parent codes")
+
+    conn = get_connection()
+    cursor = get_cursor(conn)
+
+    # Delete any existing codes for this user
+    cursor.execute("DELETE FROM parent_access_codes WHERE user_id = %s", (user["id"],))
+
+    # Generate a unique 6-character uppercase code
+    for _ in range(10):
+        code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+        cursor.execute("SELECT 1 FROM parent_access_codes WHERE code = %s", (code,))
+        if not cursor.fetchone():
+            break
+
+    expires_at = datetime.now() + timedelta(hours=72)
+    cursor.execute(
+        "INSERT INTO parent_access_codes (user_id, code, expires_at) VALUES (%s, %s, %s)",
+        (user["id"], code, expires_at)
+    )
+    conn.commit()
+    cursor.close()
+    conn.close()
+    return {"code": code, "expires_at": expires_at.isoformat()}
+
+
+class ParentCodeLogin(BaseModel):
+    code: str
+
+@router.post("/login-with-code")
+def login_with_code(data: ParentCodeLogin):
+    conn = get_connection()
+    cursor = get_cursor(conn)
+
+    code = data.code.strip().upper()
+    cursor.execute(
+        "SELECT * FROM parent_access_codes WHERE code = %s AND expires_at > NOW()",
+        (code,)
+    )
+    row = cursor.fetchone()
+    if not row:
+        cursor.close()
+        conn.close()
+        raise HTTPException(status_code=401, detail="Invalid or expired code")
+
+    cursor.execute("SELECT * FROM users WHERE id = %s", (row["user_id"],))
+    db_user = cursor.fetchone()
+    if not db_user:
+        cursor.close()
+        conn.close()
+        raise HTTPException(status_code=404, detail="User not found")
+
+    token = jwt.encode(
+        {"sub": str(db_user["id"])},
+        settings.JWT_SECRET,
+        algorithm=settings.JWT_ALGORITHM,
+    )
+
+    cursor.close()
+    conn.close()
+
+    return {
+        "token": token,
+        "user": {
+            "id": db_user["id"],
+            "name": db_user["name"],
+            "email": db_user["email"],
+            "phone": db_user["phone"],
+            "role": db_user["role"],
+            "approved": db_user.get("approved", False),
+        },
+    }

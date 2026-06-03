@@ -43,7 +43,7 @@ class _HeadCoachBranchesScreenState extends State<HeadCoachBranchesScreen> {
       await context.read<AuthProvider>().login(authUser);
       nav.go('/coach/home');
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to switch: $e'), backgroundColor: AppColors.error));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLocalizations.of(context).translate('failed_switch')), backgroundColor: AppColors.error));
     } finally { if (mounted) setState(() => _switchingId = null); }
   }
 

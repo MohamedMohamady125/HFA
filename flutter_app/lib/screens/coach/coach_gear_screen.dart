@@ -75,7 +75,7 @@ class CoachGearScreenState extends State<CoachGearScreen> with SingleTickerProvi
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              FadeSlideIn(child: SectionHeader(title: l.translate('weekly_gear_update'), subtitle: 'Branch: $branchName')),
+              FadeSlideIn(child: SectionHeader(title: l.translate('weekly_gear_update'), subtitle: '${l.translate('branch_label')}: $branchName')),
               const SizedBox(height: 8),
               FadeSlideIn(delay: 100, child: AppCard(
                 child: Column(children: [

@@ -26,7 +26,7 @@ class AthleteHomeScreenState extends State<AthleteHomeScreen> with AutomaticKeep
   bool get wantKeepAlive => true;
 
   String _dueDateKey() { final n = DateTime.now(); return '${n.year}-${n.month.toString().padLeft(2, '0')}-01'; }
-  String _monthName() => DateFormat('MMMM yyyy').format(DateTime.now());
+  String _monthName() => DateFormat('MMMM yyyy', AppLocalizations.of(context).locale.languageCode).format(DateTime.now());
 
   @override
   void initState() {
@@ -42,7 +42,7 @@ class AthleteHomeScreenState extends State<AthleteHomeScreen> with AutomaticKeep
         final cachedGear = OfflineRepository.getCached('/gear/${user['branch_id']}');
         final cachedPay = OfflineRepository.getCached('/payments/${user['id']}/status');
         if (cachedAtt is List) attendance = cachedAtt;
-        if (cachedGear is Map) gearMessage = cachedGear['message']?.toString() ?? 'No gear updates.';
+        if (cachedGear is Map) gearMessage = cachedGear['message']?.toString() ?? '';
         if (cachedPay is Map) paymentStatus = (cachedPay)[_dueDateKey()]?.toString() ?? 'pending';
         if (attendance.isNotEmpty || gearMessage.isNotEmpty) {
           _fetched = true;
@@ -73,15 +73,15 @@ class AthleteHomeScreenState extends State<AthleteHomeScreen> with AutomaticKeep
       final results = await Future.wait([attFuture, gearFuture, threadsFuture, payFuture]);
 
       attendance = results[0] is List ? results[0] as List : [];
-      gearMessage = (results[1] is Map ? (results[1] as Map)['message'] : null) ?? 'No gear updates.';
+      gearMessage = (results[1] is Map ? (results[1] as Map)['message'] : null) ?? '';
 
       final threads = (results[2] is List ? results[2] as List : []).where((t) => !(t['title'] as String).toLowerCase().contains('gear')).toList();
       if (threads.isNotEmpty) {
         try {
           final p = await OfflineRepository.getPosts(threads[0]['id']);
-          lastThreadMessage = (p as List).isNotEmpty ? p[0]['message'] ?? '' : 'No posts yet.';
-        } catch (_) { lastThreadMessage = 'No posts yet.'; }
-      } else { lastThreadMessage = 'No threads available.'; }
+          lastThreadMessage = (p as List).isNotEmpty ? p[0]['message'] ?? '' : '';
+        } catch (_) { lastThreadMessage = ''; }
+      } else { lastThreadMessage = ''; }
 
       paymentStatus = (results[3] is Map ? results[3] as Map : {})[_dueDateKey()] ?? 'pending';
       _fetched = true;
@@ -108,13 +108,13 @@ class AthleteHomeScreenState extends State<AthleteHomeScreen> with AutomaticKeep
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text(l.translate('dashboard'), style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: AppColors.textPrimary, letterSpacing: -0.5)),
                   const SizedBox(height: 2),
-                  Text(DateFormat('EEEE, MMM d').format(DateTime.now()), style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+                  Text(DateFormat('EEEE, MMM d', l.locale.languageCode).format(DateTime.now()), style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
                 ])),
                 GradientAvatar(name: 'HFA', size: 40),
               ])),
               const SizedBox(height: 24),
 
-              FadeSlideIn(delay: 0, child: const SectionHeader(title: 'Attendance')),
+              FadeSlideIn(delay: 0, child: SectionHeader(title: l.translate('attendance'))),
               FadeSlideIn(delay: 30, child: ScaleOnTap(
                 onTap: () => context.push('/athlete/attendance-history'),
                 child: AppCard(
@@ -129,12 +129,12 @@ class AthleteHomeScreenState extends State<AthleteHomeScreen> with AutomaticKeep
                         width: double.infinity,
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(12)),
-                        child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                          Icon(Icons.calendar_month_rounded, color: AppColors.accent, size: 20),
-                          SizedBox(width: 8),
-                          Text('View Full Attendance Calendar', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.accent)),
-                          SizedBox(width: 6),
-                          Icon(Icons.arrow_forward_rounded, color: AppColors.accent, size: 18),
+                        child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                          const Icon(Icons.calendar_month_rounded, color: AppColors.accent, size: 20),
+                          const SizedBox(width: 8),
+                          Text(l.translate('view_full_calendar'), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.accent)),
+                          const SizedBox(width: 6),
+                          const Icon(Icons.arrow_forward_rounded, color: AppColors.accent, size: 18),
                         ]),
                       ),
                     ],
@@ -146,7 +146,7 @@ class AthleteHomeScreenState extends State<AthleteHomeScreen> with AutomaticKeep
               FadeSlideIn(delay: 50, child: SectionHeader(title: l.translate('latest_thread'))),
               FadeSlideIn(delay: 70, child: ScaleOnTap(onTap: () => AthleteTabSwitcher.of(context)?.switchTo(1), child: AppCard(child: Row(children: [
                 _iconBox(Icons.forum_rounded, AppColors.info), const SizedBox(width: 12),
-                Expanded(child: Text(lastThreadMessage, style: const TextStyle(fontSize: 14, color: AppColors.textSecondary, height: 1.4), maxLines: 2, overflow: TextOverflow.ellipsis)),
+                Expanded(child: Text(lastThreadMessage.isEmpty ? l.translate('no_messages') : lastThreadMessage, style: const TextStyle(fontSize: 14, color: AppColors.textSecondary, height: 1.4), maxLines: 2, overflow: TextOverflow.ellipsis)),
                 const Icon(Icons.chevron_right_rounded, color: AppColors.textTertiary, size: 20),
               ])))),
               const SizedBox(height: 4),
@@ -154,7 +154,7 @@ class AthleteHomeScreenState extends State<AthleteHomeScreen> with AutomaticKeep
               FadeSlideIn(delay: 90, child: SectionHeader(title: l.translate('gear_check'))),
               FadeSlideIn(delay: 110, child: ScaleOnTap(onTap: () => AthleteTabSwitcher.of(context)?.switchTo(2), child: AppCard(child: Row(children: [
                 _iconBox(Icons.backpack_rounded, AppColors.warning), const SizedBox(width: 12),
-                Expanded(child: Text(gearMessage, style: const TextStyle(fontSize: 14, color: AppColors.textSecondary, height: 1.4), maxLines: 2, overflow: TextOverflow.ellipsis)),
+                Expanded(child: Text(gearMessage.isEmpty ? l.translate('no_gear_updates') : gearMessage, style: const TextStyle(fontSize: 14, color: AppColors.textSecondary, height: 1.4), maxLines: 2, overflow: TextOverflow.ellipsis)),
                 const Icon(Icons.chevron_right_rounded, color: AppColors.textTertiary, size: 20),
               ])))),
               const SizedBox(height: 4),

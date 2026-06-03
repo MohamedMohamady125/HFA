@@ -45,8 +45,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         padding: const EdgeInsets.all(24),
         child: Column(
           children: [
-            AppFormField(label: 'NAME', controller: _nameCtrl),
-            AppFormField(label: 'EMAIL', controller: _emailCtrl, keyboardType: TextInputType.emailAddress),
+            AppFormField(label: l.translate('name'), controller: _nameCtrl),
+            AppFormField(label: l.translate('email'), controller: _emailCtrl, keyboardType: TextInputType.emailAddress),
             const SizedBox(height: 8),
             SizedBox(width: double.infinity, child: ElevatedButton(onPressed: _handleSave, child: Text(l.translate('save_changes')))),
           ],

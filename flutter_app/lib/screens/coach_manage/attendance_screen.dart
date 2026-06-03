@@ -14,7 +14,7 @@ class AttendanceScreen extends StatefulWidget {
 }
 
 class _AttendanceScreenState extends State<AttendanceScreen> with SingleTickerProviderStateMixin {
-  static const days = ['Day 1', 'Day 2', 'Day 3'];
+  List<String> get days => [for (int i = 1; i <= 3; i++) '${AppLocalizations.of(context).translate('day')} $i'];
   int selectedDay = 0;
   bool loading = true;
   List<dynamic> attendance = [];
@@ -36,7 +36,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> with SingleTickerPr
 
   Future<void> _fetchSessionDates() async {
     try { final data = await OfflineRepository.getSessionDates(_branchId!); sessionDates = List<String>.from(data); if (sessionDates.length == 3) _fetchAttendance(); }
-    catch (_) { if (mounted) setState(() => error = 'Failed to load session dates'); }
+    catch (_) { if (mounted) setState(() => error = AppLocalizations.of(context).translate('failed_load_sessions')); }
   }
 
   Future<void> _fetchAttendance({bool silent = false}) async {

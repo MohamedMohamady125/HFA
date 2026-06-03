@@ -106,7 +106,14 @@ class _GuestHomeScreenState extends State<GuestHomeScreen> with TickerProviderSt
                       child: Text(l.translate('register')),
                     ))),
                     const SizedBox(height: 24),
-                    FadeSlideIn(delay: 900, child: TextButton.icon(
+                    FadeSlideIn(delay: 900, child: SizedBox(width: double.infinity, child: OutlinedButton.icon(
+                      onPressed: () => context.push('/parent-code'),
+                      style: OutlinedButton.styleFrom(foregroundColor: AppColors.accent, side: const BorderSide(color: AppColors.accent)),
+                      icon: const Icon(Icons.family_restroom_rounded, size: 18),
+                      label: Text(l.translate('parent_access')),
+                    ))),
+                    const SizedBox(height: 16),
+                    FadeSlideIn(delay: 950, child: TextButton.icon(
                       onPressed: () => context.push('/admin-login'),
                       icon: const Icon(Icons.shield_outlined, size: 16, color: AppColors.textTertiary),
                       label: Text(l.translate('coach_login'), style: const TextStyle(color: AppColors.textTertiary, fontSize: 13)),

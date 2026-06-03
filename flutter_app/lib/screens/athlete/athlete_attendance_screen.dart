@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:intl/intl.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
+import '../../l10n/app_localizations.dart';
 
 class AthleteAttendanceScreen extends StatefulWidget {
   const AthleteAttendanceScreen({super.key});
@@ -59,7 +60,7 @@ class _AthleteAttendanceScreenState extends State<AthleteAttendanceScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Attendance'),
+        title: Text(AppLocalizations.of(context).translate('attendance')),
         leading: IconButton(icon: const Icon(Icons.arrow_back_rounded), onPressed: () => Navigator.pop(context)),
       ),
       body: Column(
@@ -71,7 +72,7 @@ class _AthleteAttendanceScreenState extends State<AthleteAttendanceScreen> {
               _navBtn(Icons.chevron_left_rounded, _prevMonth),
               Expanded(child: AnimatedSwitcher(
                 duration: const Duration(milliseconds: 200),
-                child: Text(DateFormat('MMMM yyyy').format(_currentMonth), key: ValueKey(_currentMonth),
+                child: Text(DateFormat('MMMM yyyy', AppLocalizations.of(context).locale.languageCode).format(_currentMonth), key: ValueKey(_currentMonth),
                   style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.textPrimary), textAlign: TextAlign.center),
               )),
               _navBtn(Icons.chevron_right_rounded, isCurrentMonth ? null : _nextMonth),
@@ -82,11 +83,11 @@ class _AthleteAttendanceScreenState extends State<AthleteAttendanceScreen> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Row(children: [
-              _statCard('Present', '$presentCount', AppColors.success),
+              _statCard(AppLocalizations.of(context).translate('present'), '$presentCount', AppColors.success),
               const SizedBox(width: 10),
-              _statCard('Absent', '$absentCount', AppColors.error),
+              _statCard(AppLocalizations.of(context).translate('absent'), '$absentCount', AppColors.error),
               const SizedBox(width: 10),
-              _statCard('Rate', '$rate%', AppColors.accent),
+              _statCard(AppLocalizations.of(context).translate('rate'), '$rate%', AppColors.accent),
             ]),
           ),
           const SizedBox(height: 16),
@@ -95,9 +96,10 @@ class _AthleteAttendanceScreenState extends State<AthleteAttendanceScreen> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
-              children: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-                  .map((d) => Expanded(child: Center(child: Text(d, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textTertiary)))))
-                  .toList(),
+              children: [for (int i = 0; i < 7; i++) Expanded(child: Center(child: Text(
+                DateFormat.E(AppLocalizations.of(context).locale.languageCode).format(DateTime(2025, 1, 5 + i)),
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textTertiary),
+              )))],
             ),
           ),
           const SizedBox(height: 8),

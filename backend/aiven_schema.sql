@@ -120,6 +120,14 @@ CREATE TABLE IF NOT EXISTS coach_credentials (
     created_at TIMESTAMP DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS parent_access_codes (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    code VARCHAR(6) UNIQUE NOT NULL,
+    expires_at TIMESTAMP NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
 -- ═══════════════════════════════════════════════════════════
 -- SEED DATA (the data you had)
 -- ═══════════════════════════════════════════════════════════

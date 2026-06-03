@@ -103,10 +103,12 @@ class CoachThreadsScreenState extends State<CoachThreadsScreen> {
   String _dateLabel(DateTime d) {
     final now = DateTime.now();
     final diff = DateTime(now.year, now.month, now.day).difference(DateTime(d.year, d.month, d.day)).inDays;
-    if (diff == 0) return 'Today';
-    if (diff == 1) return 'Yesterday';
-    if (diff < 7) return DateFormat('EEEE').format(d);
-    return DateFormat('MMM d, yyyy').format(d);
+    final l = AppLocalizations.of(context);
+    if (diff == 0) return l.translate('today');
+    if (diff == 1) return l.translate('yesterday');
+    final locale = l.locale.languageCode;
+    if (diff < 7) return DateFormat('EEEE', locale).format(d);
+    return DateFormat('MMM d, yyyy', locale).format(d);
   }
 
   bool _sameDay(String a, String b) {
@@ -131,7 +133,7 @@ class CoachThreadsScreenState extends State<CoachThreadsScreen> {
               const SizedBox(width: 12),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(branchName, style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w600)),
-                Text('${messages.length} messages', style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 12)),
+                Text('${messages.length} ${AppLocalizations.of(context).translate('messages')}', style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 12)),
               ])),
               IconButton(icon: Icon(Icons.refresh_rounded, color: Colors.white.withValues(alpha: 0.7), size: 22), onPressed: _loadMessages),
             ]),
@@ -145,7 +147,7 @@ class CoachThreadsScreenState extends State<CoachThreadsScreen> {
                   ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
                       Icon(Icons.chat_bubble_outline_rounded, size: 48, color: AppColors.textTertiary.withValues(alpha: 0.4)),
                       const SizedBox(height: 12),
-                      const Text('No messages yet', style: TextStyle(color: AppColors.textSecondary)),
+                      Text(AppLocalizations.of(context).translate('no_messages'), style: const TextStyle(color: AppColors.textSecondary)),
                     ]))
                   : ListView.builder(
                       controller: _scrollCtrl,
@@ -171,7 +173,7 @@ class CoachThreadsScreenState extends State<CoachThreadsScreen> {
                       controller: _msgCtrl, maxLines: 5, minLines: 1, maxLength: 1000, enabled: !sending,
                       style: const TextStyle(fontSize: 16),
                       onChanged: (_) => setState(() {}),
-                      decoration: const InputDecoration(hintText: 'Message', hintStyle: TextStyle(color: AppColors.textTertiary), counterText: '', border: InputBorder.none,
+                      decoration: InputDecoration(hintText: AppLocalizations.of(context).translate('message_hint'), hintStyle: const TextStyle(color: AppColors.textTertiary), counterText: '', border: InputBorder.none,
                         contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 10), fillColor: Colors.transparent, filled: true),
                     ),
                   ),
@@ -206,7 +208,7 @@ class CoachThreadsScreenState extends State<CoachThreadsScreen> {
     final showDate = i == 0 || !_sameDay(createdAt, messages[i - 1]['created_at']?.toString() ?? '');
     final showAuthor = !isMine && (i == 0 || messages[i - 1]['user_id'] != msg['user_id'] || showDate);
     final isLast = i == messages.length - 1 || messages[i + 1]['user_id'] != msg['user_id'] || (i < messages.length - 1 && !_sameDay(createdAt, messages[i + 1]['created_at']?.toString() ?? ''));
-    final time = DateFormat('h:mm a').format(DateTime.tryParse(createdAt) ?? DateTime.now());
+    final time = DateFormat('h:mm a', AppLocalizations.of(context).locale.languageCode).format(DateTime.tryParse(createdAt) ?? DateTime.now());
 
     return Column(children: [
       if (showDate) Padding(

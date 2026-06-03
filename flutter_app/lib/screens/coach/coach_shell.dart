@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../theme/app_theme.dart';
+import '../../l10n/app_localizations.dart';
 import 'coach_home_screen.dart';
 import 'coach_threads_screen.dart';
 import 'coach_gear_screen.dart';
@@ -74,7 +75,7 @@ class _CoachShellState extends State<CoachShell> {
                   const SizedBox(width: 8),
                   Text(branchName, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
                   const Spacer(),
-                  Text('Switch', style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12)),
+                  Text(AppLocalizations.of(context).translate('switch_text'), style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12)),
                   const SizedBox(width: 4),
                   Icon(Icons.swap_horiz_rounded, color: Colors.white.withValues(alpha: 0.5), size: 16),
                 ]),
@@ -85,18 +86,21 @@ class _CoachShellState extends State<CoachShell> {
       ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(color: AppColors.cardBg, boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 8, offset: const Offset(0, -2))]),
-        child: NavigationBar(
-          selectedIndex: _index,
-          animationDuration: const Duration(milliseconds: 300),
-          onDestinationSelected: _onTabSelected,
-          destinations: const [
-            NavigationDestination(icon: Icon(Icons.dashboard_outlined), selectedIcon: Icon(Icons.dashboard_rounded), label: 'Home'),
-            NavigationDestination(icon: Icon(Icons.forum_outlined), selectedIcon: Icon(Icons.forum_rounded), label: 'Chat'),
-            NavigationDestination(icon: Icon(Icons.backpack_outlined), selectedIcon: Icon(Icons.backpack_rounded), label: 'Gear'),
-            NavigationDestination(icon: Icon(Icons.groups_outlined), selectedIcon: Icon(Icons.groups_rounded), label: 'Athletes'),
-            NavigationDestination(icon: Icon(Icons.person_outline_rounded), selectedIcon: Icon(Icons.person_rounded), label: 'Profile'),
-          ],
-        ),
+        child: Builder(builder: (context) {
+          final l = AppLocalizations.of(context);
+          return NavigationBar(
+            selectedIndex: _index,
+            animationDuration: const Duration(milliseconds: 300),
+            onDestinationSelected: _onTabSelected,
+            destinations: [
+              NavigationDestination(icon: const Icon(Icons.dashboard_outlined), selectedIcon: const Icon(Icons.dashboard_rounded), label: l.translate('home')),
+              NavigationDestination(icon: const Icon(Icons.forum_outlined), selectedIcon: const Icon(Icons.forum_rounded), label: l.translate('chat')),
+              NavigationDestination(icon: const Icon(Icons.backpack_outlined), selectedIcon: const Icon(Icons.backpack_rounded), label: l.translate('gear')),
+              NavigationDestination(icon: const Icon(Icons.groups_outlined), selectedIcon: const Icon(Icons.groups_rounded), label: l.translate('athletes')),
+              NavigationDestination(icon: const Icon(Icons.person_outline_rounded), selectedIcon: const Icon(Icons.person_rounded), label: l.translate('profile')),
+            ],
+          );
+        }),
       ),
     );
   }

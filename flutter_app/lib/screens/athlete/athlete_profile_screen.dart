@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:provider/provider.dart';
@@ -18,7 +19,7 @@ class AthleteProfileScreenState extends State<AthleteProfileScreen> {
   Map<String, dynamic>? user;
   List<dynamic> attendance = [];
   String branchName = '';
-  List<String> labels = ['Day 1', 'Day 2', 'Day 3'];
+  int labelCount = 3;
   Map<String, String> paymentHistory = {};
 
   // Measurements
@@ -56,7 +57,7 @@ class AthleteProfileScreenState extends State<AthleteProfileScreen> {
       attendance = results[0].data;
       branchName = results[1].data['name'] ?? '';
       if (results[2].data is List) {
-        labels = List.generate((results[2].data as List).length, (i) => 'Day ${i + 1}');
+        labelCount = (results[2].data as List).length;
       }
     } catch (_) {}
 
@@ -99,11 +100,12 @@ class AthleteProfileScreenState extends State<AthleteProfileScreen> {
       for (var k in _mKeys) data[k] = double.tryParse(mCtrl[k]!.text) ?? 0;
       await ApiService().post('/athlete/measurements', data: data);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Measurements saved!'), backgroundColor: AppColors.success));
+        final l = AppLocalizations.of(context);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l.translate('measurements_saved')), backgroundColor: AppColors.success));
         setState(() => mEditable = false);
       }
     } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not save'), backgroundColor: AppColors.error));
+      if (mounted) { final l = AppLocalizations.of(context); ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l.translate('save_failed')), backgroundColor: AppColors.error)); }
     }
   }
 
@@ -122,11 +124,12 @@ class AthleteProfileScreenState extends State<AthleteProfileScreen> {
         });
       }
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Events saved!'), backgroundColor: AppColors.success));
+        final l = AppLocalizations.of(context);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l.translate('events_saved')), backgroundColor: AppColors.success));
         setState(() => eventsEditable = false);
       }
     } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not save'), backgroundColor: AppColors.error));
+      if (mounted) { final l = AppLocalizations.of(context); ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l.translate('save_failed')), backgroundColor: AppColors.error)); }
     }
   }
 
@@ -134,23 +137,24 @@ class AthleteProfileScreenState extends State<AthleteProfileScreen> {
     final emailCtrl = TextEditingController(text: user!['email'] ?? '');
     final passCtrl = TextEditingController();
 
+    final l = AppLocalizations.of(context);
     final result = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Change Email', style: TextStyle(fontWeight: FontWeight.w700)),
+        title: Text(l.translate('change_email'), style: const TextStyle(fontWeight: FontWeight.w700)),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(controller: emailCtrl, keyboardType: TextInputType.emailAddress, decoration: const InputDecoration(labelText: 'New Email')),
+              TextField(controller: emailCtrl, keyboardType: TextInputType.emailAddress, decoration: InputDecoration(labelText: l.translate('new_email'))),
               const SizedBox(height: 12),
-              TextField(controller: passCtrl, obscureText: true, decoration: const InputDecoration(labelText: 'Confirm Password')),
+              TextField(controller: passCtrl, obscureText: true, decoration: InputDecoration(labelText: l.translate('confirm_password_label'))),
             ],
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Update')),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l.translate('cancel'))),
+          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: Text(l.translate('update'))),
         ],
       ),
     );
@@ -169,11 +173,11 @@ class AthleteProfileScreenState extends State<AthleteProfileScreen> {
         user = authUser;
       }
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Email updated successfully'), backgroundColor: AppColors.success));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l.translate('email_updated')), backgroundColor: AppColors.success));
         setState(() {});
       }
     } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to update email'), backgroundColor: AppColors.error));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l.translate('email_update_failed')), backgroundColor: AppColors.error));
     }
   }
 
@@ -182,41 +186,42 @@ class AthleteProfileScreenState extends State<AthleteProfileScreen> {
     final newCtrl = TextEditingController();
     final confirmCtrl = TextEditingController();
 
+    final l = AppLocalizations.of(context);
     final result = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Change Password', style: TextStyle(fontWeight: FontWeight.w700)),
+        title: Text(l.translate('change_password'), style: const TextStyle(fontWeight: FontWeight.w700)),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(controller: oldCtrl, obscureText: true, decoration: const InputDecoration(labelText: 'Current Password')),
+              TextField(controller: oldCtrl, obscureText: true, decoration: InputDecoration(labelText: l.translate('current_password'))),
               const SizedBox(height: 12),
-              TextField(controller: newCtrl, obscureText: true, decoration: const InputDecoration(labelText: 'New Password')),
+              TextField(controller: newCtrl, obscureText: true, decoration: InputDecoration(labelText: l.translate('new_password'))),
               const SizedBox(height: 12),
-              TextField(controller: confirmCtrl, obscureText: true, decoration: const InputDecoration(labelText: 'Confirm New Password')),
+              TextField(controller: confirmCtrl, obscureText: true, decoration: InputDecoration(labelText: l.translate('confirm_new_password'))),
             ],
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Update')),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l.translate('cancel'))),
+          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: Text(l.translate('update'))),
         ],
       ),
     );
 
     if (result != true) return;
     if (newCtrl.text != confirmCtrl.text) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Passwords do not match'), backgroundColor: AppColors.error));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l.translate('passwords_no_match')), backgroundColor: AppColors.error));
       return;
     }
     if (newCtrl.text.isEmpty || oldCtrl.text.isEmpty) return;
 
     try {
       await ApiService().post('/auth/change-password', data: {'old_password': oldCtrl.text, 'new_password': newCtrl.text});
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Password changed successfully'), backgroundColor: AppColors.success));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l.translate('password_changed')), backgroundColor: AppColors.success));
     } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to change password'), backgroundColor: AppColors.error));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l.translate('password_failed')), backgroundColor: AppColors.error));
     }
   }
 
@@ -276,6 +281,10 @@ class AthleteProfileScreenState extends State<AthleteProfileScreen> {
                   ),
                 ),
 
+                // ── Parent Access ──
+                const SizedBox(height: 12),
+                _buildParentAccess(l),
+
                 // ── Attendance ──
                 const SizedBox(height: 16),
                 SectionHeader(
@@ -289,12 +298,12 @@ class AthleteProfileScreenState extends State<AthleteProfileScreen> {
                   onTap: () => context.push('/athlete/attendance-history'),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: labels.asMap().entries.map((e) {
-                      final record = attendance.where((r) => r['day_number'] == e.key + 1).firstOrNull;
+                    children: List.generate(labelCount, (i) {
+                      final record = attendance.where((r) => r['day_number'] == i + 1).firstOrNull;
                       final status = record?['status'];
                       final color = status == 'present' ? AppColors.success : status == 'absent' ? AppColors.error : AppColors.textTertiary;
                       return Column(children: [
-                        Text(e.value, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
+                        Text('${l.translate('day')} ${i + 1}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
                         const SizedBox(height: 8),
                         Icon(
                           status == 'present' ? Icons.check_circle_rounded : status == 'absent' ? Icons.cancel_rounded : Icons.remove_circle_outline,
@@ -306,7 +315,7 @@ class AthleteProfileScreenState extends State<AthleteProfileScreen> {
                           style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w500),
                         ),
                       ]);
-                    }).toList(),
+                    }),
                   ),
                 ),
 
@@ -315,9 +324,9 @@ class AthleteProfileScreenState extends State<AthleteProfileScreen> {
                 SectionHeader(title: l.translate('payment')),
                 AppCard(
                   child: paymentHistory.isEmpty
-                      ? const Center(child: Padding(
-                          padding: EdgeInsets.symmetric(vertical: 8),
-                          child: Text('No payment records yet', style: TextStyle(color: AppColors.textTertiary, fontSize: 14)),
+                      ? Center(child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          child: Text(l.translate('no_payment_records'), style: const TextStyle(color: AppColors.textTertiary, fontSize: 14)),
                         ))
                       : Column(
                           children: paymentHistory.entries.toList().reversed.take(6).map((entry) {
@@ -382,9 +391,9 @@ class AthleteProfileScreenState extends State<AthleteProfileScreen> {
                       ...eventCtrl.map((e) => Padding(
                         padding: const EdgeInsets.only(bottom: 8),
                         child: Row(children: [
-                          Expanded(child: TextField(controller: e['name'], enabled: eventsEditable, decoration: const InputDecoration(hintText: 'Event', isDense: true, contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10)))),
+                          Expanded(child: TextField(controller: e['name'], enabled: eventsEditable, decoration: InputDecoration(hintText: l.translate('event_name'), isDense: true, contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10)))),
                           const SizedBox(width: 10),
-                          Expanded(child: TextField(controller: e['time'], enabled: eventsEditable, decoration: const InputDecoration(hintText: 'Time', isDense: true, contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10)))),
+                          Expanded(child: TextField(controller: e['time'], enabled: eventsEditable, decoration: InputDecoration(hintText: l.translate('time'), isDense: true, contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10)))),
                         ]),
                       )),
                       if (eventCtrl.length < 5 && eventsEditable) TextButton.icon(
@@ -450,6 +459,85 @@ class AthleteProfileScreenState extends State<AthleteProfileScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  String? _parentCode;
+  bool _generatingCode = false;
+
+  Future<void> _generateParentCode() async {
+    setState(() => _generatingCode = true);
+    try {
+      final res = await ApiService().post('/auth/generate-parent-code');
+      if (mounted) setState(() => _parentCode = res.data['code']);
+    } catch (_) {
+      if (mounted) {
+        final l = AppLocalizations.of(context);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l.translate('save_failed')), backgroundColor: AppColors.error));
+      }
+    } finally {
+      if (mounted) setState(() => _generatingCode = false);
+    }
+  }
+
+  Widget _buildParentAccess(AppLocalizations l) {
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Container(
+              width: 40, height: 40,
+              decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
+              child: const Icon(Icons.family_restroom_rounded, color: AppColors.accent, size: 22),
+            ),
+            const SizedBox(width: 12),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(l.translate('parent_access'), style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+              Text(l.translate('parent_access_desc'), style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+            ])),
+          ]),
+          const SizedBox(height: 14),
+          if (_parentCode != null) ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              decoration: BoxDecoration(color: AppColors.accentLight, borderRadius: BorderRadius.circular(12)),
+              child: Column(children: [
+                Text(l.translate('your_code'), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
+                const SizedBox(height: 6),
+                Text(_parentCode!, style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w900, color: AppColors.accent, letterSpacing: 8)),
+                const SizedBox(height: 4),
+                Text(l.translate('code_expires'), style: const TextStyle(fontSize: 11, color: AppColors.textTertiary)),
+              ]),
+            ),
+            const SizedBox(height: 10),
+            Row(children: [
+              Expanded(child: OutlinedButton.icon(
+                onPressed: () {
+                  Clipboard.setData(ClipboardData(text: _parentCode!));
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l.translate('copied')), backgroundColor: AppColors.success));
+                },
+                icon: const Icon(Icons.copy_rounded, size: 16),
+                label: Text(l.translate('copy_code')),
+              )),
+              const SizedBox(width: 10),
+              Expanded(child: ElevatedButton.icon(
+                onPressed: _generatingCode ? null : _generateParentCode,
+                icon: const Icon(Icons.refresh_rounded, size: 16),
+                label: Text(l.translate('new_code')),
+              )),
+            ]),
+          ] else
+            SizedBox(width: double.infinity, child: ElevatedButton.icon(
+              onPressed: _generatingCode ? null : _generateParentCode,
+              icon: _generatingCode
+                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : const Icon(Icons.key_rounded, size: 18),
+              label: Text(l.translate('generate_code')),
+            )),
+        ],
       ),
     );
   }

@@ -38,7 +38,7 @@ class _LoginScreenState extends State<LoginScreen> {
       await context.read<AuthProvider>().login(authUser);
       context.go(isApproved ? '/athlete/home' : '/pending');
     } catch (e) {
-      _showError(e is DioException ? (e.response?.data?['detail']?.toString() ?? 'Login failed') : 'Login failed');
+      _showError(e is DioException ? (e.response?.data?['detail']?.toString() ?? l.translate('login_failed')) : l.translate('login_failed'));
     } finally { if (mounted) setState(() => _loading = false); }
   }
 
