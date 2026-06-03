@@ -103,6 +103,14 @@ CREATE TABLE IF NOT EXISTS measurement_logs (
     created_at TIMESTAMP DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS parent_access_codes (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    code VARCHAR(10) UNIQUE NOT NULL,
+    expires_at TIMESTAMP NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS performance_logs (
     id SERIAL PRIMARY KEY,
     athlete_id INTEGER NOT NULL REFERENCES athletes(id),

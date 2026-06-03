@@ -15,6 +15,26 @@ from app import head_coach
 
 app = FastAPI()
 
+
+@app.on_event("startup")
+def run_migrations():
+    from app.database import get_connection
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS parent_access_codes (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER NOT NULL REFERENCES users(id),
+            code VARCHAR(10) UNIQUE NOT NULL,
+            expires_at TIMESTAMP NOT NULL,
+            created_at TIMESTAMP DEFAULT NOW()
+        )
+    """)
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+
 # ✅ Enable CORS
 app.add_middleware(
     CORSMiddleware,
