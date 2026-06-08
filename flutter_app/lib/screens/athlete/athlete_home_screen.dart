@@ -21,6 +21,7 @@ class AthleteHomeScreenState extends State<AthleteHomeScreen> with AutomaticKeep
   String? paymentStatus;
   bool loading = true;
   bool _fetched = false;
+  int _unreadCount = 0;
 
   @override
   bool get wantKeepAlive => true;
@@ -85,6 +86,12 @@ class AthleteHomeScreenState extends State<AthleteHomeScreen> with AutomaticKeep
 
       paymentStatus = (results[3] is Map ? results[3] as Map : {})[_dueDateKey()] ?? 'pending';
       _fetched = true;
+
+      // Fetch unread notification count
+      try {
+        final notifRes = await ApiService().get('/notifications/unread-count');
+        _unreadCount = notifRes.data['count'] ?? 0;
+      } catch (_) {}
     } catch (_) {} finally { if (mounted) setState(() => loading = false); }
   }
 
@@ -110,6 +117,33 @@ class AthleteHomeScreenState extends State<AthleteHomeScreen> with AutomaticKeep
                   const SizedBox(height: 2),
                   Text(DateFormat('EEEE, MMM d', l.locale.languageCode).format(DateTime.now()), style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
                 ])),
+                GestureDetector(
+                  onTap: () async {
+                    await context.push('/athlete/notifications');
+                    _fetchData(silent: true);
+                  },
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Container(
+                        width: 42, height: 42,
+                        decoration: BoxDecoration(color: AppColors.surfaceLight, borderRadius: BorderRadius.circular(12)),
+                        child: const Icon(Icons.notifications_outlined, color: AppColors.textSecondary, size: 24),
+                      ),
+                      if (_unreadCount > 0)
+                        Positioned(
+                          right: -4, top: -4,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                            decoration: BoxDecoration(color: AppColors.error, borderRadius: BorderRadius.circular(10)),
+                            constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+                            child: Center(child: Text(_unreadCount > 99 ? '99+' : '$_unreadCount', style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700))),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
                 GradientAvatar(name: 'HFA', size: 40),
               ])),
               const SizedBox(height: 24),

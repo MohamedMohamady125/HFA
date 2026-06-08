@@ -288,6 +288,39 @@ class AppLocalizations {
       'created_text': 'created!',
       'server_error': 'Server error',
 
+      // Branches
+      'our_branches': 'Our Branches',
+      'practice_schedule': 'Practice Schedule',
+      'branch_tour': 'Branch Tour',
+      'watch_video': 'Watch Video',
+      'ready_to_join': 'Ready to join HFA?',
+      'no_branches_found': 'No branches found',
+      'failed_load_branches': 'Failed to load branches',
+
+      // Health History
+      'health_history': 'Health History',
+      'health_history_desc': 'Track your medical records and conditions',
+      'no_health_records': 'No health records yet',
+      'tap_add_record': 'Tap + to add your first record',
+      'new_health_record': 'New Health Record',
+      'record_name': 'CONDITION NAME',
+      'record_name_hint': 'e.g. Shoulder injury, Asthma...',
+      'notes_label': 'NOTES',
+      'notes_hint': 'Describe the condition, treatment, etc.',
+      'attachments': 'PHOTOS',
+      'max_2_photos': 'Up to 2 photos (medical reports, X-rays, etc.)',
+      'save_record': 'Save Record',
+      'record_created': 'Health record saved!',
+      'enter_record_title': 'Please enter a condition name',
+      'delete_health_record_confirm': 'Are you sure you want to delete this health record?',
+
+      // Coach Notes
+      'coach_notes': 'Coach Notes',
+      'add_note': 'Add Note',
+      'no_coach_notes': 'No coach notes yet',
+      'coach_note_hint': 'Write your observations about this swimmer...',
+      'add_coach_note': 'Add Coach Note',
+
       // Parent Access
       'parent_access': 'Parent Access',
       'parent_access_desc': 'Let your parent view your account',
@@ -300,6 +333,16 @@ class AppLocalizations {
       'access_code': 'ACCESS CODE',
       'enter_code': 'Please enter a code',
       'invalid_code': 'Invalid or expired code',
+
+      // Notifications
+      'notifications': 'Notifications',
+      'no_notifications': 'No notifications yet',
+      'no_notifications_desc': 'You\'ll be notified when your coach posts updates',
+      'mark_all_read': 'Mark all as read',
+      'just_now': 'Just now',
+      'minutes_ago': 'm ago',
+      'hours_ago': 'h ago',
+      'days_ago': 'd ago',
     },
     'ar': {
       // Guest Home
@@ -576,6 +619,39 @@ class AppLocalizations {
       'created_text': '\u062a\u0645 \u0625\u0646\u0634\u0627\u0624\u0647!',
       'server_error': '\u062e\u0637\u0623 \u0641\u064a \u0627\u0644\u062e\u0627\u062f\u0645',
 
+      // Branches
+      'our_branches': '\u0641\u0631\u0648\u0639\u0646\u0627',
+      'practice_schedule': '\u0645\u0648\u0627\u0639\u064a\u062f \u0627\u0644\u062a\u0645\u0631\u064a\u0646',
+      'branch_tour': '\u062c\u0648\u0644\u0629 \u0627\u0644\u0641\u0631\u0639',
+      'watch_video': '\u0645\u0634\u0627\u0647\u062f\u0629 \u0627\u0644\u0641\u064a\u062f\u064a\u0648',
+      'ready_to_join': '\u0645\u0633\u062a\u0639\u062f \u0644\u0644\u0627\u0646\u0636\u0645\u0627\u0645 \u0625\u0644\u0649 HFA\u061f',
+      'no_branches_found': '\u0644\u0627 \u062a\u0648\u062c\u062f \u0641\u0631\u0648\u0639',
+      'failed_load_branches': '\u0641\u0634\u0644 \u062a\u062d\u0645\u064a\u0644 \u0627\u0644\u0641\u0631\u0648\u0639',
+
+      // Health History
+      'health_history': '\u0627\u0644\u0633\u062c\u0644 \u0627\u0644\u0635\u062d\u064a',
+      'health_history_desc': '\u062a\u062a\u0628\u0639 \u0633\u062c\u0644\u0627\u062a\u0643 \u0627\u0644\u0637\u0628\u064a\u0629 \u0648\u062d\u0627\u0644\u0627\u062a\u0643 \u0627\u0644\u0635\u062d\u064a\u0629',
+      'no_health_records': '\u0644\u0627 \u062a\u0648\u062c\u062f \u0633\u062c\u0644\u0627\u062a \u0635\u062d\u064a\u0629 \u0628\u0639\u062f',
+      'tap_add_record': '\u0627\u0636\u063a\u0637 + \u0644\u0625\u0636\u0627\u0641\u0629 \u0623\u0648\u0644 \u0633\u062c\u0644',
+      'new_health_record': '\u0633\u062c\u0644 \u0635\u062d\u064a \u062c\u062f\u064a\u062f',
+      'record_name': '\u0627\u0633\u0645 \u0627\u0644\u062d\u0627\u0644\u0629',
+      'record_name_hint': '\u0645\u062b\u0644\u0627\u064b: \u0625\u0635\u0627\u0628\u0629 \u0627\u0644\u0643\u062a\u0641\u060c \u0631\u0628\u0648...',
+      'notes_label': '\u0645\u0644\u0627\u062d\u0638\u0627\u062a',
+      'notes_hint': '\u0648\u0635\u0641 \u0627\u0644\u062d\u0627\u0644\u0629 \u0648\u0627\u0644\u0639\u0644\u0627\u062c \u0648\u063a\u064a\u0631\u0647...',
+      'attachments': '\u0635\u0648\u0631',
+      'max_2_photos': '\u062d\u062a\u0649 \u0635\u0648\u0631\u062a\u064a\u0646 (\u062a\u0642\u0627\u0631\u064a\u0631 \u0637\u0628\u064a\u0629\u060c \u0623\u0634\u0639\u0629...)',
+      'save_record': '\u062d\u0641\u0638 \u0627\u0644\u0633\u062c\u0644',
+      'record_created': '\u062a\u0645 \u062d\u0641\u0638 \u0627\u0644\u0633\u062c\u0644 \u0627\u0644\u0635\u062d\u064a!',
+      'enter_record_title': '\u064a\u0631\u062c\u0649 \u0625\u062f\u062e\u0627\u0644 \u0627\u0633\u0645 \u0627\u0644\u062d\u0627\u0644\u0629',
+      'delete_health_record_confirm': '\u0647\u0644 \u0623\u0646\u062a \u0645\u062a\u0623\u0643\u062f \u0645\u0646 \u062d\u0630\u0641 \u0647\u0630\u0627 \u0627\u0644\u0633\u062c\u0644 \u0627\u0644\u0635\u062d\u064a\u061f',
+
+      // Coach Notes
+      'coach_notes': '\u0645\u0644\u0627\u062d\u0638\u0627\u062a \u0627\u0644\u0645\u062f\u0631\u0628',
+      'add_note': '\u0625\u0636\u0627\u0641\u0629 \u0645\u0644\u0627\u062d\u0638\u0629',
+      'no_coach_notes': '\u0644\u0627 \u062a\u0648\u062c\u062f \u0645\u0644\u0627\u062d\u0638\u0627\u062a \u0628\u0639\u062f',
+      'coach_note_hint': '\u0627\u0643\u062a\u0628 \u0645\u0644\u0627\u062d\u0638\u0627\u062a\u0643 \u0639\u0646 \u0647\u0630\u0627 \u0627\u0644\u0633\u0628\u0627\u062d...',
+      'add_coach_note': '\u0625\u0636\u0627\u0641\u0629 \u0645\u0644\u0627\u062d\u0638\u0629 \u0627\u0644\u0645\u062f\u0631\u0628',
+
       // Parent Access
       'parent_access': '\u062f\u062e\u0648\u0644 \u0648\u0644\u064a \u0627\u0644\u0623\u0645\u0631',
       'parent_access_desc': '\u0627\u0633\u0645\u062d \u0644\u0648\u0627\u0644\u062f\u0643 \u0628\u0645\u0634\u0627\u0647\u062f\u0629 \u062d\u0633\u0627\u0628\u0643',
@@ -588,6 +664,16 @@ class AppLocalizations {
       'access_code': '\u0631\u0645\u0632 \u0627\u0644\u062f\u062e\u0648\u0644',
       'enter_code': '\u064a\u0631\u062c\u0649 \u0625\u062f\u062e\u0627\u0644 \u0627\u0644\u0631\u0645\u0632',
       'invalid_code': '\u0631\u0645\u0632 \u063a\u064a\u0631 \u0635\u0627\u0644\u062d \u0623\u0648 \u0645\u0646\u062a\u0647\u064a \u0627\u0644\u0635\u0644\u0627\u062d\u064a\u0629',
+
+      // Notifications
+      'notifications': '\u0627\u0644\u0625\u0634\u0639\u0627\u0631\u0627\u062a',
+      'no_notifications': '\u0644\u0627 \u062a\u0648\u062c\u062f \u0625\u0634\u0639\u0627\u0631\u0627\u062a',
+      'no_notifications_desc': '\u0633\u064a\u062a\u0645 \u0625\u0634\u0639\u0627\u0631\u0643 \u0639\u0646\u062f \u0646\u0634\u0631 \u0627\u0644\u0645\u062f\u0631\u0628 \u0644\u062a\u062d\u062f\u064a\u062b\u0627\u062a',
+      'mark_all_read': '\u062a\u0639\u064a\u064a\u0646 \u0627\u0644\u0643\u0644 \u0643\u0645\u0642\u0631\u0648\u0621',
+      'just_now': '\u0627\u0644\u0622\u0646',
+      'minutes_ago': '\u062f \u0645\u0636\u062a',
+      'hours_ago': '\u0633 \u0645\u0636\u062a',
+      'days_ago': '\u064a \u0645\u0636\u062a',
     },
   };
 

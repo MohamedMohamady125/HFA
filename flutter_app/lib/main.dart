@@ -27,6 +27,8 @@ import 'screens/coach/edit_profile_screen.dart';
 import 'screens/coach/head_coach_branches_screen.dart';
 import 'screens/coach/manage_coaches_screen.dart';
 import 'screens/athlete/athlete_attendance_screen.dart';
+import 'screens/athlete/notifications_screen.dart';
+import 'screens/auth/branches_screen.dart';
 
 import 'services/offline/hive_cache.dart';
 import 'services/offline/sync_queue.dart';
@@ -85,7 +87,7 @@ class _HFAAppState extends State<HFAApp> {
         if (auth.loading) return null;
         final loc = state.matchedLocation;
 
-        final guestOnly = ['/guest-home', '/login', '/register', '/admin-login', '/head-coach-login', '/forgot-password', '/parent-code'];
+        final guestOnly = ['/guest-home', '/login', '/register', '/admin-login', '/head-coach-login', '/forgot-password', '/parent-code', '/branches'];
         final isGuestOnly = guestOnly.any((r) => loc.startsWith(r));
 
         if (!auth.isLoggedIn) {
@@ -111,6 +113,7 @@ class _HFAAppState extends State<HFAApp> {
         GoRoute(path: '/pending', builder: (_, __) => const PendingScreen()),
         GoRoute(path: '/forgot-password', builder: (_, __) => const ForgotPasswordScreen()),
         GoRoute(path: '/parent-code', builder: (_, __) => const ParentCodeScreen()),
+        GoRoute(path: '/branches', builder: (_, __) => const BranchesScreen()),
         GoRoute(path: '/change-password', builder: (_, __) => const ChangePasswordScreen()),
         GoRoute(path: '/edit-profile', builder: (_, __) => const EditProfileScreen()),
         GoRoute(path: '/head-coach-branches', builder: (_, __) => const HeadCoachBranchesScreen()),
@@ -120,6 +123,7 @@ class _HFAAppState extends State<HFAApp> {
         GoRoute(path: '/coach-manage/attendance', builder: (_, __) => const AttendanceScreen()),
         GoRoute(path: '/coach-manage/summary', builder: (_, __) => const AttendanceSummaryScreen()),
         GoRoute(path: '/athlete/attendance-history', builder: (_, __) => const AthleteAttendanceScreen()),
+        GoRoute(path: '/athlete/notifications', builder: (_, __) => const NotificationsScreen()),
         GoRoute(path: '/athlete/home', builder: (_, __) => const AthleteShell(child: SizedBox())),
         GoRoute(path: '/coach/home', builder: (_, __) => const CoachShell(child: SizedBox())),
       ],

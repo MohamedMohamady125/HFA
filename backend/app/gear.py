@@ -85,6 +85,22 @@ def post_gear(branch_id: int, data: GearPost, user=Depends(get_current_user)):
         "INSERT INTO posts (thread_id, user_id, message) VALUES (%s, %s, %s)",
         (thread_id, user["id"], data.content)
     )
+
+    # Notify all athletes in this branch
+    cursor.execute("""
+        SELECT u.id FROM users u
+        JOIN athletes a ON a.user_id = u.id
+        WHERE u.branch_id = %s AND u.approved = TRUE AND u.id != %s
+    """, (branch_id, user["id"]))
+    athlete_user_ids = [row["id"] for row in cursor.fetchall()]
+    sender_name = user.get("name", "Coach")
+    notif_msg = f"{sender_name} updated the gear list"
+    for uid in athlete_user_ids:
+        cursor.execute(
+            "INSERT INTO notifications (user_id, message, type) VALUES (%s, %s, 'gear')",
+            (uid, notif_msg)
+        )
+
     conn.commit()
     cursor.close()
     conn.close()

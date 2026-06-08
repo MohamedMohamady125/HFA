@@ -41,6 +41,20 @@ def send_notification(user_id: int, message: str, user=Depends(get_current_user)
     conn.close()
     return {"message": "Notification sent"}
 
+@router.get("/unread-count")
+def get_unread_count(user=Depends(get_current_user)):
+    conn = get_connection()
+    cursor = get_cursor(conn)
+    cursor.execute(
+        "SELECT COUNT(*) as count FROM notifications WHERE user_id = %s AND read_status = FALSE",
+        (user["id"],)
+    )
+    row = cursor.fetchone()
+    cursor.close()
+    conn.close()
+    return {"count": row["count"] if row else 0}
+
+
 @router.post("/read/{notification_id}")
 def mark_as_read(notification_id: int, user=Depends(get_current_user)):
     conn = get_connection()
@@ -53,3 +67,17 @@ def mark_as_read(notification_id: int, user=Depends(get_current_user)):
     cursor.close()
     conn.close()
     return {"message": "Notification marked as read"}
+
+
+@router.post("/read-all")
+def mark_all_as_read(user=Depends(get_current_user)):
+    conn = get_connection()
+    cursor = get_cursor(conn)
+    cursor.execute(
+        "UPDATE notifications SET read_status = TRUE WHERE user_id = %s AND read_status = FALSE",
+        (user["id"],)
+    )
+    conn.commit()
+    cursor.close()
+    conn.close()
+    return {"message": "All notifications marked as read"}

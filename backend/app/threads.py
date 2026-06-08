@@ -170,6 +170,24 @@ def post_message(thread_id: int, data: MessageCreate, user=Depends(get_current_u
             INSERT INTO posts (thread_id, user_id, message, created_at)
             VALUES (%s, %s, %s, NOW())
         """, (thread_id, user["id"], data.message))
+
+        # Notify all athletes in this branch
+        branch_id = thread["branch_id"]
+        cursor.execute("""
+            SELECT u.id FROM users u
+            JOIN athletes a ON a.user_id = u.id
+            WHERE u.branch_id = %s AND u.approved = TRUE AND u.id != %s
+        """, (branch_id, user["id"]))
+        athlete_user_ids = [row["id"] for row in cursor.fetchall()]
+        sender_name = user.get("name", "Coach")
+        preview = data.message[:80] + ("..." if len(data.message) > 80 else "")
+        notif_msg = f"{sender_name}: {preview}"
+        for uid in athlete_user_ids:
+            cursor.execute(
+                "INSERT INTO notifications (user_id, message, type) VALUES (%s, %s, 'thread')",
+                (uid, notif_msg)
+            )
+
         conn.commit()
 
         return {"message": "Post added", "success": True}
