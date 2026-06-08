@@ -30,6 +30,16 @@ def run_migrations():
             created_at TIMESTAMP DEFAULT NOW()
         )
     """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS device_tokens (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER NOT NULL REFERENCES users(id),
+            token TEXT NOT NULL,
+            platform VARCHAR(20),
+            created_at TIMESTAMP DEFAULT NOW(),
+            UNIQUE(user_id, token)
+        )
+    """)
     conn.commit()
     cursor.close()
     conn.close()

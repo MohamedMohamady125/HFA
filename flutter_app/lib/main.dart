@@ -30,9 +30,12 @@ import 'screens/athlete/athlete_attendance_screen.dart';
 import 'screens/athlete/notifications_screen.dart';
 import 'screens/auth/branches_screen.dart';
 
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 import 'services/offline/hive_cache.dart';
 import 'services/offline/sync_queue.dart';
 import 'services/offline/connectivity_service.dart';
+import 'services/push_notification_service.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -45,6 +48,10 @@ void main() async {
 
   // Initialize date formatting for Arabic
   await initializeDateFormatting('ar');
+
+  // Initialize Firebase
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  await PushNotificationService.init();
 
   // Initialize offline layer
   await HiveCache.init();

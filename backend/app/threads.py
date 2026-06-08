@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from app.database import get_connection, get_cursor
 from app.deps import get_current_user
 from app.utils.auth_utils import can_access_branch
+from app.utils.push import send_push_to_users
 
 router = APIRouter()
 
@@ -189,6 +190,9 @@ def post_message(thread_id: int, data: MessageCreate, user=Depends(get_current_u
             )
 
         conn.commit()
+
+        # Send push notifications (after commit so DB is consistent)
+        send_push_to_users(cursor, athlete_user_ids, "New Message", notif_msg)
 
         return {"message": "Post added", "success": True}
 

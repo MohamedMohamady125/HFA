@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from app.database import get_connection, get_cursor
 from app.deps import get_current_user
+from app.utils.push import send_push_to_users
 
 router = APIRouter()
 
@@ -102,6 +103,10 @@ def post_gear(branch_id: int, data: GearPost, user=Depends(get_current_user)):
         )
 
     conn.commit()
+
+    # Send push notifications (after commit so DB is consistent)
+    send_push_to_users(cursor, athlete_user_ids, "Gear Update", notif_msg)
+
     cursor.close()
     conn.close()
 

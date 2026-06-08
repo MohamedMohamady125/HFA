@@ -4,6 +4,7 @@ import 'dart:convert';
 import '../services/api_service.dart';
 import '../services/offline/hive_cache.dart';
 import '../services/offline/offline_repository.dart';
+import '../services/push_notification_service.dart';
 
 class AuthProvider extends ChangeNotifier {
   Map<String, dynamic>? _user;
@@ -33,6 +34,8 @@ class AuthProvider extends ChangeNotifier {
       ApiService.setToken(_user?['token']);
       // Background prefetch for instant screens
       OfflineRepository.prefetchForUser(_user!);
+      // Register device for push notifications
+      PushNotificationService.registerDevice();
     }
     _loading = false;
     notifyListeners();
@@ -52,6 +55,8 @@ class AuthProvider extends ChangeNotifier {
     }
 
     notifyListeners();
+    // Register device for push notifications
+    PushNotificationService.registerDevice();
     // Prefetch all data — await on branch switch so cache is warm before screens load
     if (oldBranchId != null && newBranchId != null && oldBranchId != newBranchId) {
       await OfflineRepository.prefetchForUser(userData);

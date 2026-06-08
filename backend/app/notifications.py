@@ -1,8 +1,29 @@
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from app.database import get_connection, get_cursor
 from app.deps import get_current_user
 
 router = APIRouter()
+
+
+class DeviceTokenRequest(BaseModel):
+    token: str
+    platform: str = "unknown"
+
+
+@router.post("/register-device")
+def register_device(data: DeviceTokenRequest, user=Depends(get_current_user)):
+    conn = get_connection()
+    cursor = get_cursor(conn)
+    cursor.execute("""
+        INSERT INTO device_tokens (user_id, token, platform)
+        VALUES (%s, %s, %s)
+        ON CONFLICT (user_id, token) DO NOTHING
+    """, (user["id"], data.token, data.platform))
+    conn.commit()
+    cursor.close()
+    conn.close()
+    return {"message": "Device registered"}
 
 @router.get("/")
 def get_notifications(user=Depends(get_current_user)):
