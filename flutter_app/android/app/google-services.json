@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "647299017326",
+    "project_id": "hfaapp-947e5",
+    "storage_bucket": "hfaapp-947e5.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:647299017326:android:7d8cec07920568af9a947f",
+        "android_client_info": {
+          "package_name": "com.hfa.academy"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBAqA_fgxh-X_PNxl9_gy04PssZ0NxL-Z8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

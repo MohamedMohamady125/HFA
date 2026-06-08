@@ -22,10 +22,9 @@ class DefaultFirebaseOptions {
     iosBundleId: 'com.hfa.academy',
   );
 
-  // TODO: Add Android config when google-services.json is available
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyD9dCIrsjLkmDpy-XnD_UkV_PsxmngyRz0',
-    appId: '1:647299017326:ios:14d1ca48827af2e69a947f',
+    apiKey: 'AIzaSyBAqA_fgxh-X_PNxl9_gy04PssZ0NxL-Z8',
+    appId: '1:647299017326:android:7d8cec07920568af9a947f',
     messagingSenderId: '647299017326',
     projectId: 'hfaapp-947e5',
     storageBucket: 'hfaapp-947e5.firebasestorage.app',
