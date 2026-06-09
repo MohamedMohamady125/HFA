@@ -25,6 +25,21 @@ def register_device(data: DeviceTokenRequest, user=Depends(get_current_user)):
     conn.close()
     return {"message": "Device registered"}
 
+@router.get("/debug-device-tokens")
+def debug_device_tokens(user=Depends(get_current_user)):
+    conn = get_connection()
+    cursor = get_cursor(conn)
+    cursor.execute("SELECT id, user_id, token, platform, created_at FROM device_tokens ORDER BY created_at DESC LIMIT 50")
+    rows = [dict(r) for r in cursor.fetchall()]
+    # Mask tokens for safety
+    for r in rows:
+        t = r.get("token", "")
+        r["token"] = t[:20] + "..." if len(t) > 20 else t
+    cursor.close()
+    conn.close()
+    return rows
+
+
 @router.get("/")
 def get_notifications(user=Depends(get_current_user)):
     conn = get_connection()
