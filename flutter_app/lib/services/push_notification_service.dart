@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'api_service.dart';
@@ -22,45 +23,66 @@ class PushNotificationService {
     );
 
     if (kDebugMode) {
-      print('Push permission: ${settings.authorizationStatus}');
+      print('[PUSH] Permission: ${settings.authorizationStatus}');
     }
 
-    // Get APNs token first (iOS only)
-    await _messaging.getAPNSToken();
+    // On iOS, wait for APNs token — retry up to 10 times
+    if (Platform.isIOS) {
+      String? apnsToken;
+      for (int i = 0; i < 10; i++) {
+        apnsToken = await _messaging.getAPNSToken();
+        if (apnsToken != null) break;
+        if (kDebugMode) print('[PUSH] Waiting for APNs token... attempt ${i + 1}');
+        await Future.delayed(const Duration(seconds: 2));
+      }
+      if (kDebugMode) print('[PUSH] APNs token: ${apnsToken != null ? "received" : "NOT received"}');
+    }
 
     // Listen for token refresh
-    _messaging.onTokenRefresh.listen(_sendTokenToBackend);
+    _messaging.onTokenRefresh.listen((token) {
+      if (kDebugMode) print('[PUSH] Token refreshed');
+      _sendTokenToBackend(token);
+    });
 
     // Handle foreground messages
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       if (kDebugMode) {
-        print('Foreground message: ${message.notification?.title} - ${message.notification?.body}');
+        print('[PUSH] Foreground: ${message.notification?.title} - ${message.notification?.body}');
       }
     });
   }
 
   /// Call after user logs in to register the device token
   static Future<void> registerDevice() async {
-    try {
-      final token = await _messaging.getToken();
-      if (token != null && token != _lastRegisteredToken) {
-        await _sendTokenToBackend(token);
+    // Retry getting FCM token — on iOS it can take a moment after APNs is ready
+    for (int i = 0; i < 5; i++) {
+      try {
+        final token = await _messaging.getToken();
+        if (kDebugMode) print('[PUSH] FCM token attempt ${i + 1}: ${token != null ? token.substring(0, 20) + "..." : "null"}');
+        if (token != null) {
+          if (token != _lastRegisteredToken) {
+            await _sendTokenToBackend(token);
+          }
+          return;
+        }
+      } catch (e) {
+        if (kDebugMode) print('[PUSH] FCM token error: $e');
       }
-    } catch (e) {
-      if (kDebugMode) print('Failed to get FCM token: $e');
+      await Future.delayed(const Duration(seconds: 3));
     }
+    if (kDebugMode) print('[PUSH] Failed to get FCM token after 5 attempts');
   }
 
   static Future<void> _sendTokenToBackend(String token) async {
     try {
       await ApiService().post('/notifications/register-device', data: {
         'token': token,
-        'platform': defaultTargetPlatform.name,
+        'platform': Platform.isIOS ? 'iOS' : 'Android',
       });
       _lastRegisteredToken = token;
-      if (kDebugMode) print('FCM token registered: ${token.substring(0, 20)}...');
+      if (kDebugMode) print('[PUSH] Token registered with backend');
     } catch (e) {
-      if (kDebugMode) print('Failed to register FCM token: $e');
+      if (kDebugMode) print('[PUSH] Failed to register token: $e');
     }
   }
 }
