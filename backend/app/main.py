@@ -187,3 +187,54 @@ def privacy_policy():
     <p>Email: <a href="mailto:mohamadhany97@gmail.com">mohamadhany97@gmail.com</a></p>
 </body>
 </html>"""
+
+
+@app.get("/delete-account", response_class=HTMLResponse)
+def delete_account():
+    return """<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Delete Account – HFA Fitness</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; line-height: 1.6; color: #333; }
+        h1 { color: #1a1a1a; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        h2 { color: #2c2c2c; margin-top: 30px; }
+        ul { padding-left: 20px; }
+        li { margin-bottom: 6px; }
+        .warning { background: #fff3cd; border: 1px solid #ffc107; padding: 15px; border-radius: 8px; margin: 20px 0; }
+    </style>
+</head>
+<body>
+    <h1>Delete Your Account</h1>
+    <p>If you would like to delete your HFA Fitness account and all associated data, please follow the steps below.</p>
+
+    <h2>How to Request Account Deletion</h2>
+    <p>Send an email to <a href="mailto:mohamadhany97@gmail.com?subject=Account%20Deletion%20Request">mohamadhany97@gmail.com</a> with the following details:</p>
+    <ul>
+        <li>Subject line: <strong>Account Deletion Request</strong></li>
+        <li>Your registered email address</li>
+        <li>Your full name as it appears in the app</li>
+    </ul>
+
+    <h2>What Gets Deleted</h2>
+    <p>Upon processing your request, the following data will be permanently deleted:</p>
+    <ul>
+        <li>Your account information (name, email, phone number)</li>
+        <li>Body measurements and performance records</li>
+        <li>Health history records</li>
+        <li>Attendance records</li>
+        <li>Payment records</li>
+        <li>Forum posts and messages</li>
+        <li>Device tokens and notification history</li>
+    </ul>
+
+    <div class="warning">
+        <strong>Please note:</strong> Account deletion is permanent and cannot be undone. All your data will be removed within 30 days of your request.
+    </div>
+
+    <h2>Contact</h2>
+    <p>If you have questions, contact us at <a href="mailto:mohamadhany97@gmail.com">mohamadhany97@gmail.com</a></p>
+</body>
+</html>"""
