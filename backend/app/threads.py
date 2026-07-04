@@ -180,10 +180,22 @@ def post_message(thread_id: int, data: MessageCreate, user=Depends(get_current_u
             WHERE u.branch_id = %s AND u.approved = TRUE AND u.id != %s
         """, (branch_id, user["id"]))
         athlete_user_ids = [row["id"] for row in cursor.fetchall()]
+
+        # Notify other coaches assigned to this branch (a coach can be assigned to multiple branches)
+        cursor.execute("""
+            SELECT DISTINCT ca.user_id FROM coach_assignments ca
+            WHERE ca.branch_id = %s AND ca.user_id != %s
+        """, (branch_id, user["id"]))
+        coach_user_ids = [row["user_id"] for row in cursor.fetchall()]
+
+        cursor.execute("SELECT name FROM branches WHERE id = %s", (branch_id,))
+        branch_row = cursor.fetchone()
+        branch_name = branch_row["name"] if branch_row else f"Branch {branch_id}"
+
         sender_name = user.get("name", "Coach")
         preview = data.message[:80] + ("..." if len(data.message) > 80 else "")
         notif_msg = f"{sender_name}: {preview}"
-        for uid in athlete_user_ids:
+        for uid in athlete_user_ids + coach_user_ids:
             cursor.execute(
                 "INSERT INTO notifications (user_id, message, type) VALUES (%s, %s, 'thread')",
                 (uid, notif_msg)
@@ -192,7 +204,8 @@ def post_message(thread_id: int, data: MessageCreate, user=Depends(get_current_u
         conn.commit()
 
         # Send push notifications (after commit so DB is consistent)
-        send_push_to_users(cursor, athlete_user_ids, "New Message", notif_msg)
+        push_title = f"New Message \u2022 {branch_name}"
+        send_push_to_users(cursor, athlete_user_ids + coach_user_ids, push_title, notif_msg)
 
         return {"message": "Post added", "success": True}
 

@@ -74,24 +74,28 @@ class _GuestHomeScreenState extends State<GuestHomeScreen> with TickerProviderSt
                     FadeSlideIn(delay: 500, child: Text(l.translate('branch_count'), style: const TextStyle(fontSize: 14, color: AppColors.textSecondary))),
                     const SizedBox(height: 40),
 
-                    // Branch card
-                    FadeSlideIn(delay: 600, child: Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: AppColors.accentLight,
-                        borderRadius: BorderRadius.circular(16),
+                    // Branch card - tappable
+                    FadeSlideIn(delay: 600, child: ScaleOnTap(
+                      onTap: () => context.push('/branches'),
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: AppColors.accentLight,
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Row(children: [
+                          Container(width: 40, height: 40, decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(10)),
+                            child: const Icon(Icons.location_on_rounded, color: AppColors.accent, size: 20)),
+                          const SizedBox(width: 12),
+                          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            Text(l.translate('our_branches'), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.accent, letterSpacing: 0.5)),
+                            const SizedBox(height: 3),
+                            Text(l.translate('branch_count'), style: const TextStyle(fontSize: 14, color: AppColors.textPrimary, fontWeight: FontWeight.w500)),
+                            Text(l.translate('view_branches'), style: const TextStyle(fontSize: 12, color: AppColors.accent, fontWeight: FontWeight.w600)),
+                          ])),
+                          const Icon(Icons.chevron_right_rounded, color: AppColors.accent, size: 20),
+                        ]),
                       ),
-                      child: Row(children: [
-                        Container(width: 40, height: 40, decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(10)),
-                          child: const Icon(Icons.location_on_rounded, color: AppColors.accent, size: 20)),
-                        const SizedBox(width: 12),
-                        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Text(l.translate('nearest_branch'), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.accent, letterSpacing: 0.5)),
-                          const SizedBox(height: 3),
-                          Text(l.translate('branch_name'), style: const TextStyle(fontSize: 14, color: AppColors.textPrimary, fontWeight: FontWeight.w500)),
-                          Text(l.translate('practice_time'), style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-                        ])),
-                      ]),
                     )),
                     const SizedBox(height: 40),
 

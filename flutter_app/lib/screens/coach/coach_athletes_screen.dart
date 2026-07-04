@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'dart:convert';
 import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
 import '../../services/offline/offline_repository.dart';
@@ -126,11 +127,13 @@ class _AthleteDetailScreenState extends State<_AthleteDetailScreen> {
   DateTime _currentMonth = DateTime(DateTime.now().year, DateTime.now().month);
   Map<String, String> _attMap = {};
   bool _loadingCal = true;
+  List<dynamic> _healthRecords = [];
+  List<dynamic> _coachNotes = [];
 
   Map<String, dynamic> get a => widget.athlete;
 
   @override
-  void initState() { super.initState(); _fetchMonth(); }
+  void initState() { super.initState(); _fetchMonth(); _fetchHealthRecords(); _fetchCoachNotes(); }
 
   Future<void> _fetchMonth() async {
     setState(() => _loadingCal = true);
@@ -139,6 +142,63 @@ class _AthleteDetailScreenState extends State<_AthleteDetailScreen> {
       _attMap = { for (var r in (res.data as List)) r['date'].toString(): r['status']?.toString() ?? '' };
     } catch (_) { _attMap = {}; }
     finally { if (mounted) setState(() => _loadingCal = false); }
+  }
+
+  Future<void> _fetchHealthRecords() async {
+    try {
+      final res = await ApiService().get('/athlete/${a['user_id']}/health-records');
+      if (mounted) setState(() => _healthRecords = res.data is List ? res.data : []);
+    } catch (_) {}
+  }
+
+  Future<void> _fetchCoachNotes() async {
+    try {
+      final res = await ApiService().get('/coach/notes/${a['athlete_id']}');
+      if (mounted) setState(() => _coachNotes = res.data is List ? res.data : []);
+    } catch (_) {}
+  }
+
+  Future<void> _addCoachNote() async {
+    final l = AppLocalizations.of(context);
+    final noteCtrl = TextEditingController();
+    final now = DateTime.now();
+    final periodStart = now.subtract(Duration(days: now.weekday - 1));
+    final periodEnd = periodStart.add(const Duration(days: 13));
+    final periodLabel = '${DateFormat('MMM d').format(periodStart)} - ${DateFormat('MMM d, yyyy').format(periodEnd)}';
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l.translate('add_coach_note'), style: const TextStyle(fontWeight: FontWeight.w700)),
+        content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(color: AppColors.accentLight, borderRadius: BorderRadius.circular(8)),
+            child: Row(children: [
+              const Icon(Icons.date_range_rounded, size: 16, color: AppColors.accent),
+              const SizedBox(width: 8),
+              Text(periodLabel, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.accent)),
+            ]),
+          ),
+          const SizedBox(height: 14),
+          TextField(controller: noteCtrl, maxLines: 5, decoration: InputDecoration(hintText: l.translate('coach_note_hint'))),
+        ])),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l.translate('cancel'))),
+          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: Text(l.translate('save'))),
+        ],
+      ),
+    );
+
+    if (result != true || noteCtrl.text.trim().isEmpty) return;
+    try {
+      await ApiService().post('/coach/notes', data: {
+        'athlete_id': a['athlete_id'],
+        'note': noteCtrl.text.trim(),
+        'period_label': periodLabel,
+      });
+      _fetchCoachNotes();
+    } catch (_) {}
   }
 
   void _prevMonth() { setState(() => _currentMonth = DateTime(_currentMonth.year, _currentMonth.month - 1)); _fetchMonth(); }
@@ -247,6 +307,82 @@ class _AthleteDetailScreenState extends State<_AthleteDetailScreen> {
                   Icon(Icons.info_outline_rounded, color: AppColors.textTertiary, size: 18), const SizedBox(width: 8),
                   Text(AppLocalizations.of(context).translate('no_swim_events'), style: const TextStyle(color: AppColors.textSecondary, fontSize: 14)),
                 ]))),
+
+          // ─── Health History (from athlete) ─────────────────
+          const SizedBox(height: 8),
+          FadeSlideIn(delay: 400, child: SectionHeader(title: AppLocalizations.of(context).translate('health_history'))),
+          FadeSlideIn(delay: 420, child: _healthRecords.isEmpty
+              ? AppCard(child: Row(children: [
+                  Icon(Icons.info_outline_rounded, color: AppColors.textTertiary, size: 18), const SizedBox(width: 8),
+                  Expanded(child: Text(AppLocalizations.of(context).translate('no_health_records'), style: const TextStyle(color: AppColors.textSecondary, fontSize: 14))),
+                ]))
+              : Column(children: _healthRecords.map((r) {
+                  final files = r['files'] as List? ?? [];
+                  final date = r['created_at'] != null ? DateTime.tryParse(r['created_at']) : null;
+                  final dateStr = date != null ? '${date.day}/${date.month}/${date.year}' : '';
+                  return Padding(padding: const EdgeInsets.only(bottom: 8), child: AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Row(children: [
+                      Container(width: 36, height: 36, decoration: BoxDecoration(color: AppColors.error.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
+                        child: const Icon(Icons.medical_information_rounded, color: AppColors.error, size: 18)),
+                      const SizedBox(width: 10),
+                      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Text(r['title'] ?? '', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+                        Text(dateStr, style: const TextStyle(fontSize: 11, color: AppColors.textTertiary)),
+                      ])),
+                    ]),
+                    if (r['notes'] != null && r['notes'].toString().isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Text(r['notes'], style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+                    ],
+                    if (files.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      SizedBox(height: 64, child: ListView.separated(
+                        scrollDirection: Axis.horizontal, itemCount: files.length,
+                        separatorBuilder: (_, __) => const SizedBox(width: 6),
+                        itemBuilder: (_, fi) {
+                          try {
+                            final bytes = base64Decode(files[fi]['file_data']);
+                            return ClipRRect(borderRadius: BorderRadius.circular(8), child: Image.memory(bytes, width: 64, height: 64, fit: BoxFit.cover));
+                          } catch (_) {
+                            return Container(width: 64, height: 64, decoration: BoxDecoration(color: AppColors.surfaceLight, borderRadius: BorderRadius.circular(8)),
+                              child: const Icon(Icons.broken_image_rounded, color: AppColors.textTertiary, size: 20));
+                          }
+                        },
+                      )),
+                    ],
+                  ])));
+                }).toList())),
+
+          // ─── Coach Notes (bi-weekly) ───────────────────────
+          const SizedBox(height: 8),
+          FadeSlideIn(delay: 500, child: SectionHeader(
+            title: AppLocalizations.of(context).translate('coach_notes'),
+            trailing: TextButton.icon(
+              onPressed: _addCoachNote,
+              icon: const Icon(Icons.add_rounded, size: 18),
+              label: Text(AppLocalizations.of(context).translate('add_note')),
+            ),
+          )),
+          FadeSlideIn(delay: 520, child: _coachNotes.isEmpty
+              ? AppCard(child: Row(children: [
+                  Icon(Icons.info_outline_rounded, color: AppColors.textTertiary, size: 18), const SizedBox(width: 8),
+                  Expanded(child: Text(AppLocalizations.of(context).translate('no_coach_notes'), style: const TextStyle(color: AppColors.textSecondary, fontSize: 14))),
+                ]))
+              : Column(children: _coachNotes.map((n) {
+                  return Padding(padding: const EdgeInsets.only(bottom: 8), child: AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Row(children: [
+                      Container(width: 36, height: 36, decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
+                        child: const Icon(Icons.note_alt_rounded, color: AppColors.accent, size: 18)),
+                      const SizedBox(width: 10),
+                      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        if (n['period_label'] != null) Text(n['period_label'], style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.accent)),
+                        Text(n['coach_name'] ?? '', style: const TextStyle(fontSize: 11, color: AppColors.textTertiary)),
+                      ])),
+                    ]),
+                    const SizedBox(height: 8),
+                    Text(n['note'] ?? '', style: const TextStyle(fontSize: 14, color: AppColors.textPrimary)),
+                  ])));
+                }).toList())),
         ]),
       ),
     );

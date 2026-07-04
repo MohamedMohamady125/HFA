@@ -52,6 +52,9 @@ class AppLocalizations {
       'select_branch': 'Select your branch',
       'submit_registration': 'Submit Registration',
       'registration_submitted': 'Registration submitted! A coach will review your request.',
+      'successfully_registered': 'Successfully registered',
+      'invalid_login': 'Invalid login',
+      'ok': 'OK',
       'passwords_no_match': 'Passwords do not match.',
       'registration_info': 'Your registration will be reviewed by our coaching team.',
 
@@ -78,10 +81,19 @@ class AppLocalizations {
 
       // Reset Password
       'reset_password': 'Reset Password',
-      'forgot_desc': "Enter your email and we'll send you a reset link.",
+      'forgot_desc': "Enter your email and we'll send you a reset code.",
       'email_address': 'Email address',
       'send_reset': 'Send Reset Link',
       'reset_sent': 'Reset link sent!',
+      'send_code': 'Send Code',
+      'enter_reset_code': 'Enter Code',
+      'code_sent_to_email': 'We sent a 6-digit code to',
+      'code_expires_15': 'Code expires in 15 minutes',
+      'verify_code': 'Verify Code',
+      'resend_code': 'Resend Code',
+      'new_password_title': 'New Password',
+      'new_password_desc': 'Choose a new password for your account',
+      'password_reset_success': 'Password reset successfully! You can now log in.',
 
       // Change Password
       'change_email': 'Change Email',
@@ -383,6 +395,9 @@ class AppLocalizations {
       'select_branch': '\u0627\u062e\u062a\u0631 \u0641\u0631\u0639\u0643',
       'submit_registration': '\u0625\u0631\u0633\u0627\u0644 \u0627\u0644\u062a\u0633\u062c\u064a\u0644',
       'registration_submitted': '\u062a\u0645 \u0625\u0631\u0633\u0627\u0644 \u0627\u0644\u062a\u0633\u062c\u064a\u0644! \u0633\u064a\u0631\u0627\u062c\u0639\u0647 \u0627\u0644\u0645\u062f\u0631\u0628.',
+      'successfully_registered': '\u062a\u0645 \u0627\u0644\u062a\u0633\u062c\u064a\u0644 \u0628\u0646\u062c\u0627\u062d',
+      'invalid_login': '\u0628\u064a\u0627\u0646\u0627\u062a \u0627\u0644\u062f\u062e\u0648\u0644 \u063a\u064a\u0631 \u0635\u062d\u064a\u062d\u0629',
+      'ok': '\u062d\u0633\u0646\u0627\u064b',
       'passwords_no_match': '\u0643\u0644\u0645\u0627\u062a \u0627\u0644\u0645\u0631\u0648\u0631 \u063a\u064a\u0631 \u0645\u062a\u0637\u0627\u0628\u0642\u0629.',
       'registration_info': '\u0633\u064a\u062a\u0645 \u0645\u0631\u0627\u062c\u0639\u0629 \u062a\u0633\u062c\u064a\u0644\u0643 \u0645\u0646 \u0642\u0628\u0644 \u0641\u0631\u064a\u0642 \u0627\u0644\u062a\u062f\u0631\u064a\u0628.',
 
@@ -409,10 +424,19 @@ class AppLocalizations {
 
       // Reset Password
       'reset_password': '\u0625\u0639\u0627\u062f\u0629 \u062a\u0639\u064a\u064a\u0646 \u0643\u0644\u0645\u0629 \u0627\u0644\u0645\u0631\u0648\u0631',
-      'forgot_desc': '\u0623\u062f\u062e\u0644 \u0628\u0631\u064a\u062f\u0643 \u0627\u0644\u0625\u0644\u0643\u062a\u0631\u0648\u0646\u064a \u0648\u0633\u0646\u0631\u0633\u0644 \u0644\u0643 \u0631\u0627\u0628\u0637 \u0625\u0639\u0627\u062f\u0629 \u0627\u0644\u062a\u0639\u064a\u064a\u0646.',
+      'forgot_desc': '\u0623\u062f\u062e\u0644 \u0628\u0631\u064a\u062f\u0643 \u0627\u0644\u0625\u0644\u0643\u062a\u0631\u0648\u0646\u064a \u0648\u0633\u0646\u0631\u0633\u0644 \u0644\u0643 \u0631\u0645\u0632 \u0625\u0639\u0627\u062f\u0629 \u0627\u0644\u062a\u0639\u064a\u064a\u0646.',
       'email_address': '\u0627\u0644\u0628\u0631\u064a\u062f \u0627\u0644\u0625\u0644\u0643\u062a\u0631\u0648\u0646\u064a',
       'send_reset': '\u0625\u0631\u0633\u0627\u0644 \u0631\u0627\u0628\u0637 \u0627\u0644\u062a\u0639\u064a\u064a\u0646',
       'reset_sent': '\u062a\u0645 \u0625\u0631\u0633\u0627\u0644 \u0627\u0644\u0631\u0627\u0628\u0637!',
+      'send_code': '\u0625\u0631\u0633\u0627\u0644 \u0627\u0644\u0631\u0645\u0632',
+      'enter_reset_code': '\u0623\u062f\u062e\u0644 \u0627\u0644\u0631\u0645\u0632',
+      'code_sent_to_email': '\u0623\u0631\u0633\u0644\u0646\u0627 \u0631\u0645\u0632 \u0645\u0643\u0648\u0646 \u0645\u0646 \u0666 \u0623\u0631\u0642\u0627\u0645 \u0625\u0644\u0649',
+      'code_expires_15': '\u064a\u0646\u062a\u0647\u064a \u0627\u0644\u0631\u0645\u0632 \u062e\u0644\u0627\u0644 \u0661\u0665 \u062f\u0642\u064a\u0642\u0629',
+      'verify_code': '\u062a\u062d\u0642\u0642 \u0645\u0646 \u0627\u0644\u0631\u0645\u0632',
+      'resend_code': '\u0625\u0639\u0627\u062f\u0629 \u0625\u0631\u0633\u0627\u0644 \u0627\u0644\u0631\u0645\u0632',
+      'new_password_title': '\u0643\u0644\u0645\u0629 \u0645\u0631\u0648\u0631 \u062c\u062f\u064a\u062f\u0629',
+      'new_password_desc': '\u0627\u062e\u062a\u0631 \u0643\u0644\u0645\u0629 \u0645\u0631\u0648\u0631 \u062c\u062f\u064a\u062f\u0629 \u0644\u062d\u0633\u0627\u0628\u0643',
+      'password_reset_success': '\u062a\u0645 \u0625\u0639\u0627\u062f\u0629 \u062a\u0639\u064a\u064a\u0646 \u0643\u0644\u0645\u0629 \u0627\u0644\u0645\u0631\u0648\u0631! \u064a\u0645\u0643\u0646\u0643 \u062a\u0633\u062c\u064a\u0644 \u0627\u0644\u062f\u062e\u0648\u0644 \u0627\u0644\u0622\u0646.',
 
       // Change Password
       'change_email': '\u062a\u063a\u064a\u064a\u0631 \u0627\u0644\u0628\u0631\u064a\u062f \u0627\u0644\u0625\u0644\u0643\u062a\u0631\u0648\u0646\u064a',

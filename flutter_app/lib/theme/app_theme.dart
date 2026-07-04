@@ -63,6 +63,11 @@ class AppTheme {
 
     appBarTheme: const AppBarTheme(
       backgroundColor: Colors.transparent,
+      systemOverlayStyle: SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark,
+        statusBarBrightness: Brightness.light,
+      ),
       elevation: 0,
       scrolledUnderElevation: 0,
       centerTitle: true,
@@ -265,7 +270,7 @@ class AppLoadingScreen extends StatelessWidget {
   }
 }
 
-class AppFormField extends StatelessWidget {
+class AppFormField extends StatefulWidget {
   final String label;
   final TextEditingController controller;
   final bool obscure;
@@ -276,16 +281,31 @@ class AppFormField extends StatelessWidget {
   const AppFormField({super.key, required this.label, required this.controller, this.obscure = false, this.keyboardType, this.enabled = true, this.hint});
 
   @override
+  State<AppFormField> createState() => _AppFormFieldState();
+}
+
+class _AppFormFieldState extends State<AppFormField> {
+  late bool _obscured = widget.obscure;
+
+  @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(label, style: AppTypography.label),
+        Text(widget.label, style: AppTypography.label),
         const SizedBox(height: 8),
         TextField(
-          controller: controller, obscureText: obscure, keyboardType: keyboardType, enabled: enabled,
+          controller: widget.controller, obscureText: _obscured, keyboardType: widget.keyboardType, enabled: widget.enabled,
           style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: AppColors.textPrimary),
-          decoration: InputDecoration(hintText: hint ?? 'Enter ${label.toLowerCase()}'),
+          decoration: InputDecoration(
+            hintText: widget.hint ?? 'Enter ${widget.label.toLowerCase()}',
+            suffixIcon: widget.obscure
+                ? IconButton(
+                    icon: Icon(_obscured ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: AppColors.textTertiary, size: 20),
+                    onPressed: () => setState(() => _obscured = !_obscured),
+                  )
+                : null,
+          ),
         ),
       ]),
     );

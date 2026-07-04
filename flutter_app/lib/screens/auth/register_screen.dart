@@ -39,15 +39,38 @@ class _RegisterScreenState extends State<RegisterScreen> {
         'phone': _phoneCtrl.text.trim(), 'branch_id': int.parse(_selectedBranchId!),
       });
       if (!mounted) return;
-      _showMsg(l.translate('registration_submitted'));
+      for (var c in [_nameCtrl, _emailCtrl, _phoneCtrl, _passCtrl, _confirmCtrl]) {
+        c.clear();
+      }
+      setState(() => _selectedBranchId = null);
+      await _showSuccessDialog(l);
     } catch (e) {
       String msg = l.translate('server_error');
-      if (e is DioException && e.response?.data != null) msg = e.response!.data['detail']?.toString() ?? msg;
+      if (e is DioException) {
+        final data = e.response?.data;
+        if (data is Map && data['detail'] != null) msg = data['detail'].toString();
+      }
       _showMsg(msg, isError: true);
     } finally { if (mounted) setState(() => _loading = false); }
   }
 
+  Future<void> _showSuccessDialog(AppLocalizations l) async {
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        icon: const Icon(Icons.check_circle_rounded, color: AppColors.success, size: 48),
+        title: Text(l.translate('successfully_registered')),
+        content: Text(l.translate('registration_submitted'), textAlign: TextAlign.center),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: Text(l.translate('ok'))),
+        ],
+      ),
+    );
+  }
+
   void _showMsg(String msg, {bool isError = false}) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: isError ? AppColors.error : AppColors.success));
   }
 
@@ -102,5 +125,5 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   @override
-  void dispose() { for (var c in [_nameCtrl, _emailCtrl, _phoneCtrl, _passCtrl, _confirmCtrl]) c.dispose(); super.dispose(); }
+  void dispose() { for (var c in [_nameCtrl, _emailCtrl, _phoneCtrl, _passCtrl, _confirmCtrl]) { c.dispose(); } super.dispose(); }
 }

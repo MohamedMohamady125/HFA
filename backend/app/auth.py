@@ -149,15 +149,97 @@ class ForgotPasswordRequest(BaseModel):
 
 
 @router.post("/forgot-password", status_code=status.HTTP_200_OK)
-async def forgot_password(data: ForgotPasswordRequest):
+def forgot_password(data: ForgotPasswordRequest):
     user = get_user_by_email(data.email)
 
     if not user:
-        return {"detail": "If the account exists, a reset link will be sent."}
+        # Don't reveal whether email exists
+        return {"message": "If the account exists, a reset code will be sent."}
 
-    token = create_reset_token(user["id"])
-    send_reset_email(data.email, token)
-    return {"detail": "Reset email sent"}
+    conn = get_connection()
+    cursor = get_cursor(conn)
+
+    # Delete old codes for this user
+    cursor.execute("DELETE FROM password_reset_codes WHERE user_id = %s", (user["id"],))
+
+    # Generate 6-digit code
+    code = ''.join(random.choices(string.digits, k=6))
+    expires_at = datetime.now() + timedelta(minutes=15)
+
+    cursor.execute(
+        "INSERT INTO password_reset_codes (user_id, code, expires_at) VALUES (%s, %s, %s)",
+        (user["id"], code, expires_at)
+    )
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+    # Send the code via email
+    send_reset_email(data.email, code)
+    return {"message": "If the account exists, a reset code will be sent."}
+
+
+class VerifyResetCode(BaseModel):
+    email: EmailStr
+    code: str
+
+@router.post("/verify-reset-code")
+def verify_reset_code(data: VerifyResetCode):
+    user = get_user_by_email(data.email)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid code")
+
+    conn = get_connection()
+    cursor = get_cursor(conn)
+
+    cursor.execute(
+        "SELECT id FROM password_reset_codes WHERE user_id = %s AND code = %s AND expires_at > NOW()",
+        (user["id"], data.code.strip())
+    )
+    row = cursor.fetchone()
+    cursor.close()
+    conn.close()
+
+    if not row:
+        raise HTTPException(status_code=401, detail="Invalid or expired code")
+
+    return {"message": "Code verified", "reset_id": row["id"]}
+
+
+class ResetPasswordRequest(BaseModel):
+    email: EmailStr
+    code: str
+    new_password: str
+
+@router.post("/reset-password")
+def reset_password(data: ResetPasswordRequest):
+    user = get_user_by_email(data.email)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid request")
+
+    conn = get_connection()
+    cursor = get_cursor(conn)
+
+    cursor.execute(
+        "SELECT id FROM password_reset_codes WHERE user_id = %s AND code = %s AND expires_at > NOW()",
+        (user["id"], data.code.strip())
+    )
+    row = cursor.fetchone()
+    if not row:
+        cursor.close(); conn.close()
+        raise HTTPException(status_code=401, detail="Invalid or expired code")
+
+    # Update password
+    new_hash = bcrypt.hash(data.new_password)
+    cursor.execute("UPDATE users SET password_hash = %s WHERE id = %s", (new_hash, user["id"]))
+
+    # Delete used code
+    cursor.execute("DELETE FROM password_reset_codes WHERE user_id = %s", (user["id"],))
+
+    conn.commit()
+    cursor.close()
+    conn.close()
+    return {"message": "Password reset successfully"}
 
 
 @router.post("/generate-parent-code")

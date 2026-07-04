@@ -1,26 +1,33 @@
-import sendgrid
-from sendgrid.helpers.mail import Mail
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from app.config import settings
 
-def send_reset_email(to_email: str, token: str):
-    reset_url = f"https://yourapp.com/reset-password?token={token}"
 
-    message = Mail(
-        from_email=settings.FROM_EMAIL,
-        to_emails=to_email,
-        subject="🔐 Reset Your HFA Password",
-        html_content=f"""
-        <p>Hi there,</p>
-        <p>You requested to reset your password. Click the link below:</p>
-        <a href="{reset_url}">Reset Password</a>
-        <p>If you didn’t request this, you can ignore this email.</p>
-        """
-    )
+def send_reset_email(to_email: str, code: str):
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = "HFA - Password Reset Code"
+    msg["From"] = settings.FROM_EMAIL
+    msg["To"] = to_email
+
+    html = f"""
+    <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px;">
+        <h2 style="color: #1a1a2e; margin-bottom: 8px;">Reset Your Password</h2>
+        <p style="color: #666; font-size: 15px;">Enter this code in the HFA app to reset your password:</p>
+        <div style="background: #f0f4ff; border-radius: 12px; padding: 24px; text-align: center; margin: 24px 0;">
+            <span style="font-size: 36px; font-weight: 800; letter-spacing: 8px; color: #1a1a2e;">{code}</span>
+        </div>
+        <p style="color: #999; font-size: 13px;">This code expires in 15 minutes.</p>
+        <p style="color: #999; font-size: 13px;">If you didn't request this, ignore this email.</p>
+    </div>
+    """
+
+    msg.attach(MIMEText(html, "html"))
 
     try:
-        print(f"🔑 Using SendGrid API key: {settings.SENDGRID_API_KEY}")
-        sg = sendgrid.SendGridAPIClient(api_key=settings.SENDGRID_API_KEY)
-        response = sg.send(message)
-        print(f"✅ Email sent to {to_email} | Status: {response.status_code}")
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+            server.login(settings.FROM_EMAIL, settings.GMAIL_APP_PASSWORD)
+            server.sendmail(settings.FROM_EMAIL, to_email, msg.as_string())
+        print(f"Email sent to {to_email}")
     except Exception as e:
-        print(f"❌ Failed to send email: {e}")
+        print(f"Failed to send email: {e}")

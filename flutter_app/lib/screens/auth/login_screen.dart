@@ -38,8 +38,28 @@ class _LoginScreenState extends State<LoginScreen> {
       await context.read<AuthProvider>().login(authUser);
       context.go(isApproved ? '/athlete/home' : '/pending');
     } catch (e) {
-      _showError(e is DioException ? (e.response?.data?['detail']?.toString() ?? l.translate('login_failed')) : l.translate('login_failed'));
+      String msg = l.translate('invalid_login');
+      if (e is DioException) {
+        final data = e.response?.data;
+        if (data is Map && data['detail'] != null) msg = data['detail'].toString();
+      }
+      _showErrorDialog(l, msg);
     } finally { if (mounted) setState(() => _loading = false); }
+  }
+
+  void _showErrorDialog(AppLocalizations l, String msg) {
+    if (!mounted) return;
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        icon: const Icon(Icons.error_outline_rounded, color: AppColors.error, size: 48),
+        title: Text(l.translate('invalid_login')),
+        content: Text(msg, textAlign: TextAlign.center),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: Text(l.translate('ok'))),
+        ],
+      ),
+    );
   }
 
   void _showError(String msg) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: AppColors.error)); }

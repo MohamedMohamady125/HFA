@@ -3,6 +3,7 @@ from fastapi.concurrency import run_in_threadpool
 from app.deps import get_current_user
 from app.database import get_connection, get_cursor
 from app.utils.auth_utils import can_access_branch
+from app.utils.push import send_push_to_user
 from pydantic import BaseModel
 from datetime import date, timedelta
 import traceback
@@ -113,6 +114,22 @@ def _mark_attendance_sync(data: AttendanceMark, user: dict):
                    (data.athlete_id, data.session_date, data.status, user["branch_id"], user["id"]))
 
     conn.commit()
+
+    # Notify the athlete when marked present or absent
+    if data.status in ("present", "absent"):
+        cursor.execute("""SELECT u.id AS user_id FROM athletes a
+                          JOIN users u ON a.user_id = u.id
+                          WHERE a.id = %s""", (data.athlete_id,))
+        athlete_user = cursor.fetchone()
+        if athlete_user:
+            notif_msg = f"You were marked {data.status} for {data.session_date}"
+            cursor.execute(
+                "INSERT INTO notifications (user_id, message, type) VALUES (%s, %s, 'attendance')",
+                (athlete_user["user_id"], notif_msg)
+            )
+            conn.commit()
+            send_push_to_user(cursor, athlete_user["user_id"], "Attendance", notif_msg)
+
     cursor.close()
     conn.close()
     return {"message": "Attendance updated successfully"}

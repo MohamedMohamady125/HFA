@@ -8,6 +8,7 @@ import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
+import 'health_history_screen.dart';
 
 class AthleteProfileScreen extends StatefulWidget {
   const AthleteProfileScreen({super.key});
@@ -279,6 +280,23 @@ class AthleteProfileScreenState extends State<AthleteProfileScreen> {
                         _infoRow(Icons.phone_rounded, l.translate('phone'), user!['phone']),
                     ],
                   ),
+                ),
+
+                // ── Health History ──
+                const SizedBox(height: 12),
+                AppCard(
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const HealthHistoryScreen())),
+                  child: Row(children: [
+                    Container(width: 40, height: 40,
+                      decoration: BoxDecoration(color: AppColors.error.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
+                      child: const Icon(Icons.medical_information_rounded, color: AppColors.error, size: 20)),
+                    const SizedBox(width: 14),
+                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(l.translate('health_history'), style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+                      Text(l.translate('health_history_desc'), style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                    ])),
+                    const Icon(Icons.chevron_right_rounded, color: AppColors.textTertiary),
+                  ]),
                 ),
 
                 // ── Parent Access ──

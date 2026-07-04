@@ -54,6 +54,7 @@ class PushNotificationService {
 
   /// Call after user logs in to register the device token
   static Future<void> registerDevice() async {
+    if (kIsWeb) return; // Push notifications not configured for web
     // Retry getting FCM token — on iOS it can take a moment after APNs is ready
     for (int i = 0; i < 5; i++) {
       try {

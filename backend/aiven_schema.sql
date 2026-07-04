@@ -120,6 +120,39 @@ CREATE TABLE IF NOT EXISTS coach_credentials (
     created_at TIMESTAMP DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS password_reset_codes (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    code VARCHAR(6) NOT NULL,
+    expires_at TIMESTAMP NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS health_records (
+    id SERIAL PRIMARY KEY,
+    athlete_id INTEGER NOT NULL REFERENCES athletes(id),
+    title VARCHAR(255) NOT NULL,
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS health_record_files (
+    id SERIAL PRIMARY KEY,
+    record_id INTEGER NOT NULL REFERENCES health_records(id) ON DELETE CASCADE,
+    file_name VARCHAR(255),
+    file_data TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS coach_notes (
+    id SERIAL PRIMARY KEY,
+    athlete_id INTEGER NOT NULL REFERENCES athletes(id),
+    coach_id INTEGER NOT NULL REFERENCES users(id),
+    note TEXT NOT NULL,
+    period_label VARCHAR(100),
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS parent_access_codes (
     id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL REFERENCES users(id),

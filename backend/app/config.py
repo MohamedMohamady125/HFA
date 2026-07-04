@@ -8,7 +8,7 @@ class Settings:
     JWT_SECRET = os.getenv("JWT_SECRET")
     JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
 
-    SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY")
     FROM_EMAIL = os.getenv("FROM_EMAIL")
+    GMAIL_APP_PASSWORD = os.getenv("GMAIL_APP_PASSWORD")
 
 settings = Settings()
