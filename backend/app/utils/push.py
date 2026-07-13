@@ -57,31 +57,75 @@ def force_reinit():
     return _init_firebase()
 
 
-def send_push_to_user(cursor, user_id: int, title: str, body: str):
-    """Send push notification to all devices registered for a user."""
-    if not _init_firebase():
-        return
+def _get_access_token():
+    """Get a fresh OAuth2 access token using the service account credentials."""
+    from google.oauth2 import service_account
+    import google.auth.transport.requests
+
+    cred_json = os.getenv("FIREBASE_SERVICE_ACCOUNT")
+    if not cred_json:
+        return None, None
+
+    cred_dict = json.loads(cred_json)
+    pk = cred_dict.get("private_key", "")
+    if "\\n" in pk and "\n" not in pk:
+        cred_dict["private_key"] = pk.replace("\\n", "\n")
+
+    scopes = ["https://www.googleapis.com/auth/firebase.messaging"]
+    credentials = service_account.Credentials.from_service_account_info(cred_dict, scopes=scopes)
+    request = google.auth.transport.requests.Request()
+    credentials.refresh(request)
+    return credentials.token, cred_dict.get("project_id")
+
+
+def _send_fcm_v1(token: str, title: str, body: str, access_token: str, project_id: str):
+    """Send a single push notification via FCM HTTP v1 API directly."""
+    import urllib.request
+
+    url = f"https://fcm.googleapis.com/v1/projects/{project_id}/messages:send"
+    payload = json.dumps({
+        "message": {
+            "token": token,
+            "notification": {
+                "title": title,
+                "body": body,
+            }
+        }
+    }).encode("utf-8")
+
+    req = urllib.request.Request(url, data=payload, method="POST")
+    req.add_header("Authorization", f"Bearer {access_token}")
+    req.add_header("Content-Type", "application/json")
 
     try:
-        from firebase_admin import messaging
+        with urllib.request.urlopen(req) as resp:
+            return {"success": True, "status": resp.status}
+    except urllib.error.HTTPError as e:
+        error_body = e.read().decode("utf-8", errors="replace")
+        return {"success": False, "status": e.code, "error": error_body}
+
+
+def send_push_to_user(cursor, user_id: int, title: str, body: str):
+    """Send push notification to all devices registered for a user."""
+    try:
+        access_token, project_id = _get_access_token()
+        if not access_token:
+            logger.warning("Could not get FCM access token — push disabled")
+            return
 
         cursor.execute("SELECT token FROM device_tokens WHERE user_id = %s", (user_id,))
         tokens = [row["token"] for row in cursor.fetchall()]
         if not tokens:
             return
 
-        message = messaging.MulticastMessage(
-            notification=messaging.Notification(title=title, body=body),
-            tokens=tokens,
-        )
-        response = messaging.send_each_for_multicast(message)
-
-        # Clean up invalid tokens
-        for i, send_response in enumerate(response.responses):
-            if send_response.exception:
-                error_code = getattr(send_response.exception, 'code', '')
-                if error_code in ('NOT_FOUND', 'UNREGISTERED', 'INVALID_ARGUMENT'):
-                    cursor.execute("DELETE FROM device_tokens WHERE token = %s", (tokens[i],))
+        for device_token in tokens:
+            result = _send_fcm_v1(device_token, title, body, access_token, project_id)
+            if not result["success"]:
+                logger.error(f"FCM send failed for token {device_token[:20]}...: {result}")
+                # Clean up invalid tokens
+                error_str = result.get("error", "")
+                if any(code in error_str for code in ["NOT_FOUND", "UNREGISTERED", "INVALID_ARGUMENT"]):
+                    cursor.execute("DELETE FROM device_tokens WHERE token = %s", (device_token,))
 
     except Exception as e:
         logger.error(f"Push notification failed for user {user_id}: {e}")

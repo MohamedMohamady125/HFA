@@ -156,32 +156,23 @@ def test_push(user=Depends(get_current_user)):
         {"platform": t["platform"], "token_preview": t["token"][:30] + "..."} for t in tokens
     ]})
 
-    # Step 4: Try sending
-    if tokens and firebase_ok:
+    # Step 4: Try sending via direct HTTP v1 API
+    if tokens:
         try:
-            from firebase_admin import messaging
-            message = messaging.MulticastMessage(
-                notification=messaging.Notification(title="HFA Test", body="Push notifications are working!"),
-                tokens=[t["token"] for t in tokens],
-            )
-            response = messaging.send_each_for_multicast(message)
-            send_results = []
-            for i, send_response in enumerate(response.responses):
-                if send_response.success:
-                    send_results.append({"index": i, "status": "SUCCESS"})
-                else:
-                    err = send_response.exception
-                    send_results.append({
-                        "index": i,
-                        "status": "FAILED",
-                        "error": str(err),
-                        "code": getattr(err, 'code', 'unknown'),
-                    })
-            results["steps"].append({"step": "Send push", "success_count": response.success_count, "failure_count": response.failure_count, "details": send_results})
+            from app.utils.push import _get_access_token, _send_fcm_v1
+            access_token, project_id = _get_access_token()
+            if access_token:
+                send_results = []
+                for t in tokens:
+                    result = _send_fcm_v1(t["token"], "HFA Test", "Push notifications are working!", access_token, project_id)
+                    send_results.append(result)
+                results["steps"].append({"step": "Send push (HTTP v1)", "details": send_results})
+            else:
+                results["steps"].append({"step": "Send push", "status": "SKIPPED", "reason": "no access token"})
         except Exception as e:
             results["steps"].append({"step": "Send push", "status": "ERROR", "error": str(e)})
     else:
-        results["steps"].append({"step": "Send push", "status": "SKIPPED", "reason": "no tokens" if not tokens else "firebase not initialized"})
+        results["steps"].append({"step": "Send push", "status": "SKIPPED", "reason": "no tokens"})
 
     cursor.close()
     conn.close()
