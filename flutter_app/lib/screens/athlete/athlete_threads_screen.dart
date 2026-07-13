@@ -79,44 +79,61 @@ class AthleteThreadsScreenState extends State<AthleteThreadsScreen> with Automat
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    if (loading) return const Scaffold(body: ShimmerList(count: 6));
+    final l = AppLocalizations.of(context);
+    if (loading) return const Scaffold(body: SafeArea(child: ShimmerList(count: 6)));
 
     return Scaffold(
       body: Column(
         children: [
-          // Header
+          // Gradient header
           Container(
-            padding: EdgeInsets.fromLTRB(16, MediaQuery.of(context).padding.top + 8, 8, 0),
-            decoration: const BoxDecoration(color: AppColors.primary),
-            child: Column(children: [
-              Row(children: [
-                GradientAvatar(name: branchName, size: 40),
-                const SizedBox(width: 12),
-                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(branchName, style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w600)),
-                  Text('${posts.length} ${AppLocalizations.of(context).translate('messages')}', style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 12)),
-                ])),
-              ]),
-              if (threads.length > 1)
-                Padding(
-                  padding: const EdgeInsets.only(top: 10),
-                  child: SizedBox(height: 34, child: ListView(
-                    scrollDirection: Axis.horizontal,
-                    children: threads.map((t) {
-                      final active = selectedThread?['id'] == t['id'];
-                      return Padding(padding: const EdgeInsets.only(right: 8), child: GestureDetector(
-                        onTap: () => _selectThread(t),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14),
-                          decoration: BoxDecoration(color: active ? Colors.white24 : Colors.white10, borderRadius: BorderRadius.circular(18)),
-                          child: Center(child: Text(t['title'], style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: active ? Colors.white : Colors.white70))),
-                        ),
-                      ));
-                    }).toList(),
-                  )),
-                ),
-              const SizedBox(height: 10),
-            ]),
+            width: double.infinity,
+            decoration: const BoxDecoration(
+              gradient: AppColors.heroGradient,
+              borderRadius: BorderRadius.vertical(bottom: Radius.circular(28)),
+            ),
+            child: SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsetsDirectional.fromSTEB(20, 8, 20, 16),
+                child: Column(children: [
+                  Row(children: [
+                    GradientAvatar(name: branchName, size: 44),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(branchName, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900, letterSpacing: -0.4)),
+                      const SizedBox(height: 2),
+                      Text('${posts.length} ${l.translate('messages')}', style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 12.5, fontWeight: FontWeight.w500)),
+                    ])),
+                    const HeaderIconButton(icon: Icons.forum_rounded),
+                  ]),
+                  if (threads.length > 1)
+                    Padding(
+                      padding: const EdgeInsets.only(top: AppSpacing.md),
+                      child: SizedBox(height: 36, child: ListView(
+                        scrollDirection: Axis.horizontal,
+                        physics: const BouncingScrollPhysics(),
+                        children: threads.map((t) {
+                          final active = selectedThread?['id'] == t['id'];
+                          return Padding(padding: const EdgeInsetsDirectional.only(end: AppSpacing.sm), child: GestureDetector(
+                            onTap: () => _selectThread(t),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                              decoration: BoxDecoration(
+                                color: active ? Colors.white.withValues(alpha: 0.22) : Colors.white.withValues(alpha: 0.08),
+                                borderRadius: BorderRadius.circular(AppRadius.pill),
+                                border: Border.all(color: active ? Colors.white.withValues(alpha: 0.4) : Colors.transparent, width: 1),
+                              ),
+                              child: Center(child: Text(t['title'], style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: active ? Colors.white : Colors.white70))),
+                            ),
+                          ));
+                        }).toList(),
+                      )),
+                    ),
+                ]),
+              ),
+            ),
           ),
 
           // Messages
@@ -124,17 +141,16 @@ class AthleteThreadsScreenState extends State<AthleteThreadsScreen> with Automat
             child: Container(
               color: AppColors.scaffoldBg,
               child: postsLoading
-                  ? const Center(child: CircularProgressIndicator(color: AppColors.accent))
+                  ? const ShimmerList(count: 5)
                   : posts.isEmpty
-                      ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-                          Icon(Icons.chat_bubble_outline_rounded, size: 48, color: AppColors.textTertiary.withValues(alpha: 0.4)),
-                          const SizedBox(height: 12),
-                          Text(AppLocalizations.of(context).translate('no_messages'), style: const TextStyle(color: AppColors.textSecondary)),
-                        ]))
+                      ? EmptyState(
+                          icon: Icons.chat_bubble_outline_rounded,
+                          title: l.translate('no_messages'),
+                        )
                       : ListView.builder(
                           controller: _scrollCtrl,
                           physics: const BouncingScrollPhysics(),
-                          padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
+                          padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
                           itemCount: posts.length,
                           itemBuilder: (_, i) => _buildMsg(i),
                         ),
@@ -153,44 +169,62 @@ class AthleteThreadsScreenState extends State<AthleteThreadsScreen> with Automat
     final isMine = msg['user_id'] == user?['id'];
     final showDate = i == 0 || !_sameDay(createdAt, posts[i - 1]['created_at']?.toString() ?? '');
     final showAuthor = !isMine && (i == 0 || posts[i - 1]['user_id'] != msg['user_id'] || showDate);
-    final isLast = i == posts.length - 1 || posts[i + 1]['user_id'] != msg['user_id'] || (i < posts.length - 1 && !_sameDay(createdAt, posts[i + 1]['created_at']?.toString() ?? ''));
     final time = DateFormat('h:mm a', AppLocalizations.of(context).locale.languageCode).format(DateTime.tryParse(createdAt) ?? DateTime.now());
+
+    final bubble = Container(
+      constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.72),
+      margin: EdgeInsetsDirectional.only(top: showAuthor ? 6 : 2, bottom: 2),
+      padding: const EdgeInsetsDirectional.fromSTEB(14, 9, 14, 8),
+      decoration: BoxDecoration(
+        gradient: isMine ? AppColors.accentGradient : null,
+        color: isMine ? null : AppColors.cardBg,
+        borderRadius: BorderRadiusDirectional.only(
+          topStart: Radius.circular(isMine ? AppRadius.lg : (showAuthor ? 4 : AppRadius.lg)),
+          topEnd: Radius.circular(isMine ? 4 : AppRadius.lg),
+          bottomStart: const Radius.circular(AppRadius.lg),
+          bottomEnd: const Radius.circular(AppRadius.lg),
+        ),
+        border: isMine ? null : Border.all(color: AppColors.divider, width: 0.8),
+        boxShadow: [BoxShadow(color: AppColors.primary.withValues(alpha: 0.05), blurRadius: 8, offset: const Offset(0, 2))],
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        if (showAuthor && !isMine)
+          Padding(padding: const EdgeInsets.only(bottom: 3), child: Text(author, style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: _colorFor(author)))),
+        Row(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.end, children: [
+          Flexible(child: Text(message, style: TextStyle(fontSize: 15, height: 1.35, color: isMine ? Colors.white : AppColors.textPrimary))),
+          const SizedBox(width: AppSpacing.sm),
+          Text(time, style: TextStyle(fontSize: 10.5, color: isMine ? Colors.white.withValues(alpha: 0.75) : AppColors.textTertiary)),
+        ]),
+      ]),
+    );
 
     return Column(children: [
       if (showDate) Padding(
-        padding: const EdgeInsets.symmetric(vertical: 10),
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
-          decoration: BoxDecoration(color: AppColors.accentLight, borderRadius: BorderRadius.circular(8)),
-          child: Text(_dateLabel(DateTime.tryParse(createdAt) ?? DateTime.now()), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.primary)),
+          decoration: BoxDecoration(color: AppColors.accentLight, borderRadius: BorderRadius.circular(AppRadius.pill)),
+          child: Text(_dateLabel(DateTime.tryParse(createdAt) ?? DateTime.now()), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.primary)),
         ),
       ),
       Align(
-        alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
-        child: Container(
-          margin: EdgeInsets.only(left: isMine ? 50 : 4, right: isMine ? 4 : 50, top: showAuthor ? 6 : 1, bottom: 1),
-          padding: EdgeInsets.fromLTRB(12, showAuthor && !isMine ? 6 : 8, 12, 7),
-          decoration: BoxDecoration(
-            color: isMine ? AppColors.accentLight : AppColors.cardBg,
-            borderRadius: BorderRadius.only(
-              topLeft: Radius.circular(!isMine && isLast ? 2 : 12),
-              topRight: Radius.circular(isMine && isLast ? 2 : 12),
-              bottomLeft: const Radius.circular(12),
-              bottomRight: const Radius.circular(12),
-            ),
-            border: null,
-            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 2, offset: const Offset(0, 1))],
-          ),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            if (showAuthor && !isMine)
-              Padding(padding: const EdgeInsets.only(bottom: 3), child: Text(author, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: _colorFor(author)))),
-            Row(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.end, children: [
-              Flexible(child: Text(message, style: const TextStyle(fontSize: 15, height: 1.35, color: AppColors.textPrimary))),
-              const SizedBox(width: 8),
-              Text(time, style: const TextStyle(fontSize: 10.5, color: AppColors.textTertiary)),
-            ]),
-          ]),
-        ),
+        alignment: isMine ? AlignmentDirectional.centerEnd : AlignmentDirectional.centerStart,
+        child: isMine
+            ? bubble
+            : Row(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  if (showAuthor)
+                    Padding(
+                      padding: const EdgeInsetsDirectional.only(end: AppSpacing.sm),
+                      child: GradientAvatar(name: author, size: 30, colors: [_colorFor(author), AppColors.primary]),
+                    )
+                  else
+                    const SizedBox(width: 38),
+                  Flexible(child: bubble),
+                ],
+              ),
       ),
     ]);
   }

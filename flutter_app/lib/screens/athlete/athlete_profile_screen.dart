@@ -37,7 +37,9 @@ class AthleteProfileScreenState extends State<AthleteProfileScreen> {
   @override
   void initState() {
     super.initState();
-    for (var k in _mKeys) mCtrl[k] = TextEditingController();
+    for (var k in _mKeys) {
+      mCtrl[k] = TextEditingController();
+    }
     eventCtrl.add({'name': TextEditingController(), 'time': TextEditingController()});
     _fetchData();
   }
@@ -67,7 +69,9 @@ class AthleteProfileScreenState extends State<AthleteProfileScreen> {
       final mRes = await api.get('/athlete/measurements');
       final mData = mRes.data is List ? (mRes.data as List).firstOrNull : mRes.data;
       if (mData != null) {
-        for (var k in _mKeys) mCtrl[k]!.text = mData[k]?.toString() ?? '';
+        for (var k in _mKeys) {
+          mCtrl[k]!.text = mData[k]?.toString() ?? '';
+        }
         mEditable = false;
       }
     } catch (_) {}
@@ -98,7 +102,9 @@ class AthleteProfileScreenState extends State<AthleteProfileScreen> {
   Future<void> _saveMeasurements() async {
     try {
       final data = <String, double>{};
-      for (var k in _mKeys) data[k] = double.tryParse(mCtrl[k]!.text) ?? 0;
+      for (var k in _mKeys) {
+        data[k] = double.tryParse(mCtrl[k]!.text) ?? 0;
+      }
       await ApiService().post('/athlete/measurements', data: data);
       if (mounted) {
         final l = AppLocalizations.of(context);
@@ -232,249 +238,223 @@ class AthleteProfileScreenState extends State<AthleteProfileScreen> {
     if (user == null) return const AppLoadingScreen();
 
     return Scaffold(
-      body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: _fetchData,
-          child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // ── Profile Header ──
-                AppCard(
-                  child: Column(
-                    children: [
-                      Row(
+      body: RefreshIndicator(
+        onRefresh: _fetchData,
+        color: AppColors.accent,
+        edgeOffset: 140,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ── Hero Profile Header ──
+              FadeSlideIn(
+                child: Container(
+                  width: double.infinity,
+                  decoration: const BoxDecoration(
+                    gradient: AppColors.heroGradient,
+                    borderRadius: BorderRadius.vertical(bottom: Radius.circular(28)),
+                  ),
+                  child: SafeArea(
+                    bottom: false,
+                    child: Padding(
+                      padding: const EdgeInsetsDirectional.fromSTEB(20, 16, 20, 24),
+                      child: Column(children: [
+                        GradientAvatar(name: user!['name'] ?? 'U', size: 84),
+                        const SizedBox(height: AppSpacing.md),
+                        Text(user!['name'] ?? '', textAlign: TextAlign.center,
+                          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: -0.5)),
+                        const SizedBox(height: AppSpacing.sm),
+                        if (branchName.isNotEmpty)
+                          StatusBadge(label: branchName, color: AppColors.accentLight),
+                        const SizedBox(height: AppSpacing.lg),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(AppSpacing.lg),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(AppRadius.md),
+                          ),
+                          child: Column(children: [
+                            _infoRow(Icons.email_rounded, l.translate('email'), user!['email'] ?? ''),
+                            if (user!['phone'] != null && user!['phone'].toString().isNotEmpty)
+                              _infoRow(Icons.phone_rounded, l.translate('phone'), user!['phone']),
+                          ]),
+                        ),
+                      ]),
+                    ),
+                  ),
+                ),
+              ),
+
+              Padding(
+                padding: const EdgeInsetsDirectional.fromSTEB(20, 20, 20, 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // ── Health History ──
+                    FadeSlideIn(delay: 50, child: ActionTile(
+                      icon: Icons.medical_information_rounded,
+                      color: AppColors.error,
+                      title: l.translate('health_history'),
+                      subtitle: l.translate('health_history_desc'),
+                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const HealthHistoryScreen())),
+                    )),
+
+                    // ── Parent Access ──
+                    FadeSlideIn(delay: 100, child: _buildParentAccess(l)),
+
+                    // ── Attendance ──
+                    const SizedBox(height: AppSpacing.xs),
+                    FadeSlideIn(delay: 150, child: SectionHeader(
+                      title: l.translate('attendance_tracker'),
+                      trailing: TextButton(
+                        onPressed: () => context.push('/athlete/attendance-history'),
+                        child: Text(l.translate('view_calendar'), style: const TextStyle(color: AppColors.accent)),
+                      ),
+                    )),
+                    FadeSlideIn(delay: 200, child: AppCard(
+                      onTap: () => context.push('/athlete/attendance-history'),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        children: List.generate(labelCount, (i) {
+                          final record = attendance.where((r) => r['day_number'] == i + 1).firstOrNull;
+                          final status = record?['status'];
+                          final color = status == 'present' ? AppColors.success : status == 'absent' ? AppColors.error : AppColors.textTertiary;
+                          return Column(children: [
+                            Text('${l.translate('day')} ${i + 1}', style: AppTypography.caption),
+                            const SizedBox(height: AppSpacing.sm),
+                            Icon(
+                              status == 'present' ? Icons.check_circle_rounded : status == 'absent' ? Icons.cancel_rounded : Icons.remove_circle_outline,
+                              color: color, size: 28,
+                            ),
+                            const SizedBox(height: AppSpacing.xs),
+                            Text(
+                              status == 'present' ? l.translate('present') : status == 'absent' ? l.translate('absent') : '-',
+                              style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w600),
+                            ),
+                          ]);
+                        }),
+                      ),
+                    )),
+
+                    // ── Payment History ──
+                    const SizedBox(height: AppSpacing.xs),
+                    FadeSlideIn(delay: 250, child: SectionHeader(title: l.translate('payment'))),
+                    FadeSlideIn(delay: 300, child: AppCard(
+                      child: paymentHistory.isEmpty
+                          ? Center(child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+                              child: Text(l.translate('no_payment_records'), style: AppTypography.bodyMedium),
+                            ))
+                          : Column(
+                              children: paymentHistory.entries.toList().reversed.take(6).map((entry) {
+                                final statusText = entry.value;
+                                final color = statusText == 'paid' ? AppColors.success : statusText == 'late' ? AppColors.error : AppColors.warning;
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(entry.key, style: AppTypography.bodyLarge),
+                                      StatusBadge(label: statusText.toUpperCase(), color: color),
+                                    ],
+                                  ),
+                                );
+                              }).toList(),
+                            ),
+                    )),
+
+                    // ── Measurements ──
+                    const SizedBox(height: AppSpacing.xs),
+                    FadeSlideIn(delay: 350, child: SectionHeader(
+                      title: l.translate('measurements'),
+                      trailing: mEditable ? null : TextButton(
+                        onPressed: () => setState(() => mEditable = true),
+                        child: Text(l.translate('edit'), style: const TextStyle(color: AppColors.accent)),
+                      ),
+                    )),
+                    FadeSlideIn(delay: 400, child: AppCard(
+                      child: Column(
                         children: [
-                          CircleAvatar(
-                            radius: 32,
-                            backgroundColor: AppColors.primary,
-                            child: Text(
-                              (user!['name'] ?? 'U')[0].toUpperCase(),
-                              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: Colors.white),
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(user!['name'] ?? '', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
-                                const SizedBox(height: 4),
-                                Row(children: [
-                                  const Icon(Icons.location_on_rounded, size: 14, color: AppColors.accent),
-                                  const SizedBox(width: 4),
-                                  Text(branchName, style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
-                                ]),
-                              ],
-                            ),
-                          ),
+                          ..._mKeys.map((k) => Padding(
+                            padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                            child: Row(children: [
+                              SizedBox(width: 100, child: Text(l.translate(k), style: AppTypography.label)),
+                              Expanded(child: TextField(
+                                controller: mCtrl[k],
+                                keyboardType: TextInputType.number,
+                                enabled: mEditable,
+                                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                                decoration: const InputDecoration(contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10), isDense: true),
+                              )),
+                            ]),
+                          )),
+                          if (mEditable) PrimaryButton(label: l.translate('save_measurements'), onPressed: _saveMeasurements),
                         ],
                       ),
-                      const SizedBox(height: 16),
-                      const Divider(height: 1),
-                      const SizedBox(height: 12),
-                      _infoRow(Icons.email_rounded, l.translate('email'), user!['email'] ?? ''),
-                      if (user!['phone'] != null && user!['phone'].toString().isNotEmpty)
-                        _infoRow(Icons.phone_rounded, l.translate('phone'), user!['phone']),
-                    ],
-                  ),
-                ),
+                    )),
 
-                // ── Health History ──
-                const SizedBox(height: 12),
-                AppCard(
-                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const HealthHistoryScreen())),
-                  child: Row(children: [
-                    Container(width: 40, height: 40,
-                      decoration: BoxDecoration(color: AppColors.error.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
-                      child: const Icon(Icons.medical_information_rounded, color: AppColors.error, size: 20)),
-                    const SizedBox(width: 14),
-                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text(l.translate('health_history'), style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
-                      Text(l.translate('health_history_desc'), style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-                    ])),
-                    const Icon(Icons.chevron_right_rounded, color: AppColors.textTertiary),
-                  ]),
-                ),
-
-                // ── Parent Access ──
-                const SizedBox(height: 12),
-                _buildParentAccess(l),
-
-                // ── Attendance ──
-                const SizedBox(height: 16),
-                SectionHeader(
-                  title: l.translate('attendance_tracker'),
-                  trailing: TextButton(
-                    onPressed: () => context.push('/athlete/attendance-history'),
-                    child: Text(l.translate('view_calendar'), style: const TextStyle(color: AppColors.accent)),
-                  ),
-                ),
-                AppCard(
-                  onTap: () => context.push('/athlete/attendance-history'),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: List.generate(labelCount, (i) {
-                      final record = attendance.where((r) => r['day_number'] == i + 1).firstOrNull;
-                      final status = record?['status'];
-                      final color = status == 'present' ? AppColors.success : status == 'absent' ? AppColors.error : AppColors.textTertiary;
-                      return Column(children: [
-                        Text('${l.translate('day')} ${i + 1}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
-                        const SizedBox(height: 8),
-                        Icon(
-                          status == 'present' ? Icons.check_circle_rounded : status == 'absent' ? Icons.cancel_rounded : Icons.remove_circle_outline,
-                          color: color, size: 28,
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          status == 'present' ? l.translate('present') : status == 'absent' ? l.translate('absent') : '-',
-                          style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w500),
-                        ),
-                      ]);
-                    }),
-                  ),
-                ),
-
-                // ── Payment History ──
-                const SizedBox(height: 16),
-                SectionHeader(title: l.translate('payment')),
-                AppCard(
-                  child: paymentHistory.isEmpty
-                      ? Center(child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          child: Text(l.translate('no_payment_records'), style: const TextStyle(color: AppColors.textTertiary, fontSize: 14)),
-                        ))
-                      : Column(
-                          children: paymentHistory.entries.toList().reversed.take(6).map((entry) {
-                            final statusText = entry.value;
-                            final color = statusText == 'paid' ? AppColors.success : statusText == 'late' ? AppColors.error : AppColors.warning;
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: 8),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(entry.key, style: const TextStyle(fontSize: 14, color: AppColors.textPrimary)),
-                                  StatusBadge(label: statusText.toUpperCase(), color: color),
-                                ],
-                              ),
-                            );
-                          }).toList(),
-                        ),
-                ),
-
-                // ── Measurements ──
-                const SizedBox(height: 16),
-                SectionHeader(
-                  title: l.translate('measurements'),
-                  trailing: mEditable ? null : TextButton(
-                    onPressed: () => setState(() => mEditable = true),
-                    child: Text(l.translate('edit'), style: const TextStyle(color: AppColors.accent)),
-                  ),
-                ),
-                AppCard(
-                  child: Column(
-                    children: [
-                      ..._mKeys.map((k) => Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: Row(children: [
-                          SizedBox(width: 100, child: Text(l.translate(k), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.textSecondary))),
-                          Expanded(child: TextField(
-                            controller: mCtrl[k],
-                            keyboardType: TextInputType.number,
-                            enabled: mEditable,
-                            style: const TextStyle(fontSize: 14),
-                            decoration: const InputDecoration(contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10), isDense: true),
+                    // ── Swim Events ──
+                    const SizedBox(height: AppSpacing.xs),
+                    FadeSlideIn(delay: 450, child: SectionHeader(
+                      title: l.translate('swim_events'),
+                      trailing: eventsEditable ? null : TextButton(
+                        onPressed: () => setState(() => eventsEditable = true),
+                        child: Text(l.translate('edit'), style: const TextStyle(color: AppColors.accent)),
+                      ),
+                    )),
+                    FadeSlideIn(delay: 500, child: AppCard(
+                      child: Column(
+                        children: [
+                          ...eventCtrl.map((e) => Padding(
+                            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                            child: Row(children: [
+                              Expanded(child: TextField(controller: e['name'], enabled: eventsEditable, decoration: InputDecoration(hintText: l.translate('event_name'), isDense: true, contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10)))),
+                              const SizedBox(width: AppSpacing.md),
+                              Expanded(child: TextField(controller: e['time'], enabled: eventsEditable, decoration: InputDecoration(hintText: l.translate('time'), isDense: true, contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10)))),
+                            ]),
                           )),
-                        ]),
-                      )),
-                      if (mEditable) SizedBox(width: double.infinity, child: ElevatedButton(onPressed: _saveMeasurements, child: Text(l.translate('save_measurements')))),
-                    ],
-                  ),
-                ),
+                          if (eventCtrl.length < 5 && eventsEditable) TextButton.icon(
+                            onPressed: () => setState(() => eventCtrl.add({'name': TextEditingController(), 'time': TextEditingController()})),
+                            icon: const Icon(Icons.add, size: 18),
+                            label: Text(l.translate('add_event')),
+                          ),
+                          if (eventsEditable) PrimaryButton(label: l.translate('save_events'), onPressed: _saveEvents),
+                        ],
+                      ),
+                    )),
 
-                // ── Swim Events ──
-                const SizedBox(height: 16),
-                SectionHeader(
-                  title: l.translate('swim_events'),
-                  trailing: eventsEditable ? null : TextButton(
-                    onPressed: () => setState(() => eventsEditable = true),
-                    child: Text(l.translate('edit'), style: const TextStyle(color: AppColors.accent)),
-                  ),
+                    // ── Settings ──
+                    const SizedBox(height: AppSpacing.lg),
+                    FadeSlideIn(delay: 550, child: SectionHeader(title: l.translate('settings'))),
+                    FadeSlideIn(delay: 600, child: ActionTile(
+                      icon: Icons.email_rounded,
+                      color: AppColors.primary,
+                      title: l.translate('change_email'),
+                      onTap: _showChangeEmail,
+                    )),
+                    FadeSlideIn(delay: 650, child: ActionTile(
+                      icon: Icons.lock_rounded,
+                      color: AppColors.primary,
+                      title: l.translate('change_password'),
+                      onTap: _showChangePassword,
+                    )),
+                    FadeSlideIn(delay: 700, child: _languageToggle(context, l)),
+                    FadeSlideIn(delay: 750, child: ActionTile(
+                      icon: Icons.logout_rounded,
+                      color: AppColors.error,
+                      title: l.translate('logout'),
+                      onTap: () async {
+                        await context.read<AuthProvider>().logout();
+                        if (context.mounted) context.go('/guest-home');
+                      },
+                    )),
+                    const SizedBox(height: AppSpacing.xxl),
+                  ],
                 ),
-                AppCard(
-                  child: Column(
-                    children: [
-                      ...eventCtrl.map((e) => Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: Row(children: [
-                          Expanded(child: TextField(controller: e['name'], enabled: eventsEditable, decoration: InputDecoration(hintText: l.translate('event_name'), isDense: true, contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10)))),
-                          const SizedBox(width: 10),
-                          Expanded(child: TextField(controller: e['time'], enabled: eventsEditable, decoration: InputDecoration(hintText: l.translate('time'), isDense: true, contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10)))),
-                        ]),
-                      )),
-                      if (eventCtrl.length < 5 && eventsEditable) TextButton.icon(
-                        onPressed: () => setState(() => eventCtrl.add({'name': TextEditingController(), 'time': TextEditingController()})),
-                        icon: const Icon(Icons.add, size: 18),
-                        label: Text(l.translate('add_event')),
-                      ),
-                      if (eventsEditable) SizedBox(width: double.infinity, child: ElevatedButton(onPressed: _saveEvents, child: Text(l.translate('save_events')))),
-                    ],
-                  ),
-                ),
-
-                // ── Settings ──
-                const SizedBox(height: 24),
-                SectionHeader(title: l.translate('settings')),
-                AppCard(
-                  onTap: _showChangeEmail,
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 40, height: 40,
-                        decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
-                        child: const Icon(Icons.email_rounded, color: AppColors.primary, size: 20),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(child: Text(l.translate('change_email'), style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: AppColors.textPrimary))),
-                      const Icon(Icons.chevron_right_rounded, color: AppColors.textTertiary),
-                    ],
-                  ),
-                ),
-                AppCard(
-                  onTap: _showChangePassword,
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 40, height: 40,
-                        decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
-                        child: const Icon(Icons.lock_rounded, color: AppColors.primary, size: 20),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(child: Text(l.translate('change_password'), style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: AppColors.textPrimary))),
-                      const Icon(Icons.chevron_right_rounded, color: AppColors.textTertiary),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () async {
-                      await context.read<AuthProvider>().logout();
-                      if (context.mounted) context.go('/guest-home');
-                    },
-                    style: OutlinedButton.styleFrom(foregroundColor: AppColors.error, side: const BorderSide(color: AppColors.error)),
-                    icon: const Icon(Icons.logout_rounded, size: 18),
-                    label: Text(l.translate('logout')),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                _languageToggle(context, l),
-                const SizedBox(height: 24),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
@@ -505,32 +485,28 @@ class AthleteProfileScreenState extends State<AthleteProfileScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(children: [
-            Container(
-              width: 40, height: 40,
-              decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
-              child: const Icon(Icons.family_restroom_rounded, color: AppColors.accent, size: 22),
-            ),
-            const SizedBox(width: 12),
+            const IconBadge(icon: Icons.family_restroom_rounded, color: AppColors.accent),
+            const SizedBox(width: AppSpacing.md),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(l.translate('parent_access'), style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
-              Text(l.translate('parent_access_desc'), style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+              Text(l.translate('parent_access'), style: AppTypography.titleMedium),
+              Text(l.translate('parent_access_desc'), style: AppTypography.caption),
             ])),
           ]),
-          const SizedBox(height: 14),
+          const SizedBox(height: AppSpacing.lg),
           if (_parentCode != null) ...[
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              decoration: BoxDecoration(color: AppColors.accentLight, borderRadius: BorderRadius.circular(12)),
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
+              decoration: BoxDecoration(color: AppColors.accentLight, borderRadius: BorderRadius.circular(AppRadius.md)),
               child: Column(children: [
-                Text(l.translate('your_code'), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
+                Text(l.translate('your_code'), style: AppTypography.label),
                 const SizedBox(height: 6),
                 Text(_parentCode!, style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w900, color: AppColors.accent, letterSpacing: 8)),
                 const SizedBox(height: 4),
-                Text(l.translate('code_expires'), style: const TextStyle(fontSize: 11, color: AppColors.textTertiary)),
+                Text(l.translate('code_expires'), style: AppTypography.caption),
               ]),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: AppSpacing.md),
             Row(children: [
               Expanded(child: OutlinedButton.icon(
                 onPressed: () {
@@ -540,7 +516,7 @@ class AthleteProfileScreenState extends State<AthleteProfileScreen> {
                 icon: const Icon(Icons.copy_rounded, size: 16),
                 label: Text(l.translate('copy_code')),
               )),
-              const SizedBox(width: 10),
+              const SizedBox(width: AppSpacing.md),
               Expanded(child: ElevatedButton.icon(
                 onPressed: _generatingCode ? null : _generateParentCode,
                 icon: const Icon(Icons.refresh_rounded, size: 16),
@@ -548,13 +524,12 @@ class AthleteProfileScreenState extends State<AthleteProfileScreen> {
               )),
             ]),
           ] else
-            SizedBox(width: double.infinity, child: ElevatedButton.icon(
+            PrimaryButton(
+              label: l.translate('generate_code'),
+              icon: Icons.key_rounded,
+              loading: _generatingCode,
               onPressed: _generatingCode ? null : _generateParentCode,
-              icon: _generatingCode
-                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                  : const Icon(Icons.key_rounded, size: 18),
-              label: Text(l.translate('generate_code')),
-            )),
+            ),
         ],
       ),
     );
@@ -562,34 +537,30 @@ class AthleteProfileScreenState extends State<AthleteProfileScreen> {
 
   Widget _infoRow(IconData icon, String label, String value) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: Row(
         children: [
-          Icon(icon, size: 16, color: AppColors.textTertiary),
-          const SizedBox(width: 10),
-          Text(label, style: const TextStyle(fontSize: 13, color: AppColors.textTertiary, fontWeight: FontWeight.w500)),
-          const SizedBox(width: 8),
-          Expanded(child: Text(value, style: const TextStyle(fontSize: 14, color: AppColors.textPrimary), textAlign: TextAlign.end)),
+          Icon(icon, size: 16, color: Colors.white.withValues(alpha: 0.7)),
+          const SizedBox(width: AppSpacing.md),
+          Text(label, style: TextStyle(fontSize: 13, color: Colors.white.withValues(alpha: 0.7), fontWeight: FontWeight.w500)),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(child: Text(value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white), textAlign: TextAlign.end)),
         ],
       ),
     );
   }
 
-  @override
   Widget _languageToggle(BuildContext context, AppLocalizations l) {
     final localeProvider = context.watch<LocaleProvider>();
-    return AppCard(
+    return ActionTile(
+      icon: Icons.language_rounded,
+      color: AppColors.accent,
+      title: l.translate('language'),
+      subtitle: l.translate('language_current'),
       onTap: () => localeProvider.toggleLocale(),
-      child: Row(children: [
-        Container(width: 38, height: 38, decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
-          child: const Icon(Icons.language_rounded, color: AppColors.accent, size: 18)),
-        const SizedBox(width: 12),
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(l.translate('language'), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
-          Text(l.translate('language_current'), style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-        ])),
+      trailing: Row(mainAxisSize: MainAxisSize.min, children: [
         Text(localeProvider.locale.languageCode == 'en' ? '\u0639\u0631\u0628\u064A' : 'EN', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.accent)),
-        const SizedBox(width: 4),
+        const SizedBox(width: AppSpacing.xs),
         const Icon(Icons.swap_horiz_rounded, color: AppColors.textTertiary, size: 18),
       ]),
     );
@@ -597,7 +568,9 @@ class AthleteProfileScreenState extends State<AthleteProfileScreen> {
 
   @override
   void dispose() {
-    for (var c in mCtrl.values) c.dispose();
+    for (var c in mCtrl.values) {
+      c.dispose();
+    }
     for (var e in eventCtrl) { e['name']?.dispose(); e['time']?.dispose(); }
     super.dispose();
   }

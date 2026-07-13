@@ -27,6 +27,7 @@ import 'screens/coach_manage/attendance_summary_screen.dart';
 import 'screens/coach/edit_profile_screen.dart';
 import 'screens/coach/head_coach_branches_screen.dart';
 import 'screens/coach/manage_coaches_screen.dart';
+import 'screens/coach/manage_branches_screen.dart';
 import 'screens/athlete/athlete_attendance_screen.dart';
 import 'screens/athlete/notifications_screen.dart';
 import 'screens/auth/branches_screen.dart';
@@ -131,6 +132,7 @@ class _HFAAppState extends State<HFAApp> {
         GoRoute(path: '/edit-profile', builder: (_, __) => const EditProfileScreen()),
         GoRoute(path: '/head-coach-branches', builder: (_, __) => const HeadCoachBranchesScreen()),
         GoRoute(path: '/head-coach-manage-coaches', builder: (_, __) => const ManageCoachesScreen()),
+        GoRoute(path: '/head-coach-manage-branches', builder: (_, __) => const ManageBranchesScreen()),
         GoRoute(path: '/coach-manage/register-requests', builder: (_, __) => const RegisterRequestsScreen()),
         GoRoute(path: '/coach-manage/payment', builder: (_, __) => const PaymentScreen()),
         GoRoute(path: '/coach-manage/attendance', builder: (_, __) => const AttendanceScreen()),

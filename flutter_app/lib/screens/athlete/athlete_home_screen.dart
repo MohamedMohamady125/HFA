@@ -19,6 +19,7 @@ class AthleteHomeScreenState extends State<AthleteHomeScreen> with AutomaticKeep
   List<dynamic> attendance = [];
   String gearMessage = '', lastThreadMessage = '';
   String? paymentStatus;
+  String _userName = '';
   bool loading = true;
   bool _fetched = false;
   int _unreadCount = 0;
@@ -39,6 +40,7 @@ class AthleteHomeScreenState extends State<AthleteHomeScreen> with AutomaticKeep
         final stored = p.getString('authUser');
         if (stored == null) return;
         final user = jsonDecode(stored);
+        _userName = user['name']?.toString() ?? '';
         final cachedAtt = OfflineRepository.getCached('/attendance/athlete/${user['id']}/week');
         final cachedGear = OfflineRepository.getCached('/gear/${user['branch_id']}');
         final cachedPay = OfflineRepository.getCached('/payments/${user['id']}/status');
@@ -66,6 +68,7 @@ class AthleteHomeScreenState extends State<AthleteHomeScreen> with AutomaticKeep
       final stored = prefs.getString('authUser');
       if (stored == null) return;
       final user = jsonDecode(stored);
+      _userName = user['name']?.toString() ?? '';
       final attFuture = OfflineRepository.getAttendanceWeek(user['id']);
       final gearFuture = OfflineRepository.getGear(user['branch_id']);
       final threadsFuture = OfflineRepository.getThreads(user['branch_id']);
@@ -80,7 +83,7 @@ class AthleteHomeScreenState extends State<AthleteHomeScreen> with AutomaticKeep
       if (threads.isNotEmpty) {
         try {
           final p = await OfflineRepository.getPosts(threads[0]['id']);
-          lastThreadMessage = (p as List).isNotEmpty ? p[0]['message'] ?? '' : '';
+          lastThreadMessage = p.isNotEmpty ? p[0]['message'] ?? '' : '';
         } catch (_) { lastThreadMessage = ''; }
       } else { lastThreadMessage = ''; }
 
@@ -95,126 +98,126 @@ class AthleteHomeScreenState extends State<AthleteHomeScreen> with AutomaticKeep
     } catch (_) {} finally { if (mounted) setState(() => loading = false); }
   }
 
-
   @override
   Widget build(BuildContext context) {
     super.build(context);
     final l = AppLocalizations.of(context);
 
-    if (loading) return Scaffold(body: SafeArea(child: SingleChildScrollView(padding: const EdgeInsets.all(20), child: Column(children: List.generate(4, (_) => const ShimmerCard())))));
+    if (loading) return const Scaffold(body: SafeArea(child: ShimmerList(count: 5)));
+
+    final presentCount = attendance.where((d) => d['status'] == 'present').length;
+    final absentCount = attendance.where((d) => d['status'] == 'absent').length;
 
     return Scaffold(
-      body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: _fetchData, color: AppColors.accent,
-          child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 30),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              FadeSlideIn(child: Row(children: [
-                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(l.translate('dashboard'), style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: AppColors.textPrimary, letterSpacing: -0.5)),
-                  const SizedBox(height: 2),
-                  Text(DateFormat('EEEE, MMM d', l.locale.languageCode).format(DateTime.now()), style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
-                ])),
-                GestureDetector(
-                  onTap: () async {
-                    await context.push('/athlete/notifications');
-                    _fetchData(silent: true);
-                  },
-                  child: Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      Container(
-                        width: 42, height: 42,
-                        decoration: BoxDecoration(color: AppColors.surfaceLight, borderRadius: BorderRadius.circular(12)),
-                        child: const Icon(Icons.notifications_outlined, color: AppColors.textSecondary, size: 24),
-                      ),
-                      if (_unreadCount > 0)
-                        Positioned(
-                          right: -4, top: -4,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                            decoration: BoxDecoration(color: AppColors.error, borderRadius: BorderRadius.circular(10)),
-                            constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
-                            child: Center(child: Text(_unreadCount > 99 ? '99+' : '$_unreadCount', style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700))),
+      body: RefreshIndicator(
+        onRefresh: _fetchData,
+        color: AppColors.accent,
+        edgeOffset: 120,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              FadeSlideIn(
+                child: HeroHeader(
+                  title: _userName.isEmpty ? l.translate('dashboard') : '${l.translate('hi')}, $_userName',
+                  subtitle: DateFormat('EEEE, MMM d', l.locale.languageCode).format(DateTime.now()),
+                  leading: GradientAvatar(name: _userName.isEmpty ? 'HFA' : _userName, size: 44),
+                  trailing: HeaderIconButton(
+                    icon: Icons.notifications_outlined,
+                    badgeCount: _unreadCount,
+                    onTap: () async {
+                      await context.push('/athlete/notifications');
+                      _fetchData(silent: true);
+                    },
+                  ),
+                  bottom: Row(children: [
+                    StatChip(icon: Icons.check_circle_rounded, value: '$presentCount', label: l.translate('present')),
+                    const SizedBox(width: AppSpacing.sm),
+                    StatChip(icon: Icons.cancel_rounded, value: '$absentCount', label: l.translate('absent')),
+                    const SizedBox(width: AppSpacing.sm),
+                    StatChip(icon: _paymentIcon(), value: _paymentLabel(), label: l.translate('payment')),
+                  ]),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsetsDirectional.fromSTEB(20, 20, 20, 30),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  FadeSlideIn(delay: 50, child: SectionHeader(title: l.translate('attendance'))),
+                  FadeSlideIn(delay: 100, child: ScaleOnTap(
+                    onTap: () => context.push('/athlete/attendance-history'),
+                    child: AppCard(
+                      child: Column(
+                        children: [
+                          // This week summary
+                          Row(mainAxisAlignment: MainAxisAlignment.spaceAround,
+                            children: List.generate(3, (i) => _attDay('${l.translate('day')} ${i + 1}', attendance.where((d) => d['day_number'] == i + 1).firstOrNull?['status']))),
+                          const SizedBox(height: AppSpacing.lg),
+                          // Big obvious calendar button
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+                            decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(AppRadius.md)),
+                            child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                              const Icon(Icons.calendar_month_rounded, color: AppColors.accent, size: 20),
+                              const SizedBox(width: AppSpacing.sm),
+                              Text(l.translate('view_full_calendar'), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.accent)),
+                              const SizedBox(width: 6),
+                              const Icon(Icons.arrow_forward_rounded, color: AppColors.accent, size: 18),
+                            ]),
                           ),
-                        ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                GradientAvatar(name: 'HFA', size: 40),
-              ])),
-              const SizedBox(height: 24),
-
-              FadeSlideIn(delay: 0, child: SectionHeader(title: l.translate('attendance'))),
-              FadeSlideIn(delay: 30, child: ScaleOnTap(
-                onTap: () => context.push('/athlete/attendance-history'),
-                child: AppCard(
-                  child: Column(
-                    children: [
-                      // This week summary
-                      Row(mainAxisAlignment: MainAxisAlignment.spaceAround,
-                        children: List.generate(3, (i) => _attDay('${l.translate('day')} ${i + 1}', attendance.where((d) => d['day_number'] == i + 1).firstOrNull?['status']))),
-                      const SizedBox(height: 14),
-                      // Big obvious calendar button
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(12)),
-                        child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                          const Icon(Icons.calendar_month_rounded, color: AppColors.accent, size: 20),
-                          const SizedBox(width: 8),
-                          Text(l.translate('view_full_calendar'), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.accent)),
-                          const SizedBox(width: 6),
-                          const Icon(Icons.arrow_forward_rounded, color: AppColors.accent, size: 18),
-                        ]),
+                        ],
                       ),
-                    ],
-                  ),
-                ),
-              )),
-              const SizedBox(height: 4),
+                    ),
+                  )),
+                  const SizedBox(height: AppSpacing.xs),
 
-              FadeSlideIn(delay: 50, child: SectionHeader(title: l.translate('latest_thread'))),
-              FadeSlideIn(delay: 70, child: ScaleOnTap(onTap: () => AthleteTabSwitcher.of(context)?.switchTo(1), child: AppCard(child: Row(children: [
-                _iconBox(Icons.forum_rounded, AppColors.info), const SizedBox(width: 12),
-                Expanded(child: Text(lastThreadMessage.isEmpty ? l.translate('no_messages') : lastThreadMessage, style: const TextStyle(fontSize: 14, color: AppColors.textSecondary, height: 1.4), maxLines: 2, overflow: TextOverflow.ellipsis)),
-                const Icon(Icons.chevron_right_rounded, color: AppColors.textTertiary, size: 20),
-              ])))),
-              const SizedBox(height: 4),
+                  FadeSlideIn(delay: 150, child: SectionHeader(title: l.translate('latest_thread'))),
+                  FadeSlideIn(delay: 200, child: ActionTile(
+                    icon: Icons.forum_rounded,
+                    color: AppColors.info,
+                    title: l.translate('latest_thread'),
+                    subtitle: lastThreadMessage.isEmpty ? l.translate('no_messages') : lastThreadMessage,
+                    onTap: () => AthleteTabSwitcher.of(context)?.switchTo(1),
+                  )),
+                  const SizedBox(height: AppSpacing.xs),
 
-              FadeSlideIn(delay: 90, child: SectionHeader(title: l.translate('gear_check'))),
-              FadeSlideIn(delay: 110, child: ScaleOnTap(onTap: () => AthleteTabSwitcher.of(context)?.switchTo(2), child: AppCard(child: Row(children: [
-                _iconBox(Icons.backpack_rounded, AppColors.warning), const SizedBox(width: 12),
-                Expanded(child: Text(gearMessage.isEmpty ? l.translate('no_gear_updates') : gearMessage, style: const TextStyle(fontSize: 14, color: AppColors.textSecondary, height: 1.4), maxLines: 2, overflow: TextOverflow.ellipsis)),
-                const Icon(Icons.chevron_right_rounded, color: AppColors.textTertiary, size: 20),
-              ])))),
-              const SizedBox(height: 4),
+                  FadeSlideIn(delay: 250, child: SectionHeader(title: l.translate('gear_check'))),
+                  FadeSlideIn(delay: 300, child: ActionTile(
+                    icon: Icons.backpack_rounded,
+                    color: AppColors.warning,
+                    title: l.translate('gear_check'),
+                    subtitle: gearMessage.isEmpty ? l.translate('no_gear_updates') : gearMessage,
+                    onTap: () => AthleteTabSwitcher.of(context)?.switchTo(2),
+                  )),
+                  const SizedBox(height: AppSpacing.xs),
 
-              FadeSlideIn(delay: 130, child: SectionHeader(title: l.translate('payment'), subtitle: _monthName())),
-              FadeSlideIn(delay: 150, child: AppCard(child: Row(children: [
-                _iconBox(_paymentIcon(), _paymentColor()), const SizedBox(width: 12),
-                Expanded(child: Text(l.translate('status'), style: const TextStyle(fontSize: 14, color: AppColors.textSecondary))),
-                StatusBadge(label: _paymentLabel(), color: _paymentColor()),
-              ]))),
-            ]),
+                  FadeSlideIn(delay: 350, child: SectionHeader(title: l.translate('payment'), subtitle: _monthName())),
+                  FadeSlideIn(delay: 400, child: AppCard(
+                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.lg),
+                    child: Row(children: [
+                      IconBadge(icon: _paymentIcon(), color: _paymentColor()),
+                      const SizedBox(width: AppSpacing.md),
+                      Expanded(child: Text(l.translate('status'), style: AppTypography.titleMedium)),
+                      StatusBadge(label: _paymentLabel(), color: _paymentColor()),
+                    ]),
+                  )),
+                ]),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
 
-  Widget _iconBox(IconData icon, Color color) => Container(width: 38, height: 38, decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)), child: Icon(icon, color: color, size: 18));
-
   Widget _attDay(String label, String? status) {
     final color = status == 'present' ? AppColors.success : status == 'absent' ? AppColors.error : AppColors.textTertiary;
     return Column(children: [
-      Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
+      Text(label, style: AppTypography.caption),
       const SizedBox(height: 6),
-      Container(width: 42, height: 42, decoration: BoxDecoration(color: color.withValues(alpha: 0.1), shape: BoxShape.circle),
-        child: Icon(status == 'present' ? Icons.check_circle_rounded : status == 'absent' ? Icons.cancel_rounded : Icons.remove_circle_outline, color: color, size: 22)),
+      Container(width: 48, height: 48, decoration: BoxDecoration(color: color.withValues(alpha: 0.1), shape: BoxShape.circle),
+        child: Icon(status == 'present' ? Icons.check_circle_rounded : status == 'absent' ? Icons.cancel_rounded : Icons.remove_circle_outline, color: color, size: 24)),
     ]);
   }
 

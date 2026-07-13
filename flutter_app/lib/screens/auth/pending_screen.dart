@@ -12,23 +12,38 @@ class PendingScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
     return Scaffold(
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(32),
+          padding: const EdgeInsets.all(AppSpacing.xxl),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Container(width: 100, height: 100, decoration: BoxDecoration(color: AppColors.accentLight, shape: BoxShape.circle), child: const Icon(Icons.hourglass_top_rounded, size: 48, color: AppColors.primary)),
-              const SizedBox(height: 32),
-              Text(l.translate('pending_approval'), style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
-              const SizedBox(height: 16),
-              Text(l.translate('pending_message'), textAlign: TextAlign.center, style: const TextStyle(fontSize: 15, color: AppColors.textSecondary, height: 1.6)),
-              const SizedBox(height: 48),
-              SizedBox(width: double.infinity, child: OutlinedButton(
-                onPressed: () async { await context.read<AuthProvider>().logout(); if (context.mounted) context.go('/guest-home'); },
-                style: OutlinedButton.styleFrom(foregroundColor: AppColors.error, side: const BorderSide(color: AppColors.error)),
-                child: Text(l.translate('logout')),
-              )),
+              const Spacer(),
+              FadeSlideIn(
+                child: EmptyState(
+                  icon: Icons.hourglass_top_rounded,
+                  title: l.translate('pending_approval'),
+                  message: l.translate('pending_message'),
+                ),
+              ),
+              const Spacer(),
+              FadeSlideIn(
+                delay: 120,
+                child: SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () async { await context.read<AuthProvider>().logout(); if (context.mounted) context.go('/guest-home'); },
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.error,
+                      side: BorderSide(color: AppColors.error.withValues(alpha: 0.5), width: 1.5),
+                    ),
+                    icon: const Icon(Icons.logout_rounded, size: 18),
+                    label: Text(l.translate('logout')),
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.lg),
             ],
           ),
         ),

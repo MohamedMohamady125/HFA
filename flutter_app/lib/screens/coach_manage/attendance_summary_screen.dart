@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
@@ -35,40 +37,45 @@ class _AttendanceSummaryScreenState extends State<AttendanceSummaryScreen> {
 
     final filtered = athletes.where((a) => (a['athlete_name'] as String).toLowerCase().contains(search.toLowerCase())).toList();
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(AppLocalizations.of(context).translate('attendance_summary_title')),
-        actions: [
-          Padding(padding: const EdgeInsets.only(right: 16), child: Center(child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
-            child: Text('${athletes.length}', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.accent)),
-          ))),
-        ],
-      ),
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light,
+      child: Scaffold(
       body: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
-            child: TextField(
-              onChanged: (v) => setState(() => search = v),
-              decoration: InputDecoration(hintText: AppLocalizations.of(context).translate('search_athlete'), prefixIcon: const Icon(Icons.search_rounded, color: AppColors.textTertiary)),
+          FadeSlideIn(
+            child: HeroHeader(
+              title: AppLocalizations.of(context).translate('attendance_summary_title'),
+              leading: HeaderIconButton(icon: Icons.arrow_back_rounded, onTap: () => context.pop()),
+              trailing: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(AppRadius.pill)),
+                child: Text('${athletes.length}', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Colors.white)),
+              ),
+              bottom: TextField(
+                onChanged: (v) => setState(() => search = v),
+                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: AppColors.textPrimary),
+                decoration: InputDecoration(
+                  hintText: AppLocalizations.of(context).translate('search_athlete'),
+                  prefixIcon: const Icon(Icons.search_rounded, color: AppColors.textTertiary),
+                  filled: true,
+                  fillColor: Colors.white,
+                ),
+              ),
             ),
           ),
+          const SizedBox(height: AppSpacing.md),
           Expanded(
             child: RefreshIndicator(
               onRefresh: _fetch,
               color: AppColors.accent,
               child: filtered.isEmpty
                   ? ListView(physics: const AlwaysScrollableScrollPhysics(), children: [
-                      const SizedBox(height: 100),
-                      Center(child: Icon(Icons.people_outline_rounded, size: 56, color: AppColors.textTertiary.withValues(alpha: 0.4))),
-                      const SizedBox(height: 16),
-                      Center(child: Text(AppLocalizations.of(context).translate('no_athletes'), style: const TextStyle(color: AppColors.textSecondary))),
+                      const SizedBox(height: 60),
+                      EmptyState(icon: Icons.people_outline_rounded, title: AppLocalizations.of(context).translate('no_athletes')),
                     ])
                   : ListView.builder(
                       physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      padding: const EdgeInsetsDirectional.fromSTEB(20, 4, 20, 20),
                       itemCount: filtered.length,
                       itemBuilder: (_, i) {
                         final a = filtered[i];
@@ -76,45 +83,34 @@ class _AttendanceSummaryScreenState extends State<AttendanceSummaryScreen> {
                         final rateColor = rate >= 75 ? AppColors.success : rate >= 50 ? AppColors.warning : AppColors.error;
 
                         return FadeSlideIn(
-                          delay: i * 40,
-                          child: Padding(
-                            padding: const EdgeInsets.only(bottom: 10),
-                            child: ScaleOnTap(
-                              onTap: () => Navigator.push(context, MaterialPageRoute(
-                                builder: (_) => _AthleteAttendanceDetail(userId: a['user_id'], athleteName: a['athlete_name']),
-                              )),
-                              child: AppCard(
-                                child: Row(
-                                  children: [
-                                    // Avatar
-                                    Container(
-                                      width: 46, height: 46,
-                                      decoration: BoxDecoration(gradient: LinearGradient(colors: [AppColors.accent, AppColors.accent.withValues(alpha: 0.7)]), borderRadius: BorderRadius.circular(13)),
-                                      child: Center(child: Text((a['athlete_name'] ?? '?')[0].toUpperCase(), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Colors.white))),
-                                    ),
-                                    const SizedBox(width: 14),
-                                    // Name + stats
-                                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                      Text(a['athlete_name'] ?? '', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
-                                      const SizedBox(height: 4),
-                                      Row(children: [
-                                        _miniStat('${a['present']}', AppColors.success),
-                                        const SizedBox(width: 6),
-                                        _miniStat('${a['absent']}', AppColors.error),
-                                        const SizedBox(width: 6),
-                                        Text('${a['total']} ${AppLocalizations.of(context).translate('of_sessions')}', style: const TextStyle(fontSize: 11, color: AppColors.textTertiary)),
-                                      ]),
-                                    ])),
-                                    // Rate badge
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                      decoration: BoxDecoration(color: rateColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
-                                      child: Text('$rate%', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: rateColor)),
-                                    ),
-                                    const SizedBox(width: 6),
-                                    const Icon(Icons.chevron_right_rounded, color: AppColors.textTertiary, size: 20),
-                                  ],
-                                ),
+                          delay: i * 50,
+                          child: ScaleOnTap(
+                            onTap: () => Navigator.push(context, MaterialPageRoute(
+                              builder: (_) => _AthleteAttendanceDetail(userId: a['user_id'], athleteName: a['athlete_name']),
+                            )),
+                            child: AppCard(
+                              padding: const EdgeInsets.all(16),
+                              child: Row(
+                                children: [
+                                  GradientAvatar(name: a['athlete_name'] ?? '?', size: 46),
+                                  const SizedBox(width: 14),
+                                  // Name + stats
+                                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                    Text(a['athlete_name'] ?? '', style: AppTypography.titleMedium),
+                                    const SizedBox(height: 4),
+                                    Row(children: [
+                                      _miniStat('${a['present']}', AppColors.success),
+                                      const SizedBox(width: 6),
+                                      _miniStat('${a['absent']}', AppColors.error),
+                                      const SizedBox(width: 6),
+                                      Flexible(child: Text('${a['total']} ${AppLocalizations.of(context).translate('of_sessions')}', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11, color: AppColors.textTertiary))),
+                                    ]),
+                                  ])),
+                                  // Rate badge
+                                  StatusBadge(label: '$rate%', color: rateColor),
+                                  const SizedBox(width: 6),
+                                  const Icon(Icons.chevron_right_rounded, color: AppColors.textTertiary, size: 22),
+                                ],
                               ),
                             ),
                           ),
@@ -124,6 +120,7 @@ class _AttendanceSummaryScreenState extends State<AttendanceSummaryScreen> {
             ),
           ),
         ],
+      ),
       ),
     );
   }
@@ -211,11 +208,11 @@ class _AthleteAttendanceDetailState extends State<_AthleteAttendanceDetail> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Row(children: [
-              _statCard(AppLocalizations.of(context).translate('present'), '$presentCount', AppColors.success),
+              Expanded(child: StatCard(value: '$presentCount', label: AppLocalizations.of(context).translate('present'), icon: Icons.check_circle_rounded, color: AppColors.success)),
               const SizedBox(width: 10),
-              _statCard(AppLocalizations.of(context).translate('absent'), '$absentCount', AppColors.error),
+              Expanded(child: StatCard(value: '$absentCount', label: AppLocalizations.of(context).translate('absent'), icon: Icons.cancel_rounded, color: AppColors.error)),
               const SizedBox(width: 10),
-              _statCard(AppLocalizations.of(context).translate('rate'), '$rate%', AppColors.accent),
+              Expanded(child: StatCard(value: '$rate%', label: AppLocalizations.of(context).translate('rate'), icon: Icons.insights_rounded, color: AppColors.accent)),
             ]),
           ),
           const SizedBox(height: 16),
@@ -253,7 +250,7 @@ class _AthleteAttendanceDetailState extends State<_AthleteAttendanceDetail> {
     final today = DateTime(now.year, now.month, now.day);
 
     final cells = <Widget>[];
-    for (int i = 0; i < startWeekday; i++) cells.add(const SizedBox());
+    for (int i = 0; i < startWeekday; i++) { cells.add(const SizedBox()); }
 
     for (int day = 1; day <= daysInMonth; day++) {
       final date = DateTime(_currentMonth.year, _currentMonth.month, day);
@@ -293,12 +290,4 @@ class _AthleteAttendanceDetailState extends State<_AthleteAttendanceDetail> {
       child: Icon(icon, color: onTap != null ? AppColors.textPrimary : AppColors.textTertiary, size: 24)));
   }
 
-  Widget _statCard(String label, String value, Color color) {
-    return Expanded(child: Container(padding: const EdgeInsets.symmetric(vertical: 12), decoration: BoxDecoration(color: color.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(12)),
-      child: Column(children: [
-        Text(value, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: color)),
-        const SizedBox(height: 2),
-        Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: color.withValues(alpha: 0.7))),
-      ])));
-  }
 }

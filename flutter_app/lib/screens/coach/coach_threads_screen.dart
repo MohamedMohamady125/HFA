@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
-import '../../services/api_service.dart';
 import '../../services/offline/offline_repository.dart';
 import '../../theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
@@ -61,7 +60,7 @@ class CoachThreadsScreenState extends State<CoachThreadsScreen> {
       displayBranchId = me['branch_id'];
       branchName = me['branch_name'] ?? 'Branch $displayBranchId';
       final tr = await OfflineRepository.getThreads(displayBranchId!);
-      if (tr is List && tr.isNotEmpty) {
+      if (tr.isNotEmpty) {
         threadId = tr[0]['id'];
         await _loadMessages();
       }
@@ -71,7 +70,7 @@ class CoachThreadsScreenState extends State<CoachThreadsScreen> {
   Future<void> _loadMessages() async {
     if (threadId == null) return;
     try {
-      final data = await OfflineRepository.getPosts(threadId!) as List;
+      final data = await OfflineRepository.getPosts(threadId!);
       data.sort((a, b) => DateTime.parse(a['created_at']).compareTo(DateTime.parse(b['created_at'])));
       messages = data;
       _scrollToBottom();
@@ -121,79 +120,96 @@ class CoachThreadsScreenState extends State<CoachThreadsScreen> {
   Widget build(BuildContext context) {
     if (loading) return const Scaffold(body: ShimmerList(count: 6));
 
-    return Scaffold(
-      body: Column(
-        children: [
-          // Header
-          Container(
-            padding: EdgeInsets.fromLTRB(16, MediaQuery.of(context).padding.top + 8, 8, 12),
-            decoration: const BoxDecoration(color: AppColors.primary),
-            child: Row(children: [
-              GradientAvatar(name: branchName, size: 40),
-              const SizedBox(width: 12),
-              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(branchName, style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w600)),
-                Text('${messages.length} ${AppLocalizations.of(context).translate('messages')}', style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 12)),
-              ])),
-              IconButton(icon: Icon(Icons.refresh_rounded, color: Colors.white.withValues(alpha: 0.7), size: 22), onPressed: _loadMessages),
-            ]),
-          ),
-
-          // Messages
-          Expanded(
-            child: Container(
-              color: AppColors.scaffoldBg,
-              child: messages.isEmpty
-                  ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-                      Icon(Icons.chat_bubble_outline_rounded, size: 48, color: AppColors.textTertiary.withValues(alpha: 0.4)),
-                      const SizedBox(height: 12),
-                      Text(AppLocalizations.of(context).translate('no_messages'), style: const TextStyle(color: AppColors.textSecondary)),
-                    ]))
-                  : ListView.builder(
-                      controller: _scrollCtrl,
-                      physics: const BouncingScrollPhysics(),
-                      padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
-                      itemCount: messages.length,
-                      itemBuilder: (_, i) => _buildMsg(i),
-                    ),
-            ),
-          ),
-
-          // Input
-          Container(
-            color: AppColors.cardBg,
-            padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
-            child: SafeArea(
-              top: false,
-              child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                Expanded(
-                  child: Container(
-                    decoration: BoxDecoration(color: AppColors.surfaceLight, borderRadius: BorderRadius.circular(24)),
-                    child: TextField(
-                      controller: _msgCtrl, maxLines: 5, minLines: 1, maxLength: 1000, enabled: !sending,
-                      style: const TextStyle(fontSize: 16),
-                      onChanged: (_) => setState(() {}),
-                      decoration: InputDecoration(hintText: AppLocalizations.of(context).translate('message_hint'), hintStyle: const TextStyle(color: AppColors.textTertiary), counterText: '', border: InputBorder.none,
-                        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 10), fillColor: Colors.transparent, filled: true),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 6),
-                GestureDetector(
-                  onTap: _msgCtrl.text.trim().isNotEmpty && !sending ? _postMessage : null,
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    width: 46, height: 46,
-                    decoration: BoxDecoration(color: sending ? AppColors.textTertiary : AppColors.accent, shape: BoxShape.circle),
-                    child: Center(child: sending
-                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                        : const Icon(Icons.send_rounded, color: Colors.white, size: 22)),
-                  ),
-                ),
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light,
+      child: Scaffold(
+        body: Column(
+          children: [
+            // Header
+            Container(
+              padding: EdgeInsetsDirectional.fromSTEB(16, MediaQuery.of(context).padding.top + 10, 12, 14),
+              decoration: const BoxDecoration(
+                gradient: AppColors.heroGradient,
+                borderRadius: BorderRadius.vertical(bottom: Radius.circular(24)),
+              ),
+              child: Row(children: [
+                GradientAvatar(name: branchName, size: 44),
+                const SizedBox(width: 12),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(branchName, style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w800, letterSpacing: -0.3)),
+                  const SizedBox(height: 2),
+                  Text('${messages.length} ${AppLocalizations.of(context).translate('messages')}', style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 12, fontWeight: FontWeight.w500)),
+                ])),
+                HeaderIconButton(icon: Icons.refresh_rounded, onTap: _loadMessages),
               ]),
             ),
-          ),
-        ],
+
+            // Messages
+            Expanded(
+              child: Container(
+                color: AppColors.scaffoldBg,
+                child: messages.isEmpty
+                    ? EmptyState(icon: Icons.chat_bubble_outline_rounded, title: AppLocalizations.of(context).translate('no_messages'))
+                    : ListView.builder(
+                        controller: _scrollCtrl,
+                        physics: const BouncingScrollPhysics(),
+                        padding: const EdgeInsetsDirectional.fromSTEB(12, 12, 12, 12),
+                        itemCount: messages.length,
+                        itemBuilder: (_, i) => _buildMsg(i),
+                      ),
+              ),
+            ),
+
+            // Composer
+            Container(
+              decoration: BoxDecoration(
+                color: AppColors.cardBg,
+                boxShadow: [BoxShadow(color: AppColors.primary.withValues(alpha: 0.06), blurRadius: 12, offset: const Offset(0, -3))],
+              ),
+              padding: const EdgeInsetsDirectional.fromSTEB(12, 8, 12, 8),
+              child: SafeArea(
+                top: false,
+                child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                  Expanded(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: AppColors.surfaceLight,
+                        borderRadius: BorderRadius.circular(AppRadius.xl),
+                        border: Border.all(color: AppColors.divider, width: 0.8),
+                      ),
+                      child: TextField(
+                        controller: _msgCtrl, maxLines: 5, minLines: 1, maxLength: 1000, enabled: !sending,
+                        style: const TextStyle(fontSize: 16, color: AppColors.textPrimary),
+                        onChanged: (_) => setState(() {}),
+                        decoration: InputDecoration(hintText: AppLocalizations.of(context).translate('message_hint'), hintStyle: const TextStyle(color: AppColors.textTertiary), counterText: '', border: InputBorder.none,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12), fillColor: Colors.transparent, filled: true),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: _msgCtrl.text.trim().isNotEmpty && !sending ? _postMessage : null,
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      width: 48, height: 48,
+                      decoration: BoxDecoration(
+                        gradient: sending || _msgCtrl.text.trim().isEmpty ? null : AppColors.accentGradient,
+                        color: sending || _msgCtrl.text.trim().isEmpty ? AppColors.shimmerBase : null,
+                        shape: BoxShape.circle,
+                        boxShadow: sending || _msgCtrl.text.trim().isEmpty
+                            ? null
+                            : [BoxShadow(color: AppColors.accent.withValues(alpha: 0.35), blurRadius: 10, offset: const Offset(0, 4))],
+                      ),
+                      child: Center(child: sending
+                          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                          : Icon(Icons.send_rounded, color: _msgCtrl.text.trim().isEmpty ? AppColors.textTertiary : Colors.white, size: 22)),
+                    ),
+                  ),
+                ]),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -210,50 +226,73 @@ class CoachThreadsScreenState extends State<CoachThreadsScreen> {
     final isLast = i == messages.length - 1 || messages[i + 1]['user_id'] != msg['user_id'] || (i < messages.length - 1 && !_sameDay(createdAt, messages[i + 1]['created_at']?.toString() ?? ''));
     final time = DateFormat('h:mm a', AppLocalizations.of(context).locale.languageCode).format(DateTime.tryParse(createdAt) ?? DateTime.now());
 
+    final bubble = AnimatedOpacity(
+      duration: const Duration(milliseconds: 300),
+      opacity: isSending ? 0.6 : 1.0,
+      child: Container(
+        padding: EdgeInsets.fromLTRB(14, showAuthor && !isMine ? 8 : 10, 14, 9),
+        decoration: BoxDecoration(
+          gradient: isMine ? AppColors.accentGradient : null,
+          color: isMine ? null : AppColors.cardBg,
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(!isMine && isLast ? 4 : 18),
+            topRight: Radius.circular(isMine && isLast ? 4 : 18),
+            bottomLeft: const Radius.circular(18),
+            bottomRight: const Radius.circular(18),
+          ),
+          border: isMine ? null : Border.all(color: AppColors.divider, width: 0.8),
+          boxShadow: [
+            BoxShadow(
+              color: isMine ? AppColors.accent.withValues(alpha: 0.2) : AppColors.primary.withValues(alpha: 0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          if (showAuthor && !isMine)
+            Padding(padding: const EdgeInsets.only(bottom: 3), child: Text(author, style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: _colorFor(author)))),
+          Row(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.end, children: [
+            Flexible(child: Text(message, style: TextStyle(fontSize: 15, height: 1.35, color: isMine ? Colors.white : AppColors.textPrimary))),
+            const SizedBox(width: 8),
+            Row(mainAxisSize: MainAxisSize.min, children: [
+              Text(time, style: TextStyle(fontSize: 10.5, color: isMine ? Colors.white.withValues(alpha: 0.75) : AppColors.textTertiary)),
+              if (isMine) ...[
+                const SizedBox(width: 3),
+                Icon(isSending ? Icons.access_time : Icons.done_all, size: 15, color: isSending ? Colors.white.withValues(alpha: 0.6) : Colors.white),
+              ],
+            ]),
+          ]),
+        ]),
+      ),
+    );
+
     return Column(children: [
       if (showDate) Padding(
-        padding: const EdgeInsets.symmetric(vertical: 10),
+        padding: const EdgeInsets.symmetric(vertical: 12),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
-          decoration: BoxDecoration(color: AppColors.accentLight, borderRadius: BorderRadius.circular(8)),
-          child: Text(_dateLabel(DateTime.tryParse(createdAt) ?? DateTime.now()), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.primary)),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+          decoration: BoxDecoration(color: AppColors.accentLight, borderRadius: BorderRadius.circular(AppRadius.pill)),
+          child: Text(_dateLabel(DateTime.tryParse(createdAt) ?? DateTime.now()), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.primary)),
         ),
       ),
       Align(
-        alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
-        child: AnimatedOpacity(
-          duration: const Duration(milliseconds: 300),
-          opacity: isSending ? 0.6 : 1.0,
-          child: Container(
-            margin: EdgeInsets.only(left: isMine ? 50 : 4, right: isMine ? 4 : 50, top: showAuthor ? 6 : 1, bottom: 1),
-            padding: EdgeInsets.fromLTRB(12, showAuthor && !isMine ? 6 : 8, 12, 7),
-            decoration: BoxDecoration(
-              color: isMine ? AppColors.accentLight : AppColors.cardBg,
-              borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(!isMine && isLast ? 2 : 12),
-                topRight: Radius.circular(isMine && isLast ? 2 : 12),
-                bottomLeft: const Radius.circular(12),
-                bottomRight: const Radius.circular(12),
-              ),
-              border: null,
-              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 2, offset: const Offset(0, 1))],
-            ),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              if (showAuthor && !isMine)
-                Padding(padding: const EdgeInsets.only(bottom: 3), child: Text(author, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: _colorFor(author)))),
-              Row(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.end, children: [
-                Flexible(child: Text(message, style: const TextStyle(fontSize: 15, height: 1.35, color: AppColors.textPrimary))),
-                const SizedBox(width: 8),
-                Row(mainAxisSize: MainAxisSize.min, children: [
-                  Text(time, style: const TextStyle(fontSize: 10.5, color: AppColors.textTertiary)),
-                  if (isMine) ...[
-                    const SizedBox(width: 3),
-                    Icon(isSending ? Icons.access_time : Icons.done_all, size: 15, color: isSending ? AppColors.textTertiary : AppColors.accent),
-                  ],
-                ]),
-              ]),
-            ]),
+        alignment: isMine ? AlignmentDirectional.centerEnd : AlignmentDirectional.centerStart,
+        child: Padding(
+          padding: EdgeInsetsDirectional.only(
+            start: isMine ? 56 : 0,
+            end: isMine ? 0 : 56,
+            top: showAuthor ? 8 : 2,
+            bottom: 2,
           ),
+          child: isMine
+              ? bubble
+              : Row(crossAxisAlignment: CrossAxisAlignment.end, mainAxisSize: MainAxisSize.min, children: [
+                  if (isLast) GradientAvatar(name: author, size: 30)
+                  else const SizedBox(width: 30),
+                  const SizedBox(width: 8),
+                  Flexible(child: bubble),
+                ]),
         ),
       ),
     ]);

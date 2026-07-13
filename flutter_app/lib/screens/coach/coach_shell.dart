@@ -65,23 +65,35 @@ class _CoachShellState extends State<CoachShell> {
         children: [
           if (isHC && branchName != null)
             GestureDetector(
-              onTap: () => context.go('/head-coach-branches'),
+              onTap: () { HapticFeedback.lightImpact(); context.go('/head-coach-branches'); },
               child: Container(
                 width: double.infinity,
-                padding: EdgeInsets.fromLTRB(16, MediaQuery.of(context).padding.top + 8, 16, 8),
-                decoration: const BoxDecoration(gradient: LinearGradient(colors: [AppColors.primary, AppColors.primaryLight])),
+                padding: EdgeInsetsDirectional.fromSTEB(16, MediaQuery.of(context).padding.top + 8, 16, 10),
+                decoration: const BoxDecoration(gradient: AppColors.heroGradient),
                 child: Row(children: [
-                  const Icon(Icons.location_city_rounded, color: Colors.white70, size: 15),
-                  const SizedBox(width: 8),
-                  Text(branchName, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
+                  Container(
+                    padding: const EdgeInsets.all(5),
+                    decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(8)),
+                    child: const Icon(Icons.location_city_rounded, color: Colors.white, size: 14),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(branchName, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700, letterSpacing: -0.2)),
                   const Spacer(),
-                  Text(AppLocalizations.of(context).translate('switch_text'), style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12)),
+                  Text(AppLocalizations.of(context).translate('switch_text'), style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 12, fontWeight: FontWeight.w600)),
                   const SizedBox(width: 4),
-                  Icon(Icons.swap_horiz_rounded, color: Colors.white.withValues(alpha: 0.5), size: 16),
+                  Icon(Icons.swap_horiz_rounded, color: Colors.white.withValues(alpha: 0.6), size: 16),
                 ]),
               ),
             ),
-          Expanded(child: IndexedStack(index: _index, children: _screens)),
+          Expanded(
+            child: (isHC && branchName != null)
+                ? MediaQuery.removePadding(
+                    context: context,
+                    removeTop: true,
+                    child: IndexedStack(index: _index, children: _screens),
+                  )
+                : IndexedStack(index: _index, children: _screens),
+          ),
         ],
       ),
       bottomNavigationBar: Container(

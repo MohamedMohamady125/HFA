@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -52,6 +53,7 @@ class _HeadCoachBranchesScreenState extends State<HeadCoachBranchesScreen> {
     await prefs.clear();
     if (!mounted) return;
     await context.read<AuthProvider>().logout();
+    if (!mounted) return;
     context.go('/guest-home');
   }
 
@@ -60,76 +62,93 @@ class _HeadCoachBranchesScreenState extends State<HeadCoachBranchesScreen> {
     final l = AppLocalizations.of(context);
     if (loading) return const Scaffold(body: ShimmerList(count: 5));
 
-    return Scaffold(
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              FadeSlideIn(child: Row(children: [
-                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(l.translate('head_coach'), style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: AppColors.textPrimary, letterSpacing: -0.5)),
-                  const SizedBox(height: 4),
-                  Text(l.translate('select_branch_manage'), style: const TextStyle(fontSize: 14, color: AppColors.textSecondary)),
-                ])),
-                IconButton(onPressed: _logout, icon: const Icon(Icons.logout_rounded, color: AppColors.textTertiary), tooltip: l.translate('logout')),
-              ])),
-              const SizedBox(height: 16),
-              FadeSlideIn(delay: 100, child: SizedBox(width: double.infinity, child: OutlinedButton.icon(
-                onPressed: () => context.go('/head-coach-manage-coaches'),
-                icon: const Icon(Icons.people_rounded, size: 18),
-                label: Text(l.translate('manage_coaches')),
-              ))),
-              const SizedBox(height: 20),
-              Expanded(
-                child: branches.isEmpty
-                    ? Center(child: Text(l.translate('no_branches'), style: const TextStyle(color: AppColors.textSecondary)))
-                    : ListView.builder(
-                        physics: const BouncingScrollPhysics(),
-                        itemCount: branches.length,
-                        itemBuilder: (_, i) {
-                          final b = branches[i];
-                          final isSwitching = _switchingId == b['id'];
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light,
+      child: Scaffold(
+        body: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            FadeSlideIn(
+              child: HeroHeader(
+                title: l.translate('head_coach'),
+                subtitle: l.translate('select_branch_manage'),
+                trailing: HeaderIconButton(icon: Icons.logout_rounded, onTap: _logout),
+                bottom: Row(children: [
+                  StatChip(icon: Icons.location_city_rounded, value: '${branches.length}', label: l.translate('branch_label')),
+                ]),
+              ),
+            ),
+            Expanded(
+              child: branches.isEmpty
+                  ? EmptyState(icon: Icons.location_city_rounded, title: l.translate('no_branches'))
+                  : ListView.builder(
+                      physics: const BouncingScrollPhysics(),
+                      padding: const EdgeInsetsDirectional.fromSTEB(20, 20, 20, 20),
+                      itemCount: branches.length + 2,
+                      itemBuilder: (_, index) {
+                        if (index == 0) {
                           return FadeSlideIn(
-                            delay: 150 + (i * 60),
-                            child: Padding(
-                              padding: const EdgeInsets.only(bottom: 10),
-                              child: ScaleOnTap(
-                                onTap: isSwitching ? null : () => _switchToBranch(Map<String, dynamic>.from(b)),
-                                child: AnimatedOpacity(
-                                  duration: const Duration(milliseconds: 200),
-                                  opacity: _switchingId != null && !isSwitching ? 0.4 : 1.0,
-                                  child: AppCard(
-                                    child: Row(children: [
-                                      AnimatedContainer(
-                                        duration: const Duration(milliseconds: 300),
-                                        width: 48, height: 48,
-                                        decoration: BoxDecoration(
-                                          color: isSwitching ? AppColors.accent : AppColors.accent.withValues(alpha: 0.1),
-                                          borderRadius: BorderRadius.circular(14),
-                                        ),
-                                        child: isSwitching
-                                            ? const Center(child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white)))
-                                            : const Icon(Icons.location_city_rounded, color: AppColors.accent, size: 22),
-                                      ),
-                                      const SizedBox(width: 14),
-                                      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                        Text(b['name'] ?? '', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
-                                        if (b['address'] != null) Text(b['address'], style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
-                                      ])),
-                                      const Icon(Icons.chevron_right_rounded, color: AppColors.textTertiary, size: 20),
-                                    ]),
-                                  ),
-                                ),
-                              ),
+                            delay: 50,
+                            child: ActionTile(
+                              icon: Icons.people_rounded,
+                              title: l.translate('manage_coaches'),
+                              color: AppColors.info,
+                              onTap: () => context.go('/head-coach-manage-coaches'),
                             ),
                           );
-                        },
-                      ),
-              ),
-            ],
-          ),
+                        }
+                        if (index == 1) {
+                          return FadeSlideIn(
+                            delay: 75,
+                            child: ActionTile(
+                              icon: Icons.store_rounded,
+                              title: l.translate('manage_branches'),
+                              color: AppColors.warning,
+                              onTap: () => context.go('/head-coach-manage-branches'),
+                            ),
+                          );
+                        }
+                        final i = index - 2;
+                        final b = branches[i];
+                        final isSwitching = _switchingId == b['id'];
+                        return FadeSlideIn(
+                          delay: 100 + (i * 50),
+                          child: ScaleOnTap(
+                            onTap: isSwitching ? null : () => _switchToBranch(Map<String, dynamic>.from(b)),
+                            child: AnimatedOpacity(
+                              duration: const Duration(milliseconds: 200),
+                              opacity: _switchingId != null && !isSwitching ? 0.4 : 1.0,
+                              child: AppCard(
+                                padding: const EdgeInsets.all(16),
+                                child: Row(children: [
+                                  AnimatedContainer(
+                                    duration: const Duration(milliseconds: 300),
+                                    width: 48, height: 48,
+                                    decoration: BoxDecoration(
+                                      gradient: isSwitching ? AppColors.accentGradient : null,
+                                      color: isSwitching ? null : AppColors.accent.withValues(alpha: 0.12),
+                                      borderRadius: BorderRadius.circular(AppRadius.md),
+                                    ),
+                                    child: isSwitching
+                                        ? const Center(child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white)))
+                                        : const Icon(Icons.location_city_rounded, color: AppColors.accent, size: 22),
+                                  ),
+                                  const SizedBox(width: 14),
+                                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                    Text(b['name'] ?? '', style: AppTypography.titleMedium),
+                                    if (b['address'] != null)
+                                      Padding(padding: const EdgeInsets.only(top: 2), child: Text(b['address'], style: AppTypography.caption)),
+                                  ])),
+                                  const Icon(Icons.chevron_right_rounded, color: AppColors.textTertiary, size: 22),
+                                ]),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+            ),
+          ],
         ),
       ),
     );

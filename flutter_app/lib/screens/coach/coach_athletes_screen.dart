@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'dart:convert';
@@ -48,32 +49,44 @@ class CoachAthletesScreenState extends State<CoachAthletesScreen> {
 
     final filtered = athletes.where((a) => (a['name'] as String).toLowerCase().contains(search.toLowerCase())).toList();
 
-    return Scaffold(
-      body: SafeArea(
-        child: Column(
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light,
+      child: Scaffold(
+        body: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                FadeSlideIn(child: Row(children: [
-                  Expanded(child: Text(l.translate('athletes'), style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: AppColors.textPrimary, letterSpacing: -0.5))),
-                  Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4), decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
-                    child: Text('${athletes.length}', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.accent))),
-                ])),
-                const SizedBox(height: 14),
-                TextField(onChanged: (v) => setState(() => search = v), decoration: InputDecoration(hintText: l.translate('search_athlete'), prefixIcon: const Icon(Icons.search_rounded, color: AppColors.textTertiary))),
-              ]),
+            FadeSlideIn(
+              child: HeroHeader(
+                title: l.translate('athletes'),
+                trailing: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(AppRadius.pill)),
+                  child: Text('${athletes.length}', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Colors.white)),
+                ),
+                bottom: TextField(
+                  onChanged: (v) => setState(() => search = v),
+                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: AppColors.textPrimary),
+                  decoration: InputDecoration(
+                    hintText: l.translate('search_athlete'),
+                    prefixIcon: const Icon(Icons.search_rounded, color: AppColors.textTertiary),
+                    filled: true,
+                    fillColor: Colors.white,
+                  ),
+                ),
+              ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.md),
             Expanded(
               child: RefreshIndicator(
                 onRefresh: () => _fetch(silent: true), color: AppColors.accent,
                 child: filtered.isEmpty
-                    ? ListView(physics: const AlwaysScrollableScrollPhysics(), children: [const SizedBox(height: 100), Center(child: Icon(Icons.people_outline_rounded, size: 56, color: AppColors.textTertiary.withValues(alpha: 0.4))), const SizedBox(height: 16), Center(child: Text(l.translate('no_athletes'), style: const TextStyle(color: AppColors.textSecondary)))])
+                    ? ListView(physics: const AlwaysScrollableScrollPhysics(), children: [
+                        const SizedBox(height: 60),
+                        EmptyState(icon: Icons.people_outline_rounded, title: l.translate('no_athletes')),
+                      ])
                     : ListView.builder(
                         physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        padding: const EdgeInsetsDirectional.fromSTEB(20, 4, 20, 20),
                         itemCount: filtered.length,
                         itemBuilder: (_, i) {
                           final a = filtered[i];
@@ -82,24 +95,24 @@ class CoachAthletesScreenState extends State<CoachAthletesScreen> {
                           final payStatus = a['payment_status'] ?? 'none';
                           final payColor = payStatus == 'paid' ? AppColors.success : payStatus == 'late' ? AppColors.error : AppColors.warning;
 
-                          return FadeSlideIn(delay: i * 40, child: Padding(
-                            padding: const EdgeInsets.only(bottom: 10),
-                            child: ScaleOnTap(
-                              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => _AthleteDetailScreen(athlete: a))),
-                              child: AppCard(child: Row(children: [
+                          return FadeSlideIn(delay: i * 50, child: ScaleOnTap(
+                            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => _AthleteDetailScreen(athlete: a))),
+                            child: AppCard(
+                              padding: const EdgeInsets.all(16),
+                              child: Row(children: [
                                 GradientAvatar(name: a['name'] ?? '?', size: 48),
                                 const SizedBox(width: 14),
                                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                  Text(a['name'] ?? '', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
-                                  const SizedBox(height: 4),
+                                  Text(a['name'] ?? '', style: AppTypography.titleMedium),
+                                  const SizedBox(height: 6),
                                   Row(children: [
                                     StatusBadge(label: '$rate%', color: rateColor),
                                     const SizedBox(width: 6),
                                     StatusBadge(label: payStatus == 'none' ? l.translate('no_payment') : l.translate(payStatus), color: payColor),
                                   ]),
                                 ])),
-                                const Icon(Icons.chevron_right_rounded, color: AppColors.textTertiary, size: 20),
-                              ])),
+                                const Icon(Icons.chevron_right_rounded, color: AppColors.textTertiary, size: 22),
+                              ]),
                             ),
                           ));
                         },
@@ -228,8 +241,7 @@ class _AthleteDetailScreenState extends State<_AthleteDetailScreen> {
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           // Profile header
           FadeSlideIn(child: AppCard(child: Row(children: [
-            Container(width: 56, height: 56, decoration: BoxDecoration(gradient: LinearGradient(colors: [AppColors.accent, AppColors.accent.withValues(alpha: 0.7)]), borderRadius: BorderRadius.circular(16)),
-              child: Center(child: Text((a['name'] ?? '?')[0].toUpperCase(), style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: Colors.white)))),
+            GradientAvatar(name: a['name'] ?? '?', size: 56),
             const SizedBox(width: 16),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(a['name'] ?? '', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
@@ -394,7 +406,7 @@ class _AthleteDetailScreenState extends State<_AthleteDetailScreen> {
     final startWeekday = firstDay.weekday % 7;
     final today = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
     final cells = <Widget>[];
-    for (int i = 0; i < startWeekday; i++) cells.add(const SizedBox());
+    for (int i = 0; i < startWeekday; i++) { cells.add(const SizedBox()); }
     for (int day = 1; day <= daysInMonth; day++) {
       final date = DateTime(_currentMonth.year, _currentMonth.month, day);
       final dateStr = DateFormat('yyyy-MM-dd').format(date);

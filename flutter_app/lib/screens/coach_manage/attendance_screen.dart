@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
-import '../../services/api_service.dart';
 import '../../services/offline/offline_repository.dart';
 import '../../theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
@@ -51,6 +51,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> with SingleTickerPr
   }
 
   void _mark(int athleteId, String status, int index) {
+    HapticFeedback.lightImpact();
     // Instant local update - zero await, zero spinner
     setState(() {
       for (int i = 0; i < attendance.length; i++) {
@@ -64,96 +65,101 @@ class _AttendanceScreenState extends State<AttendanceScreen> with SingleTickerPr
     OfflineRepository.markAttendance(athleteId, sessionDates[selectedDay], status, _branchId!);
   }
 
-  void _msg(String msg, {bool error = false}) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: error ? AppColors.error : AppColors.success));
-
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
     if (_branchId == null) return Scaffold(body: Center(child: Text(l.translate('no_branch'))));
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(l.translate('weekly_attendance_title')),
-        leading: IconButton(icon: const Icon(Icons.arrow_back_rounded), onPressed: () => context.pop()),
-        actions: [IconButton(icon: const Icon(Icons.bar_chart_rounded, color: AppColors.accent), onPressed: () => context.push('/coach-manage/summary'))],
-      ),
-      body: Column(
-        children: [
-          // Day tabs
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
-            child: Row(
-              children: List.generate(3, (i) {
-                final active = selectedDay == i;
-                return Expanded(
-                  child: GestureDetector(
-                    onTap: () { setState(() => selectedDay = i); _fetchAttendance(); },
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 250),
-                      curve: Curves.easeOut,
-                      margin: const EdgeInsets.symmetric(horizontal: 4),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      decoration: BoxDecoration(
-                        color: active ? AppColors.accent : AppColors.surfaceLight,
-                        borderRadius: BorderRadius.circular(14),
-                        boxShadow: active ? [BoxShadow(color: AppColors.accent.withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 3))] : null,
-                      ),
-                      child: Center(child: Text(days[i], style: TextStyle(fontSize: 14, color: active ? Colors.white : AppColors.textSecondary, fontWeight: FontWeight.w700))),
-                    ),
-                  ),
-                );
-              }),
-            ),
-          ),
-
-          if (error != null) Padding(padding: const EdgeInsets.all(16), child: Text(error!, style: const TextStyle(color: AppColors.error))),
-
-          if (loading)
-            const Expanded(child: ShimmerList(count: 5))
-          else
-            Expanded(
-              child: RefreshIndicator(
-                onRefresh: () => _fetchAttendance(silent: true),
-                color: AppColors.accent,
-                child: ListView.builder(
-                  physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  itemCount: attendance.length,
-                  itemBuilder: (_, i) {
-                    final item = attendance[i];
-                    final id = item['athlete_id'];
-                    final status = item['status'];
-
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 6),
-                      child: AppCard(
-                        margin: EdgeInsets.zero,
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 36, height: 36,
-                              decoration: BoxDecoration(
-                                color: status == 'present' ? AppColors.success.withValues(alpha: 0.1) : status == 'absent' ? AppColors.error.withValues(alpha: 0.1) : AppColors.surfaceLight,
-                                shape: BoxShape.circle,
-                              ),
-                              child: Center(child: Text((item['athlete_name'] ?? '?')[0].toUpperCase(), style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700,
-                                color: status == 'present' ? AppColors.success : status == 'absent' ? AppColors.error : AppColors.textTertiary))),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(child: Text(item['athlete_name'] ?? '', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary))),
-                            _statusBtn(Icons.check_rounded, status == 'present', AppColors.success, () => _mark(id, 'present', i)),
-                            const SizedBox(width: 6),
-                            _statusBtn(Icons.close_rounded, status == 'absent', AppColors.error, () => _mark(id, 'absent', i)),
-                          ],
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light,
+      child: Scaffold(
+        body: Column(
+          children: [
+            FadeSlideIn(
+              child: HeroHeader(
+                title: l.translate('weekly_attendance_title'),
+                leading: HeaderIconButton(icon: Icons.arrow_back_rounded, onTap: () => context.pop()),
+                trailing: HeaderIconButton(icon: Icons.bar_chart_rounded, onTap: () => context.push('/coach-manage/summary')),
+                bottom: Row(
+                  children: List.generate(3, (i) {
+                    final active = selectedDay == i;
+                    return Expanded(
+                      child: GestureDetector(
+                        onTap: () { HapticFeedback.selectionClick(); setState(() => selectedDay = i); _fetchAttendance(); },
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 250),
+                          curve: Curves.easeOut,
+                          height: 48,
+                          margin: const EdgeInsets.symmetric(horizontal: 4),
+                          decoration: BoxDecoration(
+                            color: active ? Colors.white : Colors.white.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(AppRadius.md),
+                            boxShadow: active ? [BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 10, offset: const Offset(0, 3))] : null,
+                          ),
+                          child: Center(child: Text(days[i], style: TextStyle(fontSize: 14, color: active ? AppColors.primary : Colors.white, fontWeight: FontWeight.w800))),
                         ),
                       ),
                     );
-                  },
+                  }),
                 ),
               ),
             ),
-        ],
+
+            if (error != null) Padding(padding: const EdgeInsets.all(16), child: Text(error!, style: const TextStyle(color: AppColors.error))),
+
+            if (loading)
+              const Expanded(child: ShimmerList(count: 5))
+            else
+              Expanded(
+                child: RefreshIndicator(
+                  onRefresh: () => _fetchAttendance(silent: true),
+                  color: AppColors.accent,
+                  child: attendance.isEmpty
+                      ? ListView(physics: const AlwaysScrollableScrollPhysics(), children: [
+                          const SizedBox(height: 60),
+                          EmptyState(icon: Icons.fact_check_outlined, title: l.translate('no_athletes')),
+                        ])
+                      : ListView.builder(
+                          physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+                          padding: const EdgeInsetsDirectional.fromSTEB(20, 16, 20, 20),
+                          itemCount: attendance.length,
+                          itemBuilder: (_, i) {
+                            final item = attendance[i];
+                            final id = item['athlete_id'];
+                            final status = item['status'];
+                            final statusColor = status == 'present' ? AppColors.success : status == 'absent' ? AppColors.error : null;
+
+                            return AppCard(
+                              margin: const EdgeInsets.only(bottom: 8),
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                              child: Row(
+                                children: [
+                                  GradientAvatar(
+                                    name: item['athlete_name'] ?? '?',
+                                    size: 40,
+                                    colors: statusColor != null ? [statusColor, statusColor.withValues(alpha: 0.7)] : null,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                    Text(item['athlete_name'] ?? '', style: AppTypography.titleMedium),
+                                    if (statusColor != null)
+                                      Padding(
+                                        padding: const EdgeInsets.only(top: 4),
+                                        child: StatusBadge(label: l.translate(status), color: statusColor),
+                                      ),
+                                  ])),
+                                  _statusBtn(Icons.check_rounded, status == 'present', AppColors.success, () => _mark(id, 'present', i)),
+                                  const SizedBox(width: 8),
+                                  _statusBtn(Icons.close_rounded, status == 'absent', AppColors.error, () => _mark(id, 'absent', i)),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -163,13 +169,14 @@ class _AttendanceScreenState extends State<AttendanceScreen> with SingleTickerPr
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 250),
-        width: 42, height: 42,
+        width: 48, height: 48,
         decoration: BoxDecoration(
           color: active ? color : AppColors.surfaceLight,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: active ? [BoxShadow(color: color.withValues(alpha: 0.3), blurRadius: 6, offset: const Offset(0, 2))] : null,
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          border: active ? null : Border.all(color: AppColors.divider),
+          boxShadow: active ? [BoxShadow(color: color.withValues(alpha: 0.35), blurRadius: 8, offset: const Offset(0, 3))] : null,
         ),
-        child: Icon(icon, color: active ? Colors.white : AppColors.textTertiary, size: 20),
+        child: Icon(icon, color: active ? Colors.white : AppColors.textTertiary, size: 22),
       ),
     );
   }

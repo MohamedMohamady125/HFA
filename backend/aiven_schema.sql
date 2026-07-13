@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS branches (
     name VARCHAR(255) NOT NULL,
     address TEXT,
     phone VARCHAR(50),
+    whatsapp VARCHAR(50),
     video_url TEXT,
     practice_days TEXT
 );

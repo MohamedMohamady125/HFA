@@ -448,29 +448,43 @@ class _ManageCoachesScreenState extends State<ManageCoachesScreen> {
   Widget build(BuildContext context) {
     if (loading) return const Scaffold(body: ShimmerList(count: 4));
 
-    return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(icon: const Icon(Icons.arrow_back_rounded), onPressed: () => context.go('/head-coach-branches')),
-        title: Text(AppLocalizations.of(context).translate('coaches')),
-        actions: [
-          IconButton(icon: const Icon(Icons.person_add_rounded, color: AppColors.accent), onPressed: _showCreateSheet),
-        ],
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light,
+      child: Scaffold(
+        body: Column(
+          children: [
+            FadeSlideIn(
+              child: HeroHeader(
+                title: AppLocalizations.of(context).translate('coaches'),
+                subtitle: '${coaches.length}',
+                leading: HeaderIconButton(icon: Icons.arrow_back_rounded, onTap: () => context.go('/head-coach-branches')),
+                trailing: HeaderIconButton(icon: Icons.person_add_rounded, onTap: _showCreateSheet),
+              ),
+            ),
+            Expanded(child: _buildBody()),
+          ],
+        ),
       ),
-      body: RefreshIndicator(
+    );
+  }
+
+  Widget _buildBody() {
+    return RefreshIndicator(
         onRefresh: _loadData,
         color: AppColors.accent,
         child: coaches.isEmpty
             ? ListView(physics: const AlwaysScrollableScrollPhysics(), children: [
-                const SizedBox(height: 100),
-                Center(child: Container(width: 80, height: 80, decoration: BoxDecoration(color: AppColors.surfaceLight, shape: BoxShape.circle), child: const Icon(Icons.people_outline_rounded, size: 40, color: AppColors.textTertiary))),
-                const SizedBox(height: 20),
-                Center(child: Text(AppLocalizations.of(context).translate('no_coaches'), style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: AppColors.textSecondary))),
-                const SizedBox(height: 8),
-                Center(child: TextButton.icon(onPressed: _showCreateSheet, icon: const Icon(Icons.add_rounded, size: 18), label: Text(AppLocalizations.of(context).translate('add_first_coach')))),
+                const SizedBox(height: 60),
+                EmptyState(
+                  icon: Icons.people_outline_rounded,
+                  title: AppLocalizations.of(context).translate('no_coaches'),
+                  actionLabel: AppLocalizations.of(context).translate('add_first_coach'),
+                  onAction: _showCreateSheet,
+                ),
               ])
             : ListView.builder(
                 physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
+                padding: const EdgeInsetsDirectional.fromSTEB(16, 16, 16, 20),
                 itemCount: coaches.length,
                 itemBuilder: (_, i) {
                   final c = Map<String, dynamic>.from(coaches[i]);
@@ -525,11 +539,11 @@ class _ManageCoachesScreenState extends State<ManageCoachesScreen> {
                               const SizedBox(width: 8),
                               _actionChip(Icons.lock_reset_rounded, AppLocalizations.of(context).translate('reset'), AppColors.warning, () => _showResetSheet(c)),
                               const Spacer(),
-                              GestureDetector(
+                              ScaleOnTap(
                                 onTap: () => _deleteCoach(c['id'], c['name'] ?? ''),
                                 child: Container(
-                                  width: 34, height: 34,
-                                  decoration: BoxDecoration(color: AppColors.error.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(8)),
+                                  width: 36, height: 36,
+                                  decoration: BoxDecoration(color: AppColors.errorLight, borderRadius: BorderRadius.circular(AppRadius.sm)),
                                   child: const Icon(Icons.delete_outline_rounded, color: AppColors.error, size: 18),
                                 ),
                               ),
@@ -541,20 +555,24 @@ class _ManageCoachesScreenState extends State<ManageCoachesScreen> {
                   );
                 },
               ),
-      ),
     );
   }
 
   Widget _actionChip(IconData icon, String label, Color color, VoidCallback onTap) {
-    return GestureDetector(
+    return ScaleOnTap(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(color: color.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(8)),
+        height: 36,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(AppRadius.sm),
+          border: Border.all(color: color.withValues(alpha: 0.2), width: 0.8),
+        ),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
           Icon(icon, size: 14, color: color),
           const SizedBox(width: 4),
-          Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: color)),
+          Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: color)),
         ]),
       ),
     );

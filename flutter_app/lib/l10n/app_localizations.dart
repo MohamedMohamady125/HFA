@@ -309,6 +309,20 @@ class AppLocalizations {
       'no_branches_found': 'No branches found',
       'failed_load_branches': 'Failed to load branches',
 
+      // Manage Branches (head coach)
+      'manage_branches': 'Manage Branches',
+      'add_branch': 'Add Branch',
+      'edit_branch': 'Edit Branch',
+      'delete_branch': 'Delete Branch',
+      'delete_branch_confirm': 'Are you sure you want to delete this branch?',
+      'branch_name_label': 'Branch Name',
+      'address': 'Address',
+      'whatsapp': 'WhatsApp',
+      'video_url_label': 'Video Link',
+      'branch_saved': 'Branch saved',
+      'branch_deleted': 'Branch deleted',
+      'practice_schedule_helper': 'Each line or comma-separated entry appears as a bullet on the public page',
+
       // Health History
       'health_history': 'Health History',
       'health_history_desc': 'Track your medical records and conditions',
@@ -651,6 +665,20 @@ class AppLocalizations {
       'ready_to_join': '\u0645\u0633\u062a\u0639\u062f \u0644\u0644\u0627\u0646\u0636\u0645\u0627\u0645 \u0625\u0644\u0649 HFA\u061f',
       'no_branches_found': '\u0644\u0627 \u062a\u0648\u062c\u062f \u0641\u0631\u0648\u0639',
       'failed_load_branches': '\u0641\u0634\u0644 \u062a\u062d\u0645\u064a\u0644 \u0627\u0644\u0641\u0631\u0648\u0639',
+
+      // Manage Branches (head coach)
+      'manage_branches': 'إدارة الفروع',
+      'add_branch': 'إضافة فرع',
+      'edit_branch': 'تعديل الفرع',
+      'delete_branch': 'حذف الفرع',
+      'delete_branch_confirm': 'هل أنت متأكد أنك تريد حذف هذا الفرع؟',
+      'branch_name_label': 'اسم الفرع',
+      'address': 'العنوان',
+      'whatsapp': 'واتساب',
+      'video_url_label': 'رابط الفيديو',
+      'branch_saved': 'تم حفظ الفرع',
+      'branch_deleted': 'تم حذف الفرع',
+      'practice_schedule_helper': 'كل سطر أو عنصر مفصول بفاصلة يظهر كنقطة في الصفحة العامة',
 
       // Health History
       'health_history': '\u0627\u0644\u0633\u062c\u0644 \u0627\u0644\u0635\u062d\u064a',

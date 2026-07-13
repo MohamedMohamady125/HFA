@@ -18,7 +18,7 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _emailCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
-  bool _loading = false, _obscure = true;
+  bool _loading = false;
 
   Future<void> _handleLogin() async {
     final l = AppLocalizations.of(context);
@@ -69,50 +69,67 @@ class _LoginScreenState extends State<LoginScreen> {
     final l = AppLocalizations.of(context);
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(backgroundColor: Colors.white, leading: IconButton(onPressed: () => context.pop(), icon: const Icon(Icons.arrow_back_rounded))),
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        leading: IconButton(onPressed: () => context.pop(), icon: const Icon(Icons.arrow_back_rounded)),
+      ),
       body: SingleChildScrollView(
         physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.symmetric(horizontal: 28),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 16),
+            const SizedBox(height: AppSpacing.lg),
             FadeSlideIn(child: Container(
               width: 64, height: 64,
-              decoration: const BoxDecoration(shape: BoxShape.circle),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                boxShadow: [BoxShadow(color: AppColors.accent.withValues(alpha: 0.2), blurRadius: 20)],
+              ),
               child: ClipOval(child: Image.asset('assets/images/hfanew.png', fit: BoxFit.cover)),
             )),
-            const SizedBox(height: 20),
-            FadeSlideIn(delay: 100, child: Text(l.translate('welcome_back'), style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: AppColors.textPrimary, letterSpacing: -0.5))),
-            const SizedBox(height: 6),
-            FadeSlideIn(delay: 150, child: Text(l.translate('sign_in_athlete'), style: const TextStyle(fontSize: 14, color: AppColors.textSecondary))),
-            const SizedBox(height: 44),
-            FadeSlideIn(delay: 200, child: AppFormField(label: l.translate('email'), controller: _emailCtrl, keyboardType: TextInputType.emailAddress, hint: l.translate('enter_email'))),
-            FadeSlideIn(delay: 250, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(l.translate('password'), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textSecondary, letterSpacing: 0.5)),
-              const SizedBox(height: 8),
-              TextField(controller: _passCtrl, obscureText: _obscure, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
-                decoration: InputDecoration(hintText: l.translate('enter_password'),
-                  suffixIcon: IconButton(icon: Icon(_obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: AppColors.textTertiary, size: 20), onPressed: () => setState(() => _obscure = !_obscure)))),
-            ])),
-            const SizedBox(height: 6),
-            Align(alignment: Alignment.centerRight, child: TextButton(onPressed: () => context.push('/forgot-password'),
-              child: Text(l.translate('forgot_password'), style: const TextStyle(fontSize: 13, color: AppColors.accent, fontWeight: FontWeight.w600)))),
-            const SizedBox(height: 12),
-            FadeSlideIn(delay: 350, child: SizedBox(width: double.infinity, child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              child: ElevatedButton(
-                onPressed: _loading ? null : _handleLogin,
-                style: ElevatedButton.styleFrom(backgroundColor: _loading ? AppColors.textTertiary : AppColors.accent),
-                child: AnimatedSwitcher(duration: const Duration(milliseconds: 200),
-                  child: _loading ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white)) : Text(l.translate('sign_in'), key: const ValueKey('signin'))),
+            const SizedBox(height: AppSpacing.xxl),
+            FadeSlideIn(delay: 60, child: Text(l.translate('welcome_back'), style: AppTypography.displayLarge)),
+            const SizedBox(height: AppSpacing.sm),
+            FadeSlideIn(delay: 120, child: Text(l.translate('sign_in_athlete'), style: AppTypography.bodyMedium)),
+            const SizedBox(height: AppSpacing.xxxl),
+            FadeSlideIn(delay: 180, child: AppFormField(
+              label: l.translate('email'),
+              controller: _emailCtrl,
+              keyboardType: TextInputType.emailAddress,
+              hint: l.translate('enter_email'),
+              prefixIcon: Icons.mail_outline_rounded,
+            )),
+            FadeSlideIn(delay: 240, child: AppFormField(
+              label: l.translate('password'),
+              controller: _passCtrl,
+              obscure: true,
+              hint: l.translate('enter_password'),
+              prefixIcon: Icons.lock_outline_rounded,
+            )),
+            FadeSlideIn(delay: 300, child: Align(
+              alignment: AlignmentDirectional.centerEnd,
+              child: TextButton(
+                onPressed: () => context.push('/forgot-password'),
+                child: Text(l.translate('forgot_password'), style: AppTypography.label.copyWith(color: AppColors.accent)),
               ),
-            ))),
-            const SizedBox(height: 28),
-            FadeSlideIn(delay: 400, child: TextButton(onPressed: () => context.push('/register'),
-              child: RichText(text: TextSpan(style: const TextStyle(fontSize: 14, color: AppColors.textSecondary), children: [
-                TextSpan(text: l.translate('no_account')),
-                TextSpan(text: l.translate('register_now'), style: const TextStyle(color: AppColors.accent, fontWeight: FontWeight.w700)),
-              ])))),
+            )),
+            const SizedBox(height: AppSpacing.md),
+            FadeSlideIn(delay: 360, child: PrimaryButton(
+              label: l.translate('sign_in'),
+              loading: _loading,
+              onPressed: _handleLogin,
+            )),
+            const SizedBox(height: AppSpacing.xxl),
+            FadeSlideIn(delay: 420, child: Center(
+              child: TextButton(
+                onPressed: () => context.push('/register'),
+                child: RichText(text: TextSpan(style: AppTypography.bodyMedium, children: [
+                  TextSpan(text: l.translate('no_account')),
+                  TextSpan(text: l.translate('register_now'), style: const TextStyle(color: AppColors.accent, fontWeight: FontWeight.w700)),
+                ])),
+              ),
+            )),
             const SizedBox(height: 40),
           ],
         ),

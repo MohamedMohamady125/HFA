@@ -8,6 +8,7 @@ from app import performance  # ⬅️ Make sure this import is there
 from app import measurements
 from app import coach
 from app import head_coach
+from app import admin_page
 
 
 
@@ -42,6 +43,7 @@ def run_migrations():
                 UNIQUE(user_id, token)
             )
         """)
+        cursor.execute("ALTER TABLE branches ADD COLUMN IF NOT EXISTS whatsapp VARCHAR(50)")
         conn.commit()
         cursor.close()
         conn.close()
@@ -78,6 +80,7 @@ app.include_router(payments.router, prefix="/payments", tags=["payments"])
 app.include_router(notifications.router, prefix="/notifications", tags=["notifications"])
 app.include_router(attendance.router, prefix="/attendance", tags=["attendance"])
 app.include_router(athlete.router, tags=["athlete"])
+app.include_router(admin_page.router, tags=["admin"])
 
 @app.get("/")
 def root():

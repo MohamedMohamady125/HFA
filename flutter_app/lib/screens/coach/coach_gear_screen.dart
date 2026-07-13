@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../services/api_service.dart';
+import 'package:flutter/services.dart';
 import '../../services/offline/offline_repository.dart';
 import '../../theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
@@ -67,56 +67,64 @@ class CoachGearScreenState extends State<CoachGearScreen> with SingleTickerProvi
     final l = AppLocalizations.of(context);
     if (loading) return const Scaffold(body: ShimmerList(count: 2));
 
-    return Scaffold(
-      body: SafeArea(
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              FadeSlideIn(child: SectionHeader(title: l.translate('weekly_gear_update'), subtitle: '${l.translate('branch_label')}: $branchName')),
-              const SizedBox(height: 8),
-              FadeSlideIn(delay: 100, child: AppCard(
-                child: Column(children: [
-                  TextField(
-                    controller: _msgCtrl, maxLines: 8,
-                    style: const TextStyle(fontSize: 15, height: 1.6),
-                    decoration: InputDecoration(hintText: l.translate('enter_gear'), border: InputBorder.none, fillColor: Colors.transparent),
-                  ),
-                  const Divider(height: 1),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 300),
-                      child: _saved
-                          ? ScaleTransition(
-                              scale: CurvedAnimation(parent: _checkAnim, curve: Curves.elasticOut),
-                              child: Container(
-                                key: const ValueKey('saved'),
-                                padding: const EdgeInsets.symmetric(vertical: 16),
-                                child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                                  const Icon(Icons.check_circle_rounded, color: AppColors.success, size: 24),
-                                  const SizedBox(width: 8),
-                                  Text(l.translate('gear_saved'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.success)),
-                                ]),
-                              ),
-                            )
-                          : ElevatedButton(
-                              key: const ValueKey('btn'),
-                              onPressed: submitting || _msgCtrl.text.isEmpty ? null : _handlePost,
-                              style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
-                              child: submitting
-                                  ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white))
-                                  : Text(l.translate('save_gear')),
-                            ),
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light,
+      child: Scaffold(
+        body: Column(
+          children: [
+            FadeSlideIn(
+              child: HeroHeader(
+                title: l.translate('weekly_gear_update'),
+                subtitle: '${l.translate('branch_label')}: $branchName',
+                trailing: const HeaderIconButton(icon: Icons.backpack_rounded),
+              ),
+            ),
+            Expanded(
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsetsDirectional.fromSTEB(20, 20, 20, 30),
+                child: FadeSlideIn(delay: 100, child: AppCard(
+                  child: Column(children: [
+                    TextField(
+                      controller: _msgCtrl, maxLines: 8,
+                      onChanged: (_) => setState(() {}),
+                      style: const TextStyle(fontSize: 15, height: 1.6, color: AppColors.textPrimary),
+                      decoration: InputDecoration(hintText: l.translate('enter_gear'), border: InputBorder.none, fillColor: Colors.transparent),
                     ),
-                  ),
-                ]),
-              )),
-            ],
-          ),
+                    const AppDivider(),
+                    const SizedBox(height: AppSpacing.lg),
+                    SizedBox(
+                      width: double.infinity,
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 300),
+                        child: _saved
+                            ? ScaleTransition(
+                                scale: CurvedAnimation(parent: _checkAnim, curve: Curves.elasticOut),
+                                child: Container(
+                                  key: const ValueKey('saved'),
+                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                  decoration: BoxDecoration(color: AppColors.successLight, borderRadius: BorderRadius.circular(AppRadius.md)),
+                                  child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                                    const Icon(Icons.check_circle_rounded, color: AppColors.success, size: 24),
+                                    const SizedBox(width: 8),
+                                    Text(l.translate('gear_saved'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.success)),
+                                  ]),
+                                ),
+                              )
+                            : PrimaryButton(
+                                key: const ValueKey('btn'),
+                                label: l.translate('save_gear'),
+                                icon: Icons.save_rounded,
+                                loading: submitting,
+                                onPressed: submitting || _msgCtrl.text.isEmpty ? null : _handlePost,
+                              ),
+                      ),
+                    ),
+                  ]),
+                )),
+              ),
+            ),
+          ],
         ),
       ),
     );

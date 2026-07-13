@@ -16,7 +16,7 @@ class AdminLoginScreen extends StatefulWidget {
 class _AdminLoginScreenState extends State<AdminLoginScreen> {
   final _emailCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
-  bool _loading = false, _obscure = true;
+  bool _loading = false;
 
   Future<void> _handleLogin() async {
     final l = AppLocalizations.of(context);
@@ -46,28 +46,55 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
     return Scaffold(
-      appBar: AppBar(leading: IconButton(icon: const Icon(Icons.arrow_back_rounded), onPressed: () => context.pop())),
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        leading: IconButton(icon: const Icon(Icons.arrow_back_rounded), onPressed: () => context.pop()),
+      ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 28),
-        child: Column(children: [
-          const SizedBox(height: 20),
-          Image.asset('assets/images/hfanew.png', width: 80, height: 80),
-          const SizedBox(height: 20),
-          Text(l.translate('coach_portal'), style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
-          const SizedBox(height: 6),
-          Text(l.translate('access_dashboard'), style: const TextStyle(fontSize: 14, color: AppColors.textSecondary)),
-          const SizedBox(height: 36),
-          AppCard(child: Column(children: [
-            AppFormField(label: l.translate('email'), controller: _emailCtrl, keyboardType: TextInputType.emailAddress, enabled: !_loading),
-            Align(alignment: Alignment.centerLeft, child: Text(l.translate('password'), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textSecondary, letterSpacing: 0.3))),
-            const SizedBox(height: 8),
-            TextField(controller: _passCtrl, obscureText: _obscure, enabled: !_loading, decoration: InputDecoration(hintText: l.translate('enter_password'), suffixIcon: IconButton(icon: Icon(_obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: AppColors.textTertiary, size: 20), onPressed: () => setState(() => _obscure = !_obscure)))),
-            const SizedBox(height: 24),
-            SizedBox(width: double.infinity, child: ElevatedButton(onPressed: _loading ? null : _handleLogin, child: _loading ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white)) : Text(l.translate('sign_in')))),
-            const SizedBox(height: 12),
-            TextButton(onPressed: () => context.push('/forgot-password'), child: Text(l.translate('forgot_password'), style: const TextStyle(color: AppColors.textSecondary, fontSize: 13))),
-          ])),
-        ]),
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: AppSpacing.lg),
+            const FadeSlideIn(child: IconBadge(icon: Icons.sports_rounded, color: AppColors.primary, size: 64, radius: 20)),
+            const SizedBox(height: AppSpacing.xxl),
+            FadeSlideIn(delay: 60, child: Text(l.translate('coach_portal'), style: AppTypography.displayLarge)),
+            const SizedBox(height: AppSpacing.sm),
+            FadeSlideIn(delay: 120, child: Text(l.translate('access_dashboard'), style: AppTypography.bodyMedium)),
+            const SizedBox(height: AppSpacing.xxxl),
+            FadeSlideIn(delay: 180, child: AppFormField(
+              label: l.translate('email'),
+              controller: _emailCtrl,
+              keyboardType: TextInputType.emailAddress,
+              enabled: !_loading,
+              prefixIcon: Icons.mail_outline_rounded,
+            )),
+            FadeSlideIn(delay: 240, child: AppFormField(
+              label: l.translate('password'),
+              controller: _passCtrl,
+              obscure: true,
+              enabled: !_loading,
+              hint: l.translate('enter_password'),
+              prefixIcon: Icons.lock_outline_rounded,
+            )),
+            const SizedBox(height: AppSpacing.sm),
+            FadeSlideIn(delay: 300, child: PrimaryButton(
+              label: l.translate('sign_in'),
+              loading: _loading,
+              onPressed: _handleLogin,
+            )),
+            const SizedBox(height: AppSpacing.md),
+            FadeSlideIn(delay: 360, child: Center(
+              child: TextButton(
+                onPressed: () => context.push('/forgot-password'),
+                child: Text(l.translate('forgot_password'), style: AppTypography.label),
+              ),
+            )),
+            const SizedBox(height: 40),
+          ],
+        ),
       ),
     );
   }

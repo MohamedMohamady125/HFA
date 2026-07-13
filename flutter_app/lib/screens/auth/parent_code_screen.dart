@@ -48,36 +48,35 @@ class _ParentCodeScreenState extends State<ParentCodeScreen> {
     final l = AppLocalizations.of(context);
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(backgroundColor: Colors.white, leading: IconButton(onPressed: () => context.pop(), icon: const Icon(Icons.arrow_back_rounded))),
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        leading: IconButton(onPressed: () => context.pop(), icon: const Icon(Icons.arrow_back_rounded)),
+      ),
       body: SingleChildScrollView(
         physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.symmetric(horizontal: 28),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
         child: Column(
           children: [
-            const SizedBox(height: 24),
-            FadeSlideIn(child: Container(
-              width: 72, height: 72,
-              decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), shape: BoxShape.circle),
-              child: const Icon(Icons.family_restroom_rounded, color: AppColors.accent, size: 36),
+            const SizedBox(height: AppSpacing.xxl),
+            const FadeSlideIn(child: IconBadge(icon: Icons.family_restroom_rounded, color: AppColors.accent, size: 72, radius: 22)),
+            const SizedBox(height: AppSpacing.xxl),
+            FadeSlideIn(delay: 60, child: Text(l.translate('parent_access'), style: AppTypography.displayLarge, textAlign: TextAlign.center)),
+            const SizedBox(height: AppSpacing.sm),
+            FadeSlideIn(delay: 120, child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+              child: Text(l.translate('parent_login_desc'), style: AppTypography.bodyMedium, textAlign: TextAlign.center),
             )),
-            const SizedBox(height: 24),
-            FadeSlideIn(delay: 100, child: Text(l.translate('parent_access'), style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: AppColors.textPrimary, letterSpacing: -0.5))),
-            const SizedBox(height: 8),
-            FadeSlideIn(delay: 150, child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: Text(l.translate('parent_login_desc'), style: const TextStyle(fontSize: 14, color: AppColors.textSecondary), textAlign: TextAlign.center),
-            )),
-            const SizedBox(height: 40),
-            FadeSlideIn(delay: 200, child: Column(
+            const SizedBox(height: AppSpacing.xxxl),
+            FadeSlideIn(delay: 180, child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(l.translate('access_code'), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textSecondary, letterSpacing: 0.5)),
-                const SizedBox(height: 8),
+                Text(l.translate('access_code'), style: AppTypography.label),
+                const SizedBox(height: AppSpacing.sm),
                 TextField(
                   controller: _codeCtrl,
                   textCapitalization: TextCapitalization.characters,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800, letterSpacing: 8),
+                  style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800, letterSpacing: 8, color: AppColors.textPrimary),
                   maxLength: 6,
                   decoration: InputDecoration(
                     hintText: '------',
@@ -87,13 +86,15 @@ class _ParentCodeScreenState extends State<ParentCodeScreen> {
                 ),
               ],
             )),
-            const SizedBox(height: 32),
-            FadeSlideIn(delay: 300, child: SizedBox(width: double.infinity, child: ElevatedButton(
-              onPressed: _loading ? null : _handleLogin,
-              style: ElevatedButton.styleFrom(backgroundColor: _loading ? AppColors.textTertiary : AppColors.accent),
-              child: AnimatedSwitcher(duration: const Duration(milliseconds: 200),
-                child: _loading ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white)) : Text(l.translate('sign_in'), key: const ValueKey('signin'))),
-            ))),
+            const SizedBox(height: AppSpacing.xxxl),
+            FadeSlideIn(delay: 240, child: SizedBox(
+              width: double.infinity,
+              child: PrimaryButton(
+                label: l.translate('sign_in'),
+                loading: _loading,
+                onPressed: _handleLogin,
+              ),
+            )),
             const SizedBox(height: 40),
           ],
         ),

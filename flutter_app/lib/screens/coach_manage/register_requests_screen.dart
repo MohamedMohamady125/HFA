@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import '../../services/api_service.dart';
 import '../../services/offline/offline_repository.dart';
@@ -36,6 +37,7 @@ class _RegisterRequestsScreenState extends State<RegisterRequestsScreen> {
       await ApiService().post('/users/approve/$id');
       _removeItem(index, AppColors.success);
     } catch (_) {
+      if (!mounted) return;
       _msg(AppLocalizations.of(context).translate('failed_to_approve'), error: true);
       setState(() => _processing.remove(id));
     }
@@ -77,6 +79,7 @@ class _RegisterRequestsScreenState extends State<RegisterRequestsScreen> {
       await ApiService().post('/users/reject/$id');
       _removeItem(index, AppColors.error);
     } catch (_) {
+      if (!mounted) return;
       _msg(AppLocalizations.of(context).translate('failed_to_reject'), error: true);
       setState(() => _processing.remove(id));
     }
@@ -150,34 +153,32 @@ class _RegisterRequestsScreenState extends State<RegisterRequestsScreen> {
     final l = AppLocalizations.of(context);
     if (loading) return const Scaffold(body: ShimmerList(count: 4));
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(l.translate('pending_requests')),
-        leading: IconButton(icon: const Icon(Icons.arrow_back_rounded), onPressed: () => context.go('/coach/home')),
-        actions: [
-          if (requests.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(right: 16),
-              child: Center(child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
-                child: Text('${requests.length}', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.accent)),
-              )),
-            ),
-        ],
-      ),
-      body: requests.isEmpty
-          ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-              Container(width: 80, height: 80, decoration: BoxDecoration(color: AppColors.surfaceLight, shape: BoxShape.circle),
-                child: const Icon(Icons.how_to_reg_rounded, size: 40, color: AppColors.textTertiary)),
-              const SizedBox(height: 20),
-              Text(l.translate('no_requests'), style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
-              const SizedBox(height: 8),
-              Text(AppLocalizations.of(context).translate('all_caught_up'), style: const TextStyle(fontSize: 14, color: AppColors.textTertiary)),
-            ]))
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light,
+      child: Scaffold(
+      body: Column(children: [
+        FadeSlideIn(
+          child: HeroHeader(
+            title: l.translate('pending_requests'),
+            leading: HeaderIconButton(icon: Icons.arrow_back_rounded, onTap: () => context.go('/coach/home')),
+            trailing: requests.isNotEmpty
+                ? Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(AppRadius.pill)),
+                    child: Text('${requests.length}', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Colors.white)),
+                  )
+                : null,
+          ),
+        ),
+        Expanded(child: requests.isEmpty
+          ? EmptyState(
+              icon: Icons.how_to_reg_rounded,
+              title: l.translate('no_requests'),
+              message: l.translate('all_caught_up'),
+            )
           : AnimatedList(
               key: _listKey,
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+              padding: const EdgeInsetsDirectional.fromSTEB(20, 16, 20, 20),
               initialItemCount: requests.length,
               itemBuilder: (context, index, animation) {
                 if (index >= requests.length) return const SizedBox();
@@ -200,17 +201,7 @@ class _RegisterRequestsScreenState extends State<RegisterRequestsScreen> {
                             children: [
                               // Header row
                               Row(children: [
-                                Container(
-                                  width: 48, height: 48,
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(colors: [AppColors.accent, AppColors.accent.withValues(alpha: 0.7)]),
-                                    borderRadius: BorderRadius.circular(14),
-                                  ),
-                                  child: Center(child: Text(
-                                    (req['athlete_name'] ?? 'U')[0].toUpperCase(),
-                                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: Colors.white),
-                                  )),
-                                ),
+                                GradientAvatar(name: req['athlete_name'] ?? 'U', size: 48),
                                 const SizedBox(width: 14),
                                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                                   Text(req['athlete_name'] ?? '', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
@@ -270,22 +261,27 @@ class _RegisterRequestsScreenState extends State<RegisterRequestsScreen> {
                 );
               },
             ),
+        ),
+      ]),
+      ),
     );
   }
 
   Widget _actionButton({required IconData icon, required String label, required Color color, required bool filled, required VoidCallback onTap}) {
     return Material(
       color: filled ? color : Colors.transparent,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(AppRadius.md),
       child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        onTap: () { HapticFeedback.lightImpact(); onTap(); },
         splashColor: color.withValues(alpha: 0.2),
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12),
+          height: 48,
+          alignment: Alignment.center,
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(AppRadius.md),
             border: filled ? null : Border.all(color: color.withValues(alpha: 0.4), width: 1.5),
+            boxShadow: filled ? [BoxShadow(color: color.withValues(alpha: 0.3), blurRadius: 10, offset: const Offset(0, 4))] : null,
           ),
           child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
             Icon(icon, size: 18, color: filled ? Colors.white : color),

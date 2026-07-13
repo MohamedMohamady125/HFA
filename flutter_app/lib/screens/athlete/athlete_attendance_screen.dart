@@ -50,6 +50,7 @@ class _AthleteAttendanceScreenState extends State<AthleteAttendanceScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     final now = DateTime.now();
     final isCurrentMonth = _currentMonth.year == now.year && _currentMonth.month == now.month;
 
@@ -59,56 +60,67 @@ class _AthleteAttendanceScreenState extends State<AthleteAttendanceScreen> {
     final rate = total > 0 ? (presentCount / total * 100).round() : 0;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(AppLocalizations.of(context).translate('attendance')),
-        leading: IconButton(icon: const Icon(Icons.arrow_back_rounded), onPressed: () => Navigator.pop(context)),
-      ),
       body: Column(
         children: [
+          FadeSlideIn(
+            child: HeroHeader(
+              title: l.translate('attendance'),
+              subtitle: DateFormat('MMMM yyyy', l.locale.languageCode).format(_currentMonth),
+              leading: HeaderIconButton(icon: Icons.arrow_back, onTap: () => Navigator.pop(context)),
+              bottom: Row(children: [
+                StatChip(icon: Icons.check_circle_rounded, value: '$presentCount', label: l.translate('present')),
+                const SizedBox(width: AppSpacing.sm),
+                StatChip(icon: Icons.cancel_rounded, value: '$absentCount', label: l.translate('absent')),
+                const SizedBox(width: AppSpacing.sm),
+                StatChip(icon: Icons.donut_large_rounded, value: '$rate%', label: l.translate('rate')),
+              ]),
+            ),
+          ),
+
           // Month navigator
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl, vertical: AppSpacing.md),
             child: Row(children: [
               _navBtn(Icons.chevron_left_rounded, _prevMonth),
               Expanded(child: AnimatedSwitcher(
                 duration: const Duration(milliseconds: 200),
-                child: Text(DateFormat('MMMM yyyy', AppLocalizations.of(context).locale.languageCode).format(_currentMonth), key: ValueKey(_currentMonth),
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.textPrimary), textAlign: TextAlign.center),
+                child: Text(DateFormat('MMMM yyyy', l.locale.languageCode).format(_currentMonth), key: ValueKey(_currentMonth),
+                  style: AppTypography.titleLarge, textAlign: TextAlign.center),
               )),
               _navBtn(Icons.chevron_right_rounded, isCurrentMonth ? null : _nextMonth),
             ]),
           ),
 
-          // Stats
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Row(children: [
-              _statCard(AppLocalizations.of(context).translate('present'), '$presentCount', AppColors.success),
-              const SizedBox(width: 10),
-              _statCard(AppLocalizations.of(context).translate('absent'), '$absentCount', AppColors.error),
-              const SizedBox(width: 10),
-              _statCard(AppLocalizations.of(context).translate('rate'), '$rate%', AppColors.accent),
-            ]),
-          ),
-          const SizedBox(height: 16),
-
           // Day headers
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
             child: Row(
               children: [for (int i = 0; i < 7; i++) Expanded(child: Center(child: Text(
-                DateFormat.E(AppLocalizations.of(context).locale.languageCode).format(DateTime(2025, 1, 5 + i)),
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textTertiary),
+                DateFormat.E(l.locale.languageCode).format(DateTime(2025, 1, 5 + i)),
+                style: AppTypography.overline,
               )))],
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.sm),
 
           // Calendar
           if (_loading)
-            const Expanded(child: Center(child: CircularProgressIndicator(color: AppColors.accent)))
+            const Expanded(child: ShimmerList(count: 4))
           else
-            _buildCalendar(),
+            Expanded(
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                  child: FadeSlideIn(
+                    child: AppCard(
+                      padding: const EdgeInsets.all(AppSpacing.sm),
+                      child: _buildCalendar(),
+                    ),
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -122,7 +134,9 @@ class _AthleteAttendanceScreenState extends State<AthleteAttendanceScreen> {
     final today = DateTime(now.year, now.month, now.day);
 
     final cells = <Widget>[];
-    for (int i = 0; i < startWeekday; i++) cells.add(const SizedBox());
+    for (int i = 0; i < startWeekday; i++) {
+      cells.add(const SizedBox());
+    }
 
     for (int day = 1; day <= daysInMonth; day++) {
       final date = DateTime(_currentMonth.year, _currentMonth.month, day);
@@ -153,11 +167,11 @@ class _AthleteAttendanceScreenState extends State<AthleteAttendanceScreen> {
           margin: const EdgeInsets.all(3),
           decoration: BoxDecoration(
             color: bgColor?.withValues(alpha: 0.9),
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(AppRadius.sm),
             border: isToday ? Border.all(color: AppColors.accent, width: 2.5) : null,
           ),
           child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-            Text('$day', style: TextStyle(fontSize: 14, fontWeight: isToday ? FontWeight.w800 : FontWeight.w500, color: bgColor != null ? textColor : textColor)),
+            Text('$day', style: TextStyle(fontSize: 14, fontWeight: isToday ? FontWeight.w800 : FontWeight.w500, color: textColor)),
             if (icon != null) Icon(icon, size: 14, color: textColor),
           ]),
         ),
@@ -166,7 +180,7 @@ class _AthleteAttendanceScreenState extends State<AthleteAttendanceScreen> {
 
     return GridView.count(
       crossAxisCount: 7,
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+      padding: EdgeInsets.zero,
       childAspectRatio: 1,
       physics: const NeverScrollableScrollPhysics(),
       shrinkWrap: true,
@@ -175,26 +189,17 @@ class _AthleteAttendanceScreenState extends State<AthleteAttendanceScreen> {
   }
 
   Widget _navBtn(IconData icon, VoidCallback? onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 40, height: 40,
-        decoration: BoxDecoration(color: onTap != null ? AppColors.surfaceLight : Colors.transparent, borderRadius: BorderRadius.circular(10)),
-        child: Icon(icon, color: onTap != null ? AppColors.textPrimary : AppColors.textTertiary, size: 24),
-      ),
-    );
-  }
-
-  Widget _statCard(String label, String value, Color color) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        decoration: BoxDecoration(color: color.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(12)),
-        child: Column(children: [
-          Text(value, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: color)),
-          const SizedBox(height: 2),
-          Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: color.withValues(alpha: 0.7))),
-        ]),
+    return Material(
+      color: onTap != null ? AppColors.surfaceLight : Colors.transparent,
+      borderRadius: BorderRadius.circular(AppRadius.sm),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+        onTap: onTap,
+        child: Container(
+          width: 48, height: 48,
+          alignment: Alignment.center,
+          child: Icon(icon, color: onTap != null ? AppColors.textPrimary : AppColors.textTertiary, size: 24),
+        ),
       ),
     );
   }

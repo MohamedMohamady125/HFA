@@ -14,6 +14,7 @@ class EditProfileScreen extends StatefulWidget {
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
   late TextEditingController _nameCtrl, _emailCtrl;
+  bool _saving = false;
 
   @override
   void initState() {
@@ -24,31 +25,55 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Future<void> _handleSave() async {
+    setState(() => _saving = true);
     try {
       await ApiService().put('/coach/profile', data: {'name': _nameCtrl.text, 'email': _emailCtrl.text});
       if (!mounted) return;
       await context.read<AuthProvider>().refreshUser();
+      if (!mounted) return;
       final l = AppLocalizations.of(context);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l.translate('profile_updated')), backgroundColor: AppColors.success));
       context.pop();
     } catch (_) {
       if (mounted) { final l = AppLocalizations.of(context); ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l.translate('profile_failed')), backgroundColor: AppColors.error)); }
+    } finally {
+      if (mounted) setState(() => _saving = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
+    final auth = context.watch<AuthProvider>();
     return Scaffold(
       appBar: AppBar(title: Text(l.translate('edit_profile')), leading: IconButton(icon: const Icon(Icons.arrow_back_rounded), onPressed: () => context.pop())),
-      body: Padding(
-        padding: const EdgeInsets.all(24),
+      body: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsetsDirectional.fromSTEB(20, 12, 20, 30),
         child: Column(
           children: [
-            AppFormField(label: l.translate('name'), controller: _nameCtrl),
-            AppFormField(label: l.translate('email'), controller: _emailCtrl, keyboardType: TextInputType.emailAddress),
-            const SizedBox(height: 8),
-            SizedBox(width: double.infinity, child: ElevatedButton(onPressed: _handleSave, child: Text(l.translate('save_changes')))),
+            FadeSlideIn(child: Center(
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.xxl),
+                child: GradientAvatar(name: auth.userName ?? 'C', size: 80),
+              ),
+            )),
+            FadeSlideIn(delay: 50, child: AppCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  AppFormField(label: l.translate('name'), controller: _nameCtrl, prefixIcon: Icons.person_outline_rounded),
+                  AppFormField(label: l.translate('email'), controller: _emailCtrl, keyboardType: TextInputType.emailAddress, prefixIcon: Icons.email_outlined),
+                ],
+              ),
+            )),
+            const SizedBox(height: AppSpacing.lg),
+            FadeSlideIn(delay: 100, child: PrimaryButton(
+              label: l.translate('save_changes'),
+              icon: Icons.check_rounded,
+              loading: _saving,
+              onPressed: _saving ? null : _handleSave,
+            )),
           ],
         ),
       ),

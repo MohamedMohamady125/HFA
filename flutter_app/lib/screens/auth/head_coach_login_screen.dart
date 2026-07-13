@@ -48,38 +48,46 @@ class _HeadCoachLoginScreenState extends State<HeadCoachLoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
     return Scaffold(
-      appBar: AppBar(leading: IconButton(icon: const Icon(Icons.arrow_back_rounded), onPressed: () => context.pop())),
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 28),
-          child: Column(
-            children: [
-              const Icon(Icons.admin_panel_settings_rounded, size: 56, color: AppColors.primary),
-              const SizedBox(height: 16),
-              Text(AppLocalizations.of(context).translate('head_coach'), style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
-              const SizedBox(height: 36),
-              AppCard(
-                child: Builder(builder: (context) {
-                  final l = AppLocalizations.of(context);
-                  return Column(
-                  children: [
-                    AppFormField(label: l.translate('email'), controller: _emailCtrl, keyboardType: TextInputType.emailAddress, enabled: !_loading),
-                    AppFormField(label: l.translate('password'), controller: _passCtrl, obscure: true, enabled: !_loading),
-                    const SizedBox(height: 4),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: _loading ? null : _handleLogin,
-                        child: _loading ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white)) : Text(l.translate('sign_in')),
-                      ),
-                    ),
-                  ],
-                );
-                }),
-              ),
-            ],
-          ),
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        leading: IconButton(icon: const Icon(Icons.arrow_back_rounded), onPressed: () => context.pop()),
+      ),
+      body: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: AppSpacing.lg),
+            const FadeSlideIn(child: IconBadge(icon: Icons.admin_panel_settings_rounded, color: AppColors.primary, size: 64, radius: 20)),
+            const SizedBox(height: AppSpacing.xxl),
+            FadeSlideIn(delay: 60, child: Text(l.translate('head_coach'), style: AppTypography.displayLarge)),
+            const SizedBox(height: AppSpacing.xxxl),
+            FadeSlideIn(delay: 120, child: AppFormField(
+              label: l.translate('email'),
+              controller: _emailCtrl,
+              keyboardType: TextInputType.emailAddress,
+              enabled: !_loading,
+              prefixIcon: Icons.mail_outline_rounded,
+            )),
+            FadeSlideIn(delay: 180, child: AppFormField(
+              label: l.translate('password'),
+              controller: _passCtrl,
+              obscure: true,
+              enabled: !_loading,
+              prefixIcon: Icons.lock_outline_rounded,
+            )),
+            const SizedBox(height: AppSpacing.sm),
+            FadeSlideIn(delay: 240, child: PrimaryButton(
+              label: l.translate('sign_in'),
+              loading: _loading,
+              onPressed: _handleLogin,
+            )),
+            const SizedBox(height: 40),
+          ],
         ),
       ),
     );

@@ -31,115 +31,221 @@ class _GuestHomeScreenState extends State<GuestHomeScreen> with TickerProviderSt
     final localeProvider = context.watch<LocaleProvider>();
 
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  _pill(localeProvider.locale.languageCode == 'en' ? '\u0639\u0631\u0628\u064A' : 'EN', () => localeProvider.toggleLocale()),
-                  IconButton(
-                    icon: Icon(Icons.shield_outlined, color: AppColors.textTertiary, size: 20),
-                    onPressed: () => context.push('/head-coach-login'),
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.symmetric(horizontal: 28),
-                child: Column(
+      body: Container(
+        decoration: const BoxDecoration(gradient: AppColors.heroGradient),
+        child: SafeArea(
+          child: Column(
+            children: [
+              // Top bar: language toggle + head coach access
+              Padding(
+                padding: const EdgeInsetsDirectional.fromSTEB(20, 8, 12, 0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const SizedBox(height: 48),
-                    // Animated logo
-                    ScaleTransition(
-                      scale: _logoScale,
-                      child: Container(
-                        width: 100, height: 100,
-                        decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white,
-                          boxShadow: [BoxShadow(color: AppColors.accent.withValues(alpha: 0.25), blurRadius: 30, spreadRadius: 0)]),
-                        child: ClipOval(child: Image.asset('assets/images/hfanew.png', fit: BoxFit.cover)),
-                      ),
+                    _langPill(localeProvider.locale.languageCode == 'en' ? '\u0639\u0631\u0628\u064A' : 'EN', () => localeProvider.toggleLocale()),
+                    HeaderIconButton(
+                      icon: Icons.shield_outlined,
+                      onTap: () => context.push('/head-coach-login'),
                     ),
-                    const SizedBox(height: 24),
-                    FadeSlideIn(delay: 200, child: const Text('HFA', style: TextStyle(fontSize: 36, fontWeight: FontWeight.w900, color: AppColors.primary, letterSpacing: 8))),
-                    FadeSlideIn(delay: 300, child: Text(l.translate('swimming_academy'), style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.textTertiary, letterSpacing: 4))),
-                    const SizedBox(height: 28),
-                    FadeSlideIn(delay: 400, child: Text(l.translate('welcome_title'), style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: AppColors.textPrimary, letterSpacing: -0.5))),
-                    const SizedBox(height: 8),
-                    FadeSlideIn(delay: 500, child: Text(l.translate('branch_count'), style: const TextStyle(fontSize: 14, color: AppColors.textSecondary))),
-                    const SizedBox(height: 40),
-
-                    // Branch card - tappable
-                    FadeSlideIn(delay: 600, child: ScaleOnTap(
-                      onTap: () => context.push('/branches'),
-                      child: Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: AppColors.accentLight,
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Row(children: [
-                          Container(width: 40, height: 40, decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(10)),
-                            child: const Icon(Icons.location_on_rounded, color: AppColors.accent, size: 20)),
-                          const SizedBox(width: 12),
-                          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                            Text(l.translate('our_branches'), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.accent, letterSpacing: 0.5)),
-                            const SizedBox(height: 3),
-                            Text(l.translate('branch_count'), style: const TextStyle(fontSize: 14, color: AppColors.textPrimary, fontWeight: FontWeight.w500)),
-                            Text(l.translate('view_branches'), style: const TextStyle(fontSize: 12, color: AppColors.accent, fontWeight: FontWeight.w600)),
-                          ])),
-                          const Icon(Icons.chevron_right_rounded, color: AppColors.accent, size: 20),
-                        ]),
-                      ),
-                    )),
-                    const SizedBox(height: 40),
-
-                    // Buttons
-                    FadeSlideIn(delay: 700, child: SizedBox(width: double.infinity, child: ElevatedButton(
-                      onPressed: () => context.push('/login'),
-                      child: Text(l.translate('login')),
-                    ))),
-                    const SizedBox(height: 12),
-                    FadeSlideIn(delay: 800, child: SizedBox(width: double.infinity, child: OutlinedButton(
-                      onPressed: () => context.push('/register'),
-                      child: Text(l.translate('register')),
-                    ))),
-                    const SizedBox(height: 24),
-                    FadeSlideIn(delay: 900, child: SizedBox(width: double.infinity, child: OutlinedButton.icon(
-                      onPressed: () => context.push('/parent-code'),
-                      style: OutlinedButton.styleFrom(foregroundColor: AppColors.accent, side: const BorderSide(color: AppColors.accent)),
-                      icon: const Icon(Icons.family_restroom_rounded, size: 18),
-                      label: Text(l.translate('parent_access')),
-                    ))),
-                    const SizedBox(height: 16),
-                    FadeSlideIn(delay: 950, child: TextButton.icon(
-                      onPressed: () => context.push('/admin-login'),
-                      icon: const Icon(Icons.shield_outlined, size: 16, color: AppColors.textTertiary),
-                      label: Text(l.translate('coach_login'), style: const TextStyle(color: AppColors.textTertiary, fontSize: 13)),
-                    )),
-                    const SizedBox(height: 40),
                   ],
                 ),
               ),
-            ),
+              Expanded(
+                child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
+                  child: Column(
+                    children: [
+                      const SizedBox(height: AppSpacing.xxxl),
+                      // Animated logo
+                      ScaleTransition(
+                        scale: _logoScale,
+                        child: Container(
+                          width: 104, height: 104,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.white,
+                            boxShadow: [BoxShadow(color: AppColors.accent.withValues(alpha: 0.4), blurRadius: 36)],
+                          ),
+                          child: ClipOval(child: Image.asset('assets/images/hfanew.png', fit: BoxFit.cover)),
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.xxl),
+                      FadeSlideIn(
+                        delay: 60,
+                        child: Text('HFA', style: AppTypography.displayXL.copyWith(color: Colors.white, letterSpacing: 10)),
+                      ),
+                      const SizedBox(height: AppSpacing.xs),
+                      FadeSlideIn(
+                        delay: 120,
+                        child: Text(
+                          l.translate('swimming_academy'),
+                          style: AppTypography.overline.copyWith(color: Colors.white.withValues(alpha: 0.7), letterSpacing: 4),
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.xxl),
+                      FadeSlideIn(
+                        delay: 180,
+                        child: Text(
+                          l.translate('welcome_title'),
+                          textAlign: TextAlign.center,
+                          style: AppTypography.displayMedium.copyWith(color: Colors.white),
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      FadeSlideIn(
+                        delay: 240,
+                        child: Text(
+                          l.translate('branch_count'),
+                          textAlign: TextAlign.center,
+                          style: AppTypography.bodyMedium.copyWith(color: Colors.white.withValues(alpha: 0.75)),
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.xxxl),
+
+                      // Primary CTA — login
+                      FadeSlideIn(
+                        delay: 300,
+                        child: SizedBox(
+                          width: double.infinity,
+                          child: PrimaryButton(
+                            label: l.translate('login'),
+                            onPressed: () => context.push('/login'),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+
+                      // Register — frosted card button
+                      FadeSlideIn(
+                        delay: 360,
+                        child: _frostedButton(
+                          label: l.translate('register'),
+                          icon: Icons.person_add_alt_1_rounded,
+                          onTap: () => context.push('/register'),
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.xxl),
+
+                      // Branches — frosted card
+                      FadeSlideIn(
+                        delay: 420,
+                        child: _frostedCard(
+                          onTap: () => context.push('/branches'),
+                          child: Row(children: [
+                            const IconBadge(icon: Icons.location_on_rounded, color: Colors.white, size: 44),
+                            const SizedBox(width: AppSpacing.md),
+                            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                              Text(l.translate('our_branches'), style: AppTypography.overline.copyWith(color: Colors.white.withValues(alpha: 0.8))),
+                              const SizedBox(height: 3),
+                              Text(l.translate('branch_count'), style: AppTypography.titleMedium.copyWith(color: Colors.white)),
+                              const SizedBox(height: 2),
+                              Text(l.translate('view_branches'), style: AppTypography.caption.copyWith(color: AppColors.accentLight)),
+                            ])),
+                            Icon(Icons.arrow_forward_ios_rounded, color: Colors.white.withValues(alpha: 0.7), size: 16),
+                          ]),
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+
+                      // Parent access — frosted card
+                      FadeSlideIn(
+                        delay: 480,
+                        child: _frostedCard(
+                          onTap: () => context.push('/parent-code'),
+                          child: Row(children: [
+                            const IconBadge(icon: Icons.family_restroom_rounded, color: Colors.white, size: 44),
+                            const SizedBox(width: AppSpacing.md),
+                            Expanded(
+                              child: Text(l.translate('parent_access'), style: AppTypography.titleMedium.copyWith(color: Colors.white)),
+                            ),
+                            Icon(Icons.arrow_forward_ios_rounded, color: Colors.white.withValues(alpha: 0.7), size: 16),
+                          ]),
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.xl),
+
+                      // Coach login — subtle text link
+                      FadeSlideIn(
+                        delay: 540,
+                        child: TextButton.icon(
+                          onPressed: () => context.push('/admin-login'),
+                          style: TextButton.styleFrom(
+                            foregroundColor: Colors.white.withValues(alpha: 0.7),
+                            minimumSize: const Size(48, 48),
+                          ),
+                          icon: const Icon(Icons.shield_outlined, size: 16),
+                          label: Text(
+                            l.translate('coach_login'),
+                            style: AppTypography.label.copyWith(color: Colors.white.withValues(alpha: 0.7)),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.xxxl),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _frostedCard({required VoidCallback onTap, required Widget child}) {
+    return ScaleOnTap(
+      onTap: onTap,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.15), width: 0.8),
+        ),
+        child: child,
+      ),
+    );
+  }
+
+  Widget _frostedButton({required String label, required IconData icon, required VoidCallback onTap}) {
+    return ScaleOnTap(
+      onTap: onTap,
+      child: Container(
+        width: double.infinity,
+        height: 52,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.25), width: 1),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: Colors.white, size: 18),
+            const SizedBox(width: AppSpacing.sm),
+            Text(label, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.white, letterSpacing: -0.2)),
           ],
         ),
       ),
     );
   }
 
-  Widget _pill(String label, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-        decoration: BoxDecoration(color: AppColors.surfaceLight, borderRadius: BorderRadius.circular(20)),
-        child: Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
+  Widget _langPill(String label, VoidCallback onTap) {
+    return Material(
+      color: Colors.white.withValues(alpha: 0.14),
+      borderRadius: BorderRadius.circular(AppRadius.pill),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+        onTap: onTap,
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 44, minWidth: 56),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.sm),
+          alignment: Alignment.center,
+          child: Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white)),
+        ),
       ),
     );
   }

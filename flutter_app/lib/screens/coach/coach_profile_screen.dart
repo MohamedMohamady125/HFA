@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
-import '../../services/api_service.dart';
 import '../../services/offline/offline_repository.dart';
 import '../../theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
@@ -39,95 +39,94 @@ class CoachProfileScreenState extends State<CoachProfileScreen> {
     final auth = context.watch<AuthProvider>();
     final localeProvider = context.watch<LocaleProvider>();
 
-    return Scaffold(
-      body: SafeArea(
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            children: [
-              // Profile card
-              FadeSlideIn(child: AppCard(
-                child: Column(children: [
-                  Container(
-                    width: 64, height: 64,
-                    decoration: BoxDecoration(gradient: LinearGradient(colors: [AppColors.accent, AppColors.accent.withValues(alpha: 0.7)]), borderRadius: BorderRadius.circular(18)),
-                    child: Center(child: Text((auth.userName ?? 'C')[0].toUpperCase(), style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: Colors.white))),
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light,
+      child: Scaffold(
+        body: Column(
+          children: [
+            FadeSlideIn(
+              child: HeroHeader(
+                title: auth.userName ?? 'Coach',
+                subtitle: auth.userEmail ?? '',
+                leading: GradientAvatar(name: auth.userName ?? 'C', size: 52),
+                bottom: Row(children: [
+                  StatChip(
+                    icon: Icons.location_on_rounded,
+                    value: branchName.isNotEmpty ? branchName : l.translate('branch_label'),
+                    label: l.translate('branch_label'),
                   ),
-                  const SizedBox(height: 14),
-                  Text(auth.userName ?? 'Coach', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
-                  const SizedBox(height: 6),
-                  Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                    const Icon(Icons.location_on_rounded, size: 14, color: AppColors.accent),
-                    const SizedBox(width: 4),
-                    Text(branchName.isNotEmpty ? branchName : l.translate('branch_label'), style: const TextStyle(fontSize: 14, color: AppColors.textSecondary)),
-                  ]),
-                  const SizedBox(height: 2),
-                  Text(auth.userEmail ?? '', style: const TextStyle(fontSize: 13, color: AppColors.textTertiary)),
                 ]),
-              )),
-              const SizedBox(height: 8),
+              ),
+            ),
+            Expanded(
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsetsDirectional.fromSTEB(20, 20, 20, 30),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    FadeSlideIn(delay: 50, child: SectionHeader(title: l.translate('settings'))),
+                    FadeSlideIn(delay: 100, child: ActionTile(
+                      icon: Icons.person_outline_rounded,
+                      title: l.translate('edit_profile'),
+                      onTap: () => context.push('/edit-profile'),
+                    )),
+                    FadeSlideIn(delay: 150, child: ActionTile(
+                      icon: Icons.lock_outline_rounded,
+                      title: l.translate('change_password'),
+                      color: AppColors.primary,
+                      onTap: () => context.push('/change-password'),
+                    )),
+                    FadeSlideIn(delay: 200, child: ActionTile(
+                      icon: Icons.fact_check_outlined,
+                      title: l.translate('attendance_summary'),
+                      color: AppColors.warning,
+                      onTap: () => context.push('/coach-manage/attendance'),
+                    )),
 
-              FadeSlideIn(delay: 100, child: Align(alignment: Alignment.centerLeft, child: SectionHeader(title: l.translate('settings')))),
-              FadeSlideIn(delay: 140, child: _menuItem(Icons.person_outline_rounded, l.translate('edit_profile'), () => context.push('/edit-profile'))),
-              FadeSlideIn(delay: 180, child: _menuItem(Icons.lock_outline_rounded, l.translate('change_password'), () => context.push('/change-password'))),
-              FadeSlideIn(delay: 220, child: _menuItem(Icons.fact_check_outlined, l.translate('attendance_summary'), () => context.push('/coach-manage/attendance'))),
+                    if (auth.role == 'head_coach') ...[
+                      const SizedBox(height: AppSpacing.sm),
+                      FadeSlideIn(delay: 250, child: SectionHeader(title: l.translate('head_coach'))),
+                      FadeSlideIn(delay: 300, child: ActionTile(
+                        icon: Icons.people_rounded,
+                        title: l.translate('manage_coaches'),
+                        color: AppColors.info,
+                        onTap: () => context.go('/head-coach-manage-coaches'),
+                      )),
+                      FadeSlideIn(delay: 350, child: ActionTile(
+                        icon: Icons.swap_horiz_rounded,
+                        title: l.translate('switch_branch'),
+                        color: AppColors.success,
+                        onTap: () => context.go('/head-coach-branches'),
+                      )),
+                    ],
 
-              if (auth.role == 'head_coach') ...[
-                const SizedBox(height: 8),
-                FadeSlideIn(delay: 260, child: Align(alignment: Alignment.centerLeft, child: SectionHeader(title: l.translate('head_coach')))),
-                FadeSlideIn(delay: 300, child: _menuItem(Icons.people_rounded, l.translate('manage_coaches'), () => context.go('/head-coach-manage-coaches'))),
-                FadeSlideIn(delay: 340, child: _menuItem(Icons.swap_horiz_rounded, l.translate('switch_branch'), () => context.go('/head-coach-branches'))),
-              ],
+                    const SizedBox(height: AppSpacing.sm),
+                    FadeSlideIn(delay: 400, child: ActionTile(
+                      icon: Icons.language_rounded,
+                      title: l.translate('language'),
+                      subtitle: l.translate('language_current'),
+                      onTap: () => localeProvider.toggleLocale(),
+                      trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                        Text(localeProvider.locale.languageCode == 'en' ? '\u0639\u0631\u0628\u064A' : 'EN',
+                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.accent)),
+                        const SizedBox(width: 4),
+                        const Icon(Icons.chevron_right_rounded, color: AppColors.textTertiary, size: 22),
+                      ]),
+                    )),
 
-              const SizedBox(height: 8),
-              FadeSlideIn(delay: 380, child: _languageCard(localeProvider, l)),
-
-              const SizedBox(height: 24),
-              FadeSlideIn(delay: 420, child: SizedBox(width: double.infinity, child: OutlinedButton.icon(
-                onPressed: () async { await auth.logout(); if (context.mounted) context.go('/guest-home'); },
-                style: OutlinedButton.styleFrom(foregroundColor: AppColors.error, side: const BorderSide(color: AppColors.error)),
-                icon: const Icon(Icons.logout_rounded, size: 18),
-                label: Text(l.translate('logout')),
-              ))),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _languageCard(LocaleProvider localeProvider, AppLocalizations l) {
-    return AppCard(
-      onTap: () => localeProvider.toggleLocale(),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      child: Row(children: [
-        const Icon(Icons.language_rounded, color: AppColors.accent, size: 22),
-        const SizedBox(width: 14),
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(l.translate('language'), style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: AppColors.textPrimary)),
-          Text(l.translate('language_current'), style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-        ])),
-        Text(localeProvider.locale.languageCode == 'en' ? '\u0639\u0631\u0628\u064A' : 'EN', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.accent)),
-        const SizedBox(width: 4),
-        const Icon(Icons.chevron_right_rounded, color: AppColors.textTertiary, size: 20),
-      ]),
-    );
-  }
-
-  Widget _menuItem(IconData icon, String label, VoidCallback onTap) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: ScaleOnTap(
-        onTap: onTap,
-        child: AppCard(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          child: Row(children: [
-            Icon(icon, color: AppColors.textSecondary, size: 22),
-            const SizedBox(width: 14),
-            Expanded(child: Text(label, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: AppColors.textPrimary))),
-            const Icon(Icons.chevron_right_rounded, color: AppColors.textTertiary, size: 20),
-          ]),
+                    const SizedBox(height: AppSpacing.xxl),
+                    FadeSlideIn(delay: 450, child: SizedBox(width: double.infinity, child: OutlinedButton.icon(
+                      onPressed: () async { await auth.logout(); if (context.mounted) context.go('/guest-home'); },
+                      style: OutlinedButton.styleFrom(foregroundColor: AppColors.error, side: const BorderSide(color: AppColors.error, width: 1.5)),
+                      icon: const Icon(Icons.logout_rounded, size: 18),
+                      label: Text(l.translate('logout')),
+                    ))),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

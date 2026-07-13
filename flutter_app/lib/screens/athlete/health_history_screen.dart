@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
@@ -63,96 +64,110 @@ class _HealthHistoryScreenState extends State<HealthHistoryScreen> {
     final l = AppLocalizations.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: Text(l.translate('health_history'))),
       floatingActionButton: FloatingActionButton(
         onPressed: _openCreateDialog,
         backgroundColor: AppColors.accent,
         child: const Icon(Icons.add_rounded, color: Colors.white),
       ),
-      body: loading
-          ? const ShimmerList(count: 3)
-          : records.isEmpty
-              ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-                  Icon(Icons.medical_information_outlined, size: 56, color: AppColors.textTertiary.withValues(alpha: 0.4)),
-                  const SizedBox(height: 16),
-                  Text(l.translate('no_health_records'), style: const TextStyle(color: AppColors.textSecondary, fontSize: 15)),
-                  const SizedBox(height: 8),
-                  Text(l.translate('tap_add_record'), style: const TextStyle(color: AppColors.textTertiary, fontSize: 13)),
-                ]))
-              : RefreshIndicator(
-                  onRefresh: _fetch,
-                  child: ListView.builder(
-                    physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
-                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 80),
-                    itemCount: records.length,
-                    itemBuilder: (_, i) {
-                      final r = records[i];
-                      final files = r['files'] as List? ?? [];
-                      final date = r['created_at'] != null ? DateTime.tryParse(r['created_at']) : null;
-                      final dateStr = date != null ? '${date.day}/${date.month}/${date.year}' : '';
+      body: Column(
+        children: [
+          FadeSlideIn(
+            child: HeroHeader(
+              title: l.translate('health_history'),
+              subtitle: l.translate('health_history_desc'),
+              leading: HeaderIconButton(icon: Icons.arrow_back, onTap: () => Navigator.pop(context)),
+            ),
+          ),
+          Expanded(
+            child: loading
+                ? const ShimmerList(count: 3)
+                : records.isEmpty
+                    ? EmptyState(
+                        icon: Icons.medical_information_outlined,
+                        title: l.translate('no_health_records'),
+                        message: l.translate('tap_add_record'),
+                      )
+                    : RefreshIndicator(
+                        onRefresh: _fetch,
+                        color: AppColors.accent,
+                        child: ListView.builder(
+                          physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+                          padding: const EdgeInsets.fromLTRB(20, 16, 20, 80),
+                          itemCount: records.length,
+                          itemBuilder: (_, i) {
+                            final r = records[i];
+                            final files = r['files'] as List? ?? [];
+                            final date = r['created_at'] != null ? DateTime.tryParse(r['created_at']) : null;
+                            final dateStr = date != null ? '${date.day}/${date.month}/${date.year}' : '';
 
-                      return FadeSlideIn(delay: i * 50, child: Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Row(children: [
-                            Container(width: 40, height: 40,
-                              decoration: BoxDecoration(color: AppColors.error.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
-                              child: const Icon(Icons.medical_information_rounded, color: AppColors.error, size: 20)),
-                            const SizedBox(width: 12),
-                            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                              Text(r['title'] ?? '', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
-                              Text(dateStr, style: const TextStyle(fontSize: 12, color: AppColors.textTertiary)),
-                            ])),
-                            IconButton(
-                              icon: const Icon(Icons.delete_outline_rounded, color: AppColors.error, size: 20),
-                              onPressed: () => _deleteRecord(r['id']),
-                            ),
-                          ]),
-                          if (r['notes'] != null && r['notes'].toString().isNotEmpty) ...[
-                            const SizedBox(height: 10),
-                            Text(r['notes'], style: const TextStyle(fontSize: 14, color: AppColors.textSecondary)),
-                          ],
-                          if (files.isNotEmpty) ...[
-                            const SizedBox(height: 10),
-                            SizedBox(
-                              height: 80,
-                              child: ListView.separated(
-                                scrollDirection: Axis.horizontal,
-                                itemCount: files.length,
-                                separatorBuilder: (_, __) => const SizedBox(width: 8),
-                                itemBuilder: (_, fi) {
-                                  final file = files[fi];
-                                  final bytes = base64Decode(file['file_data']);
-                                  return GestureDetector(
-                                    onTap: () => _showFullImage(bytes, file['file_name'] ?? ''),
-                                    child: ClipRRect(
-                                      borderRadius: BorderRadius.circular(10),
-                                      child: Image.memory(bytes, width: 80, height: 80, fit: BoxFit.cover),
+                            return FadeSlideIn(delay: i * 50, child: AppCard(
+                              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                Row(children: [
+                                  const IconBadge(icon: Icons.medical_information_rounded, color: AppColors.error),
+                                  const SizedBox(width: AppSpacing.md),
+                                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                    Text(r['title'] ?? '', style: AppTypography.titleMedium),
+                                    const SizedBox(height: 2),
+                                    Text(dateStr, style: AppTypography.caption),
+                                  ])),
+                                  IconButton(
+                                    icon: const Icon(Icons.delete_outline_rounded, color: AppColors.error, size: 20),
+                                    onPressed: () => _deleteRecord(r['id']),
+                                  ),
+                                ]),
+                                if (r['notes'] != null && r['notes'].toString().isNotEmpty) ...[
+                                  const SizedBox(height: AppSpacing.md),
+                                  Container(
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.all(AppSpacing.md),
+                                    decoration: BoxDecoration(color: AppColors.surfaceLight, borderRadius: BorderRadius.circular(AppRadius.sm)),
+                                    child: Text(r['notes'], style: AppTypography.bodyMedium),
+                                  ),
+                                ],
+                                if (files.isNotEmpty) ...[
+                                  const SizedBox(height: AppSpacing.md),
+                                  SizedBox(
+                                    height: 80,
+                                    child: ListView.separated(
+                                      scrollDirection: Axis.horizontal,
+                                      itemCount: files.length,
+                                      separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.sm),
+                                      itemBuilder: (_, fi) {
+                                        final file = files[fi];
+                                        final bytes = base64Decode(file['file_data']);
+                                        return ScaleOnTap(
+                                          onTap: () => _showFullImage(bytes, file['file_name'] ?? ''),
+                                          child: ClipRRect(
+                                            borderRadius: BorderRadius.circular(AppRadius.sm),
+                                            child: Image.memory(bytes, width: 80, height: 80, fit: BoxFit.cover),
+                                          ),
+                                        );
+                                      },
                                     ),
-                                  );
-                                },
-                              ),
-                            ),
-                          ],
-                        ])),
-                      ));
-                    },
-                  ),
-                ),
+                                  ),
+                                ],
+                              ]),
+                            ));
+                          },
+                        ),
+                      ),
+          ),
+        ],
+      ),
     );
   }
 
-  void _showFullImage(List<int> bytes, String name) {
+  void _showFullImage(Uint8List bytes, String name) {
     showDialog(
       context: context,
       builder: (ctx) => Dialog(
         backgroundColor: Colors.transparent,
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           ClipRRect(
-            borderRadius: BorderRadius.circular(16),
-            child: Image.memory(bytes as dynamic, fit: BoxFit.contain),
+            borderRadius: BorderRadius.circular(AppRadius.lg),
+            child: Image.memory(bytes, fit: BoxFit.contain),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppSpacing.md),
           Text(name, style: const TextStyle(color: Colors.white, fontSize: 14)),
         ]),
       ),
@@ -224,62 +239,72 @@ class _CreateHealthRecordScreenState extends State<_CreateHealthRecordScreen> {
     final l = AppLocalizations.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: Text(l.translate('new_health_record'))),
-      body: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.all(20),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(l.translate('record_name'), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textSecondary, letterSpacing: 0.5)),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _titleCtrl,
-            decoration: InputDecoration(hintText: l.translate('record_name_hint')),
+      body: Column(
+        children: [
+          FadeSlideIn(
+            child: HeroHeader(
+              title: l.translate('new_health_record'),
+              leading: HeaderIconButton(icon: Icons.arrow_back, onTap: () => Navigator.pop(context)),
+            ),
           ),
-          const SizedBox(height: 20),
-          Text(l.translate('notes_label'), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textSecondary, letterSpacing: 0.5)),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _notesCtrl,
-            maxLines: 4,
-            decoration: InputDecoration(hintText: l.translate('notes_hint')),
-          ),
-          const SizedBox(height: 20),
-          Text(l.translate('attachments'), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textSecondary, letterSpacing: 0.5)),
-          const SizedBox(height: 4),
-          Text(l.translate('max_2_photos'), style: const TextStyle(fontSize: 12, color: AppColors.textTertiary)),
-          const SizedBox(height: 10),
-          Row(children: [
-            ..._files.map((f) => Padding(
-              padding: const EdgeInsets.only(right: 10),
-              child: Stack(clipBehavior: Clip.none, children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: Image.file(File(f.path), width: 80, height: 80, fit: BoxFit.cover),
+          Expanded(
+            child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              padding: const EdgeInsets.all(AppSpacing.xl),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(l.translate('record_name'), style: AppTypography.label),
+                const SizedBox(height: AppSpacing.sm),
+                TextField(
+                  controller: _titleCtrl,
+                  decoration: InputDecoration(hintText: l.translate('record_name_hint')),
                 ),
-                Positioned(top: -6, right: -6, child: GestureDetector(
-                  onTap: () => setState(() => _files.remove(f)),
-                  child: Container(width: 22, height: 22, decoration: const BoxDecoration(color: AppColors.error, shape: BoxShape.circle),
-                    child: const Icon(Icons.close_rounded, color: Colors.white, size: 14)),
-                )),
+                const SizedBox(height: AppSpacing.xl),
+                Text(l.translate('notes_label'), style: AppTypography.label),
+                const SizedBox(height: AppSpacing.sm),
+                TextField(
+                  controller: _notesCtrl,
+                  maxLines: 4,
+                  decoration: InputDecoration(hintText: l.translate('notes_hint')),
+                ),
+                const SizedBox(height: AppSpacing.xl),
+                Text(l.translate('attachments'), style: AppTypography.label),
+                const SizedBox(height: AppSpacing.xs),
+                Text(l.translate('max_2_photos'), style: AppTypography.caption),
+                const SizedBox(height: AppSpacing.md),
+                Row(children: [
+                  ..._files.map((f) => Padding(
+                    padding: const EdgeInsetsDirectional.only(end: AppSpacing.md),
+                    child: Stack(clipBehavior: Clip.none, children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(AppRadius.md),
+                        child: Image.file(File(f.path), width: 80, height: 80, fit: BoxFit.cover),
+                      ),
+                      PositionedDirectional(top: -6, end: -6, child: GestureDetector(
+                        onTap: () => setState(() => _files.remove(f)),
+                        child: Container(width: 22, height: 22, decoration: const BoxDecoration(color: AppColors.error, shape: BoxShape.circle),
+                          child: const Icon(Icons.close_rounded, color: Colors.white, size: 14)),
+                      )),
+                    ]),
+                  )),
+                  if (_files.length < 2)
+                    ScaleOnTap(
+                      onTap: _pickImage,
+                      child: Container(width: 80, height: 80,
+                        decoration: BoxDecoration(color: AppColors.surfaceLight, borderRadius: BorderRadius.circular(AppRadius.md), border: Border.all(color: AppColors.textTertiary.withValues(alpha: 0.3), style: BorderStyle.solid)),
+                        child: const Icon(Icons.add_photo_alternate_outlined, color: AppColors.textTertiary, size: 28),
+                      ),
+                    ),
+                ]),
+                const SizedBox(height: AppSpacing.xxxl),
+                PrimaryButton(
+                  label: l.translate('save_record'),
+                  loading: _saving,
+                  onPressed: _saving ? null : _save,
+                ),
               ]),
-            )),
-            if (_files.length < 2)
-              GestureDetector(
-                onTap: _pickImage,
-                child: Container(width: 80, height: 80,
-                  decoration: BoxDecoration(color: AppColors.surfaceLight, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.textTertiary.withValues(alpha: 0.3), style: BorderStyle.solid)),
-                  child: const Icon(Icons.add_photo_alternate_outlined, color: AppColors.textTertiary, size: 28),
-                ),
-              ),
-          ]),
-          const SizedBox(height: 32),
-          SizedBox(width: double.infinity, child: ElevatedButton(
-            onPressed: _saving ? null : _save,
-            child: _saving
-                ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white))
-                : Text(l.translate('save_record')),
-          )),
-        ]),
+            ),
+          ),
+        ],
       ),
     );
   }
