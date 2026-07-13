@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../services/push_notification_service.dart';
 
 class AppLocalizations {
   final Locale locale;
@@ -799,5 +800,7 @@ class LocaleProvider extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('app_locale', locale.languageCode);
     notifyListeners();
+    // Re-register device token so push notifications use the new language
+    PushNotificationService.registerDevice();
   }
 }

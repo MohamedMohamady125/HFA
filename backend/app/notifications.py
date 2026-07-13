@@ -10,6 +10,7 @@ router = APIRouter()
 class DeviceTokenRequest(BaseModel):
     token: str
     platform: str = "unknown"
+    lang: str = "en"
 
 
 @router.post("/register-device")
@@ -17,10 +18,10 @@ def register_device(data: DeviceTokenRequest, user=Depends(get_current_user)):
     conn = get_connection()
     cursor = get_cursor(conn)
     cursor.execute("""
-        INSERT INTO device_tokens (user_id, token, platform)
-        VALUES (%s, %s, %s)
-        ON CONFLICT (user_id, token) DO NOTHING
-    """, (user["id"], data.token, data.platform))
+        INSERT INTO device_tokens (user_id, token, platform, lang)
+        VALUES (%s, %s, %s, %s)
+        ON CONFLICT (user_id, token) DO UPDATE SET lang = EXCLUDED.lang
+    """, (user["id"], data.token, data.platform, data.lang))
     conn.commit()
     cursor.close()
     conn.close()

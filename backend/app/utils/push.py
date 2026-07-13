@@ -105,6 +105,30 @@ def _send_fcm_v1(token: str, title: str, body: str, access_token: str, project_i
         return {"success": False, "status": e.code, "error": error_body}
 
 
+# Arabic translations for push notification titles
+_AR_TITLES = {
+    "Gear for this week": "أدوات هذا الأسبوع",
+    "Attendance": "الحضور",
+}
+
+
+def _localize_title(title: str, lang: str) -> str:
+    if lang == "ar" and title in _AR_TITLES:
+        return _AR_TITLES[title]
+    return title
+
+
+def _localize_body(body: str, lang: str, title: str) -> str:
+    if lang != "ar":
+        return body
+    # Attendance messages
+    if title == "Attendance" or title == _AR_TITLES.get("Attendance", ""):
+        body = body.replace("You were marked present", "تم تسجيل حضورك")
+        body = body.replace("You were marked absent", "تم تسجيل غيابك")
+        body = body.replace(" for ", " في ")
+    return body
+
+
 def send_push_to_user(cursor, user_id: int, title: str, body: str):
     """Send push notification to all devices registered for a user."""
     try:
@@ -113,13 +137,17 @@ def send_push_to_user(cursor, user_id: int, title: str, body: str):
             logger.warning("Could not get FCM access token — push disabled")
             return
 
-        cursor.execute("SELECT token FROM device_tokens WHERE user_id = %s", (user_id,))
-        tokens = [row["token"] for row in cursor.fetchall()]
-        if not tokens:
+        cursor.execute("SELECT token, lang FROM device_tokens WHERE user_id = %s", (user_id,))
+        rows = cursor.fetchall()
+        if not rows:
             return
 
-        for device_token in tokens:
-            result = _send_fcm_v1(device_token, title, body, access_token, project_id)
+        for row in rows:
+            device_token = row["token"]
+            lang = row.get("lang", "en") or "en"
+            localized_title = _localize_title(title, lang)
+            localized_body = _localize_body(body, lang, title)
+            result = _send_fcm_v1(device_token, localized_title, localized_body, access_token, project_id)
             if not result["success"]:
                 logger.error(f"FCM send failed for token {device_token[:20]}...: {result}")
                 # Clean up invalid tokens

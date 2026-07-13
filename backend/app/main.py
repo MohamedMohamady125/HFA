@@ -39,9 +39,13 @@ def run_migrations():
                 user_id INTEGER NOT NULL REFERENCES users(id),
                 token TEXT NOT NULL,
                 platform VARCHAR(20),
+                lang VARCHAR(5) DEFAULT 'en',
                 created_at TIMESTAMP DEFAULT NOW(),
                 UNIQUE(user_id, token)
             )
+        """)
+        cursor.execute("""
+            ALTER TABLE device_tokens ADD COLUMN IF NOT EXISTS lang VARCHAR(5) DEFAULT 'en'
         """)
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS password_reset_codes (

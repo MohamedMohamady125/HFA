@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'api_service.dart';
 
 @pragma('vm:entry-point')
@@ -76,12 +77,15 @@ class PushNotificationService {
 
   static Future<void> _sendTokenToBackend(String token) async {
     try {
+      final prefs = await SharedPreferences.getInstance();
+      final lang = prefs.getString('app_locale') ?? 'en';
       await ApiService().post('/notifications/register-device', data: {
         'token': token,
         'platform': Platform.isIOS ? 'iOS' : 'Android',
+        'lang': lang,
       });
       _lastRegisteredToken = token;
-      if (kDebugMode) print('[PUSH] Token registered with backend');
+      if (kDebugMode) print('[PUSH] Token registered with backend (lang=$lang)');
     } catch (e) {
       if (kDebugMode) print('[PUSH] Failed to register token: $e');
     }
