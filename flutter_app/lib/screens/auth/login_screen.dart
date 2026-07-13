@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -6,7 +7,9 @@ import 'package:dio/dio.dart';
 import 'dart:convert';
 import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
+import '../../services/offline/connectivity_service.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/app_feedback.dart';
 import '../../l10n/app_localizations.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -23,6 +26,12 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _handleLogin() async {
     final l = AppLocalizations.of(context);
     if (_emailCtrl.text.trim().isEmpty || _passCtrl.text.trim().isEmpty) { _showError(l.translate('fill_all_fields')); return; }
+    if (!ConnectivityService.isOnline) {
+      AppFeedback.showError(context, Exception(),
+          fallback: "You're offline — please connect to the internet to sign in.");
+      return;
+    }
+    HapticFeedback.mediumImpact();
     setState(() => _loading = true);
     try {
       final api = ApiService();
@@ -36,33 +45,14 @@ class _LoginScreenState extends State<LoginScreen> {
       await (await SharedPreferences.getInstance()).setString('authUser', jsonEncode(authUser));
       if (!mounted) return;
       await context.read<AuthProvider>().login(authUser);
+      if (!mounted) return;
       context.go(isApproved ? '/athlete/home' : '/pending');
     } catch (e) {
-      String msg = l.translate('invalid_login');
-      if (e is DioException) {
-        final data = e.response?.data;
-        if (data is Map && data['detail'] != null) msg = data['detail'].toString();
-      }
-      _showErrorDialog(l, msg);
+      if (mounted) AppFeedback.showError(context, e, fallback: l.translate('invalid_login'));
     } finally { if (mounted) setState(() => _loading = false); }
   }
 
-  void _showErrorDialog(AppLocalizations l, String msg) {
-    if (!mounted) return;
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        icon: const Icon(Icons.error_outline_rounded, color: AppColors.error, size: 48),
-        title: Text(l.translate('invalid_login')),
-        content: Text(msg, textAlign: TextAlign.center),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: Text(l.translate('ok'))),
-        ],
-      ),
-    );
-  }
-
-  void _showError(String msg) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: AppColors.error)); }
+  void _showError(String msg) { if (mounted) AppFeedback.showError(context, Exception(), fallback: msg); }
 
   @override
   Widget build(BuildContext context) {
@@ -73,7 +63,9 @@ class _LoginScreenState extends State<LoginScreen> {
         backgroundColor: Colors.white,
         leading: IconButton(onPressed: () => context.pop(), icon: const Icon(Icons.arrow_back_rounded)),
       ),
-      body: SingleChildScrollView(
+      body: Stack(
+        children: [
+          SingleChildScrollView(
         physics: const BouncingScrollPhysics(),
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
         child: Column(
@@ -133,6 +125,8 @@ class _LoginScreenState extends State<LoginScreen> {
             const SizedBox(height: 40),
           ],
         ),
+          ),
+        ],
       ),
     );
   }

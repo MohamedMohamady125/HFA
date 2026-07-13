@@ -24,10 +24,7 @@ def send_reset_email(to_email: str, code: str):
 
     msg.attach(MIMEText(html, "html"))
 
-    try:
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
-            server.login(settings.FROM_EMAIL, settings.GMAIL_APP_PASSWORD)
-            server.sendmail(settings.FROM_EMAIL, to_email, msg.as_string())
-        print(f"Email sent to {to_email}")
-    except Exception as e:
-        print(f"Failed to send email: {e}")
+    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+        server.login(settings.FROM_EMAIL, settings.GMAIL_APP_PASSWORD)
+        server.sendmail(settings.FROM_EMAIL, to_email, msg.as_string())
+    print(f"Email sent to {to_email}")

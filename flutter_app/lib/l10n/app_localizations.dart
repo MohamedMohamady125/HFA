@@ -360,6 +360,14 @@ class AppLocalizations {
       'enter_code': 'Please enter a code',
       'invalid_code': 'Invalid or expired code',
 
+      // Legal & Account
+      'delete_account': 'Delete Account',
+      'delete_account_desc': 'Permanently delete your account and all data',
+      'delete_account_confirm': 'Are you sure you want to delete your account? This action cannot be undone.',
+      'delete_account_password': 'Enter your password to confirm',
+      'account_deleted': 'Account deleted successfully',
+      'privacy_policy': 'Privacy Policy',
+
       // Notifications
       'notifications': 'Notifications',
       'no_notifications': 'No notifications yet',
@@ -716,6 +724,14 @@ class AppLocalizations {
       'access_code': '\u0631\u0645\u0632 \u0627\u0644\u062f\u062e\u0648\u0644',
       'enter_code': '\u064a\u0631\u062c\u0649 \u0625\u062f\u062e\u0627\u0644 \u0627\u0644\u0631\u0645\u0632',
       'invalid_code': '\u0631\u0645\u0632 \u063a\u064a\u0631 \u0635\u0627\u0644\u062d \u0623\u0648 \u0645\u0646\u062a\u0647\u064a \u0627\u0644\u0635\u0644\u0627\u062d\u064a\u0629',
+
+      // Legal & Account
+      'delete_account': '\u062d\u0630\u0641 \u0627\u0644\u062d\u0633\u0627\u0628',
+      'delete_account_desc': '\u062d\u0630\u0641 \u062d\u0633\u0627\u0628\u0643 \u0648\u062c\u0645\u064a\u0639 \u0628\u064a\u0627\u0646\u0627\u062a\u0643 \u0646\u0647\u0627\u0626\u064a\u0627\u064b',
+      'delete_account_confirm': '\u0647\u0644 \u0623\u0646\u062a \u0645\u062a\u0623\u0643\u062f \u0645\u0646 \u062d\u0630\u0641 \u062d\u0633\u0627\u0628\u0643\u061f \u0644\u0627 \u064a\u0645\u0643\u0646 \u0627\u0644\u062a\u0631\u0627\u062c\u0639 \u0639\u0646 \u0647\u0630\u0627 \u0627\u0644\u0625\u062c\u0631\u0627\u0621.',
+      'delete_account_password': '\u0623\u062f\u062e\u0644 \u0643\u0644\u0645\u0629 \u0627\u0644\u0645\u0631\u0648\u0631 \u0644\u0644\u062a\u0623\u0643\u064a\u062f',
+      'account_deleted': '\u062a\u0645 \u062d\u0630\u0641 \u0627\u0644\u062d\u0633\u0627\u0628 \u0628\u0646\u062c\u0627\u062d',
+      'privacy_policy': '\u0633\u064a\u0627\u0633\u0629 \u0627\u0644\u062e\u0635\u0648\u0635\u064a\u0629',
 
       // Notifications
       'notifications': '\u0627\u0644\u0625\u0634\u0639\u0627\u0631\u0627\u062a',

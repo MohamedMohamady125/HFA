@@ -13,7 +13,7 @@ class AppColors {
   static const accentDark = Color(0xFF0089BF);
   static const accentLight = Color(0xFFD0EFFF);
 
-  static const scaffoldBg = Color(0xFFF6F8FA);
+  static const scaffoldBg = Colors.white;
   static const cardBg = Colors.white;
   static const surfaceLight = Color(0xFFF1F4F8);
 
@@ -294,7 +294,6 @@ class HeroHeader extends StatelessWidget {
     );
   }
 }
-
 /// Circular frosted icon button for use on gradient headers.
 class HeaderIconButton extends StatelessWidget {
   final IconData icon;

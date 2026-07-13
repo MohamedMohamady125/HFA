@@ -90,6 +90,57 @@ def login(user: UserLogin):
     }
 
 
+class DeleteAccountRequest(BaseModel):
+    password: str
+
+@router.post("/delete-account")
+def delete_account(data: DeleteAccountRequest, user=Depends(get_current_user)):
+    conn = get_connection()
+    cursor = get_cursor(conn)
+
+    cursor.execute("SELECT password_hash FROM users WHERE id = %s", (user["id"],))
+    row = cursor.fetchone()
+    if not row or not bcrypt.verify(data.password, row["password_hash"]):
+        cursor.close()
+        conn.close()
+        raise HTTPException(status_code=401, detail="Incorrect password")
+
+    user_id = user["id"]
+
+    # Delete all related data
+    cursor.execute("DELETE FROM device_tokens WHERE user_id = %s", (user_id,))
+    cursor.execute("DELETE FROM notifications WHERE user_id = %s", (user_id,))
+    cursor.execute("DELETE FROM password_reset_codes WHERE user_id = %s", (user_id,))
+    cursor.execute("DELETE FROM parent_access_codes WHERE user_id = %s", (user_id,))
+    cursor.execute("DELETE FROM posts WHERE user_id = %s", (user_id,))
+
+    # Delete athlete-specific data
+    cursor.execute("SELECT id FROM athletes WHERE user_id = %s", (user_id,))
+    athlete = cursor.fetchone()
+    if athlete:
+        athlete_id = athlete["id"]
+        cursor.execute("DELETE FROM payments WHERE athlete_id = %s", (athlete_id,))
+        cursor.execute("DELETE FROM attendance WHERE athlete_id = %s", (athlete_id,))
+        cursor.execute("DELETE FROM measurements WHERE athlete_id = %s", (athlete_id,))
+        cursor.execute("DELETE FROM performance_logs WHERE athlete_id = %s", (athlete_id,))
+        cursor.execute("DELETE FROM health_records WHERE athlete_id = %s", (athlete_id,))
+        cursor.execute("DELETE FROM athletes WHERE id = %s", (athlete_id,))
+
+    # Delete coach assignments
+    cursor.execute("DELETE FROM coach_assignments WHERE user_id = %s", (user_id,))
+
+    # Delete registration requests
+    cursor.execute("DELETE FROM registration_requests WHERE email = %s", (user["email"],))
+
+    # Finally delete the user
+    cursor.execute("DELETE FROM users WHERE id = %s", (user_id,))
+
+    conn.commit()
+    cursor.close()
+    conn.close()
+    return {"message": "Account deleted successfully"}
+
+
 class ChangeEmailRequest(BaseModel):
     new_email: EmailStr
     password: str
@@ -175,7 +226,11 @@ def forgot_password(data: ForgotPasswordRequest):
     conn.close()
 
     # Send the code via email
-    send_reset_email(data.email, code)
+    try:
+        send_reset_email(data.email, code)
+    except Exception as e:
+        print(f"Email send failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to send reset email. Please try again later.")
     return {"message": "If the account exists, a reset code will be sent."}
 
 

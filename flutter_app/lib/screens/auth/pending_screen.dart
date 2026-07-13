@@ -13,7 +13,9 @@ class PendingScreen extends StatelessWidget {
     final l = AppLocalizations.of(context);
     return Scaffold(
       backgroundColor: Colors.white,
-      body: SafeArea(
+      body: Stack(
+        children: [
+          SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.xxl),
           child: Column(
@@ -47,6 +49,8 @@ class PendingScreen extends StatelessWidget {
             ],
           ),
         ),
+          ),
+        ],
       ),
     );
   }

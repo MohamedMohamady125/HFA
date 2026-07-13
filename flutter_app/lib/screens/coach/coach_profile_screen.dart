@@ -2,8 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../providers/auth_provider.dart';
+import '../../services/api_service.dart';
+import '../../services/offline/connectivity_service.dart';
 import '../../services/offline/offline_repository.dart';
+import '../../widgets/app_feedback.dart';
 import '../../theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
 
@@ -31,6 +35,58 @@ class CoachProfileScreenState extends State<CoachProfileScreen> {
       final data = await OfflineRepository.getUserMe();
       if (mounted) setState(() => branchName = data['branch_name'] ?? '');
     } catch (_) {}
+  }
+
+  Future<void> _showDeleteAccount(BuildContext context, AuthProvider auth) async {
+    if (!ConnectivityService.isOnline) {
+      AppFeedback.showError(context, Exception(), fallback: "You're offline — account changes need a connection.");
+      return;
+    }
+    final passCtrl = TextEditingController();
+    final l = AppLocalizations.of(context);
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l.translate('delete_account'), style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.error)),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(l.translate('delete_account_confirm'), style: AppTypography.bodyMedium),
+              const SizedBox(height: 16),
+              TextField(
+                controller: passCtrl,
+                obscureText: true,
+                decoration: InputDecoration(labelText: l.translate('delete_account_password')),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l.translate('cancel'))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(l.translate('delete_account')),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || passCtrl.text.isEmpty || !mounted) return;
+
+    try {
+      await ApiService().post('/auth/delete-account', data: {'password': passCtrl.text});
+      if (!mounted) return;
+      await auth.logout();
+      if (mounted) {
+        AppFeedback.showSuccess(context, l.translate('account_deleted'));
+        context.go('/guest-home');
+      }
+    } catch (e) {
+      if (mounted) AppFeedback.showError(context, e, fallback: l.translate('password_failed'));
+    }
   }
 
   @override
@@ -115,12 +171,26 @@ class CoachProfileScreenState extends State<CoachProfileScreen> {
                       ]),
                     )),
 
+                    FadeSlideIn(delay: 450, child: ActionTile(
+                      icon: Icons.privacy_tip_outlined,
+                      color: AppColors.accent,
+                      title: l.translate('privacy_policy'),
+                      onTap: () => launchUrl(Uri.parse('${ApiService.baseUrl}/privacy-policy'), mode: LaunchMode.externalApplication),
+                    )),
+
                     const SizedBox(height: AppSpacing.xxl),
-                    FadeSlideIn(delay: 450, child: SizedBox(width: double.infinity, child: OutlinedButton.icon(
+                    FadeSlideIn(delay: 500, child: SizedBox(width: double.infinity, child: OutlinedButton.icon(
                       onPressed: () async { await auth.logout(); if (context.mounted) context.go('/guest-home'); },
                       style: OutlinedButton.styleFrom(foregroundColor: AppColors.error, side: const BorderSide(color: AppColors.error, width: 1.5)),
                       icon: const Icon(Icons.logout_rounded, size: 18),
                       label: Text(l.translate('logout')),
+                    ))),
+                    const SizedBox(height: AppSpacing.md),
+                    FadeSlideIn(delay: 550, child: SizedBox(width: double.infinity, child: OutlinedButton.icon(
+                      onPressed: () => _showDeleteAccount(context, auth),
+                      style: OutlinedButton.styleFrom(foregroundColor: AppColors.error, side: const BorderSide(color: AppColors.error, width: 1.5)),
+                      icon: const Icon(Icons.delete_forever_rounded, size: 18),
+                      label: Text(l.translate('delete_account')),
                     ))),
                   ],
                 ),

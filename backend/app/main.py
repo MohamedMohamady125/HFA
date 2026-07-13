@@ -43,6 +43,15 @@ def run_migrations():
                 UNIQUE(user_id, token)
             )
         """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS password_reset_codes (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL REFERENCES users(id),
+                code VARCHAR(10) NOT NULL,
+                expires_at TIMESTAMP NOT NULL,
+                created_at TIMESTAMP DEFAULT NOW()
+            )
+        """)
         cursor.execute("ALTER TABLE branches ADD COLUMN IF NOT EXISTS whatsapp VARCHAR(50)")
         conn.commit()
         cursor.close()

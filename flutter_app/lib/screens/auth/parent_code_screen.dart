@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -6,7 +7,9 @@ import 'package:dio/dio.dart';
 import 'dart:convert';
 import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
+import '../../services/offline/connectivity_service.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/app_feedback.dart';
 import '../../l10n/app_localizations.dart';
 
 class ParentCodeScreen extends StatefulWidget {
@@ -23,6 +26,12 @@ class _ParentCodeScreenState extends State<ParentCodeScreen> {
     final l = AppLocalizations.of(context);
     final code = _codeCtrl.text.trim();
     if (code.isEmpty) { _showError(l.translate('enter_code')); return; }
+    if (!ConnectivityService.isOnline) {
+      AppFeedback.showError(context, Exception(),
+          fallback: "You're offline — please connect to the internet to sign in.");
+      return;
+    }
+    HapticFeedback.mediumImpact();
     setState(() => _loading = true);
     try {
       final api = ApiService();
@@ -35,13 +44,14 @@ class _ParentCodeScreenState extends State<ParentCodeScreen> {
       await (await SharedPreferences.getInstance()).setString('authUser', jsonEncode(authUser));
       if (!mounted) return;
       await context.read<AuthProvider>().login(authUser);
+      if (!mounted) return;
       context.go(isApproved ? '/athlete/home' : '/pending');
     } catch (e) {
-      _showError(e is DioException ? (e.response?.data?['detail']?.toString() ?? l.translate('invalid_code')) : l.translate('invalid_code'));
+      if (mounted) AppFeedback.showError(context, e, fallback: l.translate('invalid_code'));
     } finally { if (mounted) setState(() => _loading = false); }
   }
 
-  void _showError(String msg) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: AppColors.error)); }
+  void _showError(String msg) { if (mounted) AppFeedback.showError(context, Exception(), fallback: msg); }
 
   @override
   Widget build(BuildContext context) {
@@ -52,7 +62,9 @@ class _ParentCodeScreenState extends State<ParentCodeScreen> {
         backgroundColor: Colors.white,
         leading: IconButton(onPressed: () => context.pop(), icon: const Icon(Icons.arrow_back_rounded)),
       ),
-      body: SingleChildScrollView(
+      body: Stack(
+        children: [
+          SingleChildScrollView(
         physics: const BouncingScrollPhysics(),
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
         child: Column(
@@ -98,6 +110,8 @@ class _ParentCodeScreenState extends State<ParentCodeScreen> {
             const SizedBox(height: 40),
           ],
         ),
+          ),
+        ],
       ),
     );
   }

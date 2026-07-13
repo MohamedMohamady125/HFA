@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
-import 'package:dio/dio.dart';
 import '../../services/api_service.dart';
+import '../../services/offline/connectivity_service.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/app_feedback.dart';
 import '../../l10n/app_localizations.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
@@ -22,23 +24,28 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   final _confirmCtrl = TextEditingController();
 
   void _showError(String msg) {
-    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: AppColors.error));
+    if (mounted) AppFeedback.showError(context, Exception(), fallback: msg);
   }
 
-  void _showSuccess(String msg) {
-    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: AppColors.success));
+  bool _checkOnline() {
+    if (ConnectivityService.isOnline) return true;
+    AppFeedback.showError(context, Exception(),
+        fallback: "You're offline — please connect to the internet to reset your password.");
+    return false;
   }
 
   // Step 1: Send code to email
   Future<void> _sendCode() async {
     final l = AppLocalizations.of(context);
     if (_emailCtrl.text.trim().isEmpty) { _showError(l.translate('fill_all_fields')); return; }
+    if (!_checkOnline()) return;
+    HapticFeedback.mediumImpact();
     setState(() => _loading = true);
     try {
       await ApiService().post('/auth/forgot-password', data: {'email': _emailCtrl.text.trim()});
       if (mounted) setState(() => _step = 1);
     } catch (e) {
-      _showError(e is DioException ? (e.response?.data?['detail']?.toString() ?? l.translate('login_failed')) : l.translate('login_failed'));
+      if (mounted) AppFeedback.showError(context, e, fallback: l.translate('login_failed'));
     } finally { if (mounted) setState(() => _loading = false); }
   }
 
@@ -46,6 +53,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   Future<void> _verifyCode() async {
     final l = AppLocalizations.of(context);
     if (_codeCtrl.text.trim().isEmpty) { _showError(l.translate('enter_code')); return; }
+    if (!_checkOnline()) return;
+    HapticFeedback.mediumImpact();
     setState(() => _loading = true);
     try {
       await ApiService().post('/auth/verify-reset-code', data: {
@@ -54,7 +63,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       });
       if (mounted) setState(() => _step = 2);
     } catch (e) {
-      _showError(e is DioException ? (e.response?.data?['detail']?.toString() ?? l.translate('invalid_code')) : l.translate('invalid_code'));
+      if (mounted) AppFeedback.showError(context, e, fallback: l.translate('invalid_code'));
     } finally { if (mounted) setState(() => _loading = false); }
   }
 
@@ -63,6 +72,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     final l = AppLocalizations.of(context);
     if (_passCtrl.text.isEmpty || _confirmCtrl.text.isEmpty) { _showError(l.translate('fill_all_fields')); return; }
     if (_passCtrl.text != _confirmCtrl.text) { _showError(l.translate('passwords_no_match')); return; }
+    if (!_checkOnline()) return;
+    HapticFeedback.mediumImpact();
     setState(() => _loading = true);
     try {
       await ApiService().post('/auth/reset-password', data: {
@@ -71,11 +82,11 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         'new_password': _passCtrl.text,
       });
       if (mounted) {
-        _showSuccess(l.translate('password_reset_success'));
+        AppFeedback.showSuccess(context, l.translate('password_reset_success'));
         context.pop();
       }
     } catch (e) {
-      _showError(e is DioException ? (e.response?.data?['detail']?.toString() ?? l.translate('password_failed')) : l.translate('password_failed'));
+      if (mounted) AppFeedback.showError(context, e, fallback: l.translate('password_failed'));
     } finally { if (mounted) setState(() => _loading = false); }
   }
 
@@ -90,7 +101,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           if (_step > 0) { setState(() => _step--); } else { context.pop(); }
         }),
       ),
-      body: SingleChildScrollView(
+      body: Stack(
+        children: [
+          SingleChildScrollView(
         physics: const BouncingScrollPhysics(),
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
         child: Column(
@@ -125,6 +138,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             const SizedBox(height: 40),
           ],
         ),
+          ),
+        ],
       ),
     );
   }

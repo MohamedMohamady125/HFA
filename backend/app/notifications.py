@@ -77,6 +77,70 @@ def send_notification(user_id: int, message: str, user=Depends(get_current_user)
     conn.close()
     return {"message": "Notification sent"}
 
+@router.post("/test-push")
+def test_push(user=Depends(get_current_user)):
+    """Debug endpoint: sends a test push to the current user and returns detailed results."""
+    from app.utils.push import _init_firebase
+    import os
+
+    results = {"steps": []}
+
+    # Step 1: Check env var
+    cred_json = os.getenv("FIREBASE_SERVICE_ACCOUNT")
+    results["steps"].append({
+        "step": "FIREBASE_SERVICE_ACCOUNT env var",
+        "status": "set" if cred_json else "MISSING",
+        "length": len(cred_json) if cred_json else 0,
+    })
+
+    # Step 2: Try Firebase init
+    try:
+        firebase_ok = _init_firebase()
+        results["steps"].append({"step": "Firebase init", "status": "ok" if firebase_ok else "FAILED"})
+    except Exception as e:
+        results["steps"].append({"step": "Firebase init", "status": "ERROR", "error": str(e)})
+
+    # Step 3: Check device tokens for this user
+    conn = get_connection()
+    cursor = get_cursor(conn)
+    cursor.execute("SELECT token, platform FROM device_tokens WHERE user_id = %s", (user["id"],))
+    tokens = [dict(r) for r in cursor.fetchall()]
+    results["steps"].append({"step": "Device tokens", "count": len(tokens), "tokens": [
+        {"platform": t["platform"], "token_preview": t["token"][:30] + "..."} for t in tokens
+    ]})
+
+    # Step 4: Try sending
+    if tokens and firebase_ok:
+        try:
+            from firebase_admin import messaging
+            message = messaging.MulticastMessage(
+                notification=messaging.Notification(title="HFA Test", body="Push notifications are working!"),
+                tokens=[t["token"] for t in tokens],
+            )
+            response = messaging.send_each_for_multicast(message)
+            send_results = []
+            for i, send_response in enumerate(response.responses):
+                if send_response.success:
+                    send_results.append({"index": i, "status": "SUCCESS"})
+                else:
+                    err = send_response.exception
+                    send_results.append({
+                        "index": i,
+                        "status": "FAILED",
+                        "error": str(err),
+                        "code": getattr(err, 'code', 'unknown'),
+                    })
+            results["steps"].append({"step": "Send push", "success_count": response.success_count, "failure_count": response.failure_count, "details": send_results})
+        except Exception as e:
+            results["steps"].append({"step": "Send push", "status": "ERROR", "error": str(e)})
+    else:
+        results["steps"].append({"step": "Send push", "status": "SKIPPED", "reason": "no tokens" if not tokens else "firebase not initialized"})
+
+    cursor.close()
+    conn.close()
+    return results
+
+
 @router.get("/unread-count")
 def get_unread_count(user=Depends(get_current_user)):
     conn = get_connection()

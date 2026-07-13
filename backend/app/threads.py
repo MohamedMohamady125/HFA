@@ -204,8 +204,8 @@ def post_message(thread_id: int, data: MessageCreate, user=Depends(get_current_u
         conn.commit()
 
         # Send push notifications (after commit so DB is consistent)
-        push_title = f"New Message \u2022 {branch_name}"
-        send_push_to_users(cursor, athlete_user_ids + coach_user_ids, push_title, notif_msg)
+        push_body = f"{sender_name}\n{data.message}"
+        send_push_to_users(cursor, athlete_user_ids + coach_user_ids, branch_name, push_body)
 
         return {"message": "Post added", "success": True}
 

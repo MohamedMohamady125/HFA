@@ -4,8 +4,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
+import '../../services/offline/offline_repository.dart';
+import '../../services/offline/connectivity_service.dart';
+import '../../widgets/app_feedback.dart';
 import '../../theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
 import 'health_history_screen.dart';
@@ -44,103 +48,151 @@ class AthleteProfileScreenState extends State<AthleteProfileScreen> {
     _fetchData();
   }
 
+  bool _mLoaded = false;
+  bool _evLoaded = false;
+
+  void _applyAttendance(dynamic data) {
+    if (data is List) attendance = data;
+  }
+
+  void _applyBranch(dynamic data) {
+    if (data is Map) branchName = data['name']?.toString() ?? branchName;
+  }
+
+  void _applySessionDates(dynamic data) {
+    if (data is List && data.isNotEmpty) labelCount = data.length;
+  }
+
+  void _applyMeasurements(dynamic data) {
+    if (mEditable && _mLoaded) return; // don't clobber while user is editing
+    final mData = data is List ? data.firstOrNull : data;
+    if (mData is Map) {
+      for (var k in _mKeys) {
+        mCtrl[k]!.text = mData[k]?.toString() ?? '';
+      }
+      mEditable = false;
+      _mLoaded = true;
+    }
+  }
+
+  void _applyEvents(dynamic data) {
+    if (eventsEditable && _evLoaded) return; // don't clobber while user is editing
+    if (data is List && data.isNotEmpty) {
+      eventCtrl = data.map((e) => {
+        'name': TextEditingController(text: e['event_name'] ?? ''),
+        'time': TextEditingController(text: e['result_time']?.toString() ?? ''),
+      }).toList();
+      eventsEditable = false;
+      _evLoaded = true;
+    }
+  }
+
+  void _applyPayments(dynamic data) {
+    if (data is Map) {
+      paymentHistory = data.map((k, v) => MapEntry(k.toString(), v?.toString() ?? ''));
+    }
+  }
+
   Future<void> _fetchData() async {
     final prefs = await SharedPreferences.getInstance();
     final stored = prefs.getString('authUser');
     if (stored == null) return;
     user = jsonDecode(stored);
-    final api = ApiService();
+    final userId = user!['id'];
+    final branchId = user!['branch_id'];
 
+    // 1. Instant synchronous cache reads — data before first frame settles
+    _applyAttendance(OfflineRepository.getCached('/attendance/athlete/$userId/week'));
+    _applyBranch(OfflineRepository.getCached('/branches/$branchId'));
+    _applySessionDates(OfflineRepository.getCached('/attendance/branch/$branchId/session-dates'));
+    _applyMeasurements(OfflineRepository.getCached('/athlete/measurements'));
+    _applyEvents(OfflineRepository.getCached('/athlete/performance-logs'));
+    _applyPayments(OfflineRepository.getCached('/payments/$userId/status'));
+    if (mounted) setState(() {});
+
+    // 2. Cache-first reads with background refresh
     try {
       final results = await Future.wait([
-        api.get('/attendance/athlete/${user!['id']}/week'),
-        api.get('/branches/${user!['branch_id']}'),
-        api.get('/attendance/branch/${user!['branch_id']}/session-dates'),
+        OfflineRepository.getAttendanceWeek(userId,
+            onFresh: (d) { _applyAttendance(d); if (mounted) setState(() {}); }),
+        OfflineRepository.getBranch(branchId,
+            onFresh: (d) { _applyBranch(d); if (mounted) setState(() {}); }),
+        OfflineRepository.getSessionDates(branchId,
+            onFresh: (d) { _applySessionDates(d); if (mounted) setState(() {}); }),
+        OfflineRepository.getMeasurements(
+            onFresh: (d) { _applyMeasurements(d); if (mounted) setState(() {}); }),
+        OfflineRepository.getPerformanceLogs(
+            onFresh: (d) { _applyEvents(d); if (mounted) setState(() {}); }),
+        OfflineRepository.getPaymentStatus(userId,
+            onFresh: (d) { _applyPayments(d); if (mounted) setState(() {}); }),
       ]);
-      attendance = results[0].data;
-      branchName = results[1].data['name'] ?? '';
-      if (results[2].data is List) {
-        labelCount = (results[2].data as List).length;
-      }
-    } catch (_) {}
-
-    // Measurements
-    try {
-      final mRes = await api.get('/athlete/measurements');
-      final mData = mRes.data is List ? (mRes.data as List).firstOrNull : mRes.data;
-      if (mData != null) {
-        for (var k in _mKeys) {
-          mCtrl[k]!.text = mData[k]?.toString() ?? '';
-        }
-        mEditable = false;
-      }
-    } catch (_) {}
-
-    // Events
-    try {
-      final evts = await api.get('/athlete/performance-logs');
-      if (evts.data is List && (evts.data as List).isNotEmpty) {
-        eventCtrl = (evts.data as List).map((e) => {
-          'name': TextEditingController(text: e['event_name'] ?? ''),
-          'time': TextEditingController(text: e['result_time']?.toString() ?? ''),
-        }).toList();
-        eventsEditable = false;
-      }
-    } catch (_) {}
-
-    // Payment history
-    try {
-      final payRes = await api.get('/payments/${user!['id']}/status');
-      if (payRes.data is Map) {
-        paymentHistory = Map<String, String>.from(payRes.data);
-      }
+      _applyAttendance(results[0]);
+      _applyBranch(results[1]);
+      _applySessionDates(results[2]);
+      _applyMeasurements(results[3]);
+      _applyEvents(results[4]);
+      _applyPayments(results[5]);
     } catch (_) {}
 
     if (mounted) setState(() {});
   }
 
   Future<void> _saveMeasurements() async {
+    HapticFeedback.mediumImpact();
+    final l = AppLocalizations.of(context);
+    final data = <String, dynamic>{};
+    for (var k in _mKeys) {
+      data[k] = double.tryParse(mCtrl[k]!.text) ?? 0;
+    }
     try {
-      final data = <String, double>{};
-      for (var k in _mKeys) {
-        data[k] = double.tryParse(mCtrl[k]!.text) ?? 0;
-      }
-      await ApiService().post('/athlete/measurements', data: data);
-      if (mounted) {
-        final l = AppLocalizations.of(context);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l.translate('measurements_saved')), backgroundColor: AppColors.success));
-        setState(() => mEditable = false);
-      }
-    } catch (_) {
-      if (mounted) { final l = AppLocalizations.of(context); ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l.translate('save_failed')), backgroundColor: AppColors.error)); }
+      final result = await OfflineRepository.saveMeasurements(data);
+      if (!mounted) return;
+      AppFeedback.showWriteResult(context, result, successMessage: l.translate('measurements_saved'));
+      setState(() { mEditable = false; _mLoaded = true; });
+    } catch (e) {
+      if (mounted) AppFeedback.showError(context, e, fallback: l.translate('save_failed'));
     }
   }
 
   Future<void> _saveEvents() async {
+    HapticFeedback.mediumImpact();
+    final l = AppLocalizations.of(context);
+    final valid = eventCtrl.where((e) => e['name']!.text.isNotEmpty && e['time']!.text.isNotEmpty).toList();
+    if (valid.isEmpty) return;
     try {
-      final api = ApiService();
-      final valid = eventCtrl.where((e) => e['name']!.text.isNotEmpty && e['time']!.text.isNotEmpty).toList();
-      if (valid.isEmpty) return;
-      try { await api.delete('/athlete/performance-logs'); } catch (_) {}
+      var allSynced = true;
+      final del = await OfflineRepository.deletePerformanceLogs();
+      allSynced = allSynced && del.synced;
       for (var e in valid) {
-        await api.post('/athlete/performance-log', data: {
+        final r = await OfflineRepository.addPerformanceLog({
           'meet_name': 'Top Swim Event',
           'meet_date': DateTime.now().toIso8601String().split('T')[0],
           'event_name': e['name']!.text,
           'result_time': double.tryParse(e['time']!.text) ?? 0,
         });
+        allSynced = allSynced && r.synced;
       }
-      if (mounted) {
-        final l = AppLocalizations.of(context);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l.translate('events_saved')), backgroundColor: AppColors.success));
-        setState(() => eventsEditable = false);
-      }
-    } catch (_) {
-      if (mounted) { final l = AppLocalizations.of(context); ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l.translate('save_failed')), backgroundColor: AppColors.error)); }
+      if (!mounted) return;
+      AppFeedback.showWriteResult(context, WriteResult(synced: allSynced),
+          successMessage: l.translate('events_saved'));
+      setState(() { eventsEditable = false; _evLoaded = true; });
+    } catch (e) {
+      if (mounted) AppFeedback.showError(context, e, fallback: l.translate('save_failed'));
     }
   }
 
+  bool _requireOnline() {
+    if (ConnectivityService.isOnline) return true;
+    final isAr = AppLocalizations.of(context).locale.languageCode == 'ar';
+    AppFeedback.showError(context, Exception(),
+        fallback: isAr
+            ? 'أنت غير متصل — تغييرات الحساب تتطلب اتصالاً بالإنترنت.'
+            : "You're offline — account changes need a connection.");
+    return false;
+  }
+
   Future<void> _showChangeEmail() async {
+    if (!_requireOnline()) return;
     final emailCtrl = TextEditingController(text: user!['email'] ?? '');
     final passCtrl = TextEditingController();
 
@@ -167,6 +219,7 @@ class AthleteProfileScreenState extends State<AthleteProfileScreen> {
     );
 
     if (result != true || emailCtrl.text.trim().isEmpty || passCtrl.text.isEmpty) return;
+    if (!mounted || !_requireOnline()) return;
 
     try {
       await ApiService().post('/auth/change-email', data: {'new_email': emailCtrl.text.trim(), 'password': passCtrl.text});
@@ -183,12 +236,13 @@ class AthleteProfileScreenState extends State<AthleteProfileScreen> {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l.translate('email_updated')), backgroundColor: AppColors.success));
         setState(() {});
       }
-    } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l.translate('email_update_failed')), backgroundColor: AppColors.error));
+    } catch (e) {
+      if (mounted) AppFeedback.showError(context, e, fallback: l.translate('email_update_failed'));
     }
   }
 
   Future<void> _showChangePassword() async {
+    if (!_requireOnline()) return;
     final oldCtrl = TextEditingController();
     final newCtrl = TextEditingController();
     final confirmCtrl = TextEditingController();
@@ -223,12 +277,62 @@ class AthleteProfileScreenState extends State<AthleteProfileScreen> {
       return;
     }
     if (newCtrl.text.isEmpty || oldCtrl.text.isEmpty) return;
+    if (!mounted || !_requireOnline()) return;
 
     try {
       await ApiService().post('/auth/change-password', data: {'old_password': oldCtrl.text, 'new_password': newCtrl.text});
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l.translate('password_changed')), backgroundColor: AppColors.success));
-    } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l.translate('password_failed')), backgroundColor: AppColors.error));
+      if (mounted) AppFeedback.showSuccess(context, l.translate('password_changed'));
+    } catch (e) {
+      if (mounted) AppFeedback.showError(context, e, fallback: l.translate('password_failed'));
+    }
+  }
+
+  Future<void> _showDeleteAccount() async {
+    if (!_requireOnline()) return;
+    final passCtrl = TextEditingController();
+    final l = AppLocalizations.of(context);
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l.translate('delete_account'), style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.error)),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(l.translate('delete_account_confirm'), style: AppTypography.bodyMedium),
+              const SizedBox(height: 16),
+              TextField(
+                controller: passCtrl,
+                obscureText: true,
+                decoration: InputDecoration(labelText: l.translate('delete_account_password')),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l.translate('cancel'))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(l.translate('delete_account')),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || passCtrl.text.isEmpty || !mounted) return;
+
+    try {
+      await ApiService().post('/auth/delete-account', data: {'password': passCtrl.text});
+      if (!mounted) return;
+      await context.read<AuthProvider>().logout();
+      if (mounted) {
+        AppFeedback.showSuccess(context, l.translate('account_deleted'));
+        context.go('/guest-home');
+      }
+    } catch (e) {
+      if (mounted) AppFeedback.showError(context, e, fallback: l.translate('password_failed'));
     }
   }
 
@@ -442,6 +546,12 @@ class AthleteProfileScreenState extends State<AthleteProfileScreen> {
                     )),
                     FadeSlideIn(delay: 700, child: _languageToggle(context, l)),
                     FadeSlideIn(delay: 750, child: ActionTile(
+                      icon: Icons.privacy_tip_outlined,
+                      color: AppColors.accent,
+                      title: l.translate('privacy_policy'),
+                      onTap: () => launchUrl(Uri.parse('${ApiService.baseUrl}/privacy-policy'), mode: LaunchMode.externalApplication),
+                    )),
+                    FadeSlideIn(delay: 800, child: ActionTile(
                       icon: Icons.logout_rounded,
                       color: AppColors.error,
                       title: l.translate('logout'),
@@ -449,6 +559,13 @@ class AthleteProfileScreenState extends State<AthleteProfileScreen> {
                         await context.read<AuthProvider>().logout();
                         if (context.mounted) context.go('/guest-home');
                       },
+                    )),
+                    FadeSlideIn(delay: 850, child: ActionTile(
+                      icon: Icons.delete_forever_rounded,
+                      color: AppColors.error,
+                      title: l.translate('delete_account'),
+                      subtitle: l.translate('delete_account_desc'),
+                      onTap: _showDeleteAccount,
                     )),
                     const SizedBox(height: AppSpacing.xxl),
                   ],
@@ -465,14 +582,16 @@ class AthleteProfileScreenState extends State<AthleteProfileScreen> {
   bool _generatingCode = false;
 
   Future<void> _generateParentCode() async {
+    if (!_requireOnline()) return;
+    HapticFeedback.mediumImpact();
     setState(() => _generatingCode = true);
     try {
       final res = await ApiService().post('/auth/generate-parent-code');
       if (mounted) setState(() => _parentCode = res.data['code']);
-    } catch (_) {
+    } catch (e) {
       if (mounted) {
         final l = AppLocalizations.of(context);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l.translate('save_failed')), backgroundColor: AppColors.error));
+        AppFeedback.showError(context, e, fallback: l.translate('save_failed'));
       }
     } finally {
       if (mounted) setState(() => _generatingCode = false);

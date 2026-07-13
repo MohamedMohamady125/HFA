@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import '../../services/api_service.dart';
+import '../../services/offline/connectivity_service.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/app_feedback.dart';
 import '../../l10n/app_localizations.dart';
 
 class ChangePasswordScreen extends StatefulWidget {
@@ -17,15 +20,25 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
   Future<void> _handleChange() async {
     final l = AppLocalizations.of(context);
+    if (_currentCtrl.text.isEmpty || _newCtrl.text.isEmpty) {
+      AppFeedback.showError(context, Exception(), fallback: l.translate('fill_all_fields'));
+      return;
+    }
+    if (!ConnectivityService.isOnline) {
+      AppFeedback.showError(context, Exception(),
+          fallback: "You're offline — please connect to the internet to change your password.");
+      return;
+    }
+    HapticFeedback.mediumImpact();
     setState(() => _loading = true);
     try {
       await ApiService().post('/auth/change-password', data: {'old_password': _currentCtrl.text, 'new_password': _newCtrl.text});
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l.translate('password_changed')), backgroundColor: AppColors.success));
+      AppFeedback.showSuccess(context, l.translate('password_changed'));
       context.pop();
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l.translate('password_failed')), backgroundColor: AppColors.error));
+      AppFeedback.showError(context, e, fallback: l.translate('password_failed'));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -40,7 +53,9 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
         backgroundColor: Colors.white,
         leading: IconButton(icon: const Icon(Icons.arrow_back_rounded), onPressed: () => context.pop()),
       ),
-      body: SingleChildScrollView(
+      body: Stack(
+        children: [
+          SingleChildScrollView(
         physics: const BouncingScrollPhysics(),
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
         child: Column(
@@ -72,6 +87,8 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
             const SizedBox(height: 40),
           ],
         ),
+          ),
+        ],
       ),
     );
   }

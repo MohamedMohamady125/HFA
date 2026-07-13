@@ -38,11 +38,14 @@ import 'services/offline/hive_cache.dart';
 import 'services/offline/sync_queue.dart';
 import 'services/offline/connectivity_service.dart';
 import 'services/push_notification_service.dart';
+import 'widgets/offline_status_bar.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Lock to portrait orientation
+  await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp, DeviceOrientation.portraitDown]);
   // Keep the system status bar visible (time, battery, network indicators)
   await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
@@ -86,12 +89,27 @@ class HFAApp extends StatefulWidget {
   State<HFAApp> createState() => _HFAAppState();
 }
 
-class _HFAAppState extends State<HFAApp> {
+class _HFAAppState extends State<HFAApp> with WidgetsBindingObserver {
   late final GoRouter _router;
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Coming back to the app is a good moment to retry queued offline writes.
+    if (state == AppLifecycleState.resumed) {
+      ConnectivityService.recheckAndFlush();
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _router = GoRouter(
       navigatorKey: _rootNavigatorKey,
       initialLocation: '/guest-home',
@@ -152,7 +170,7 @@ class _HFAAppState extends State<HFAApp> {
     return GestureDetector(
       onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
       child: MaterialApp.router(
-      title: 'HFA Academy',
+      title: 'HFA Fitness',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.theme,
       locale: localeProvider.locale,
@@ -163,6 +181,7 @@ class _HFAAppState extends State<HFAApp> {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
+      builder: (context, child) => OfflineStatusBar(child: child ?? const SizedBox.shrink()),
       routerConfig: _router,
     ));
   }

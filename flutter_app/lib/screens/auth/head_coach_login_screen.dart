@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:dio/dio.dart';
 import 'dart:convert';
 import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
+import '../../services/offline/connectivity_service.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/app_feedback.dart';
 import '../../l10n/app_localizations.dart';
 
 class HeadCoachLoginScreen extends StatefulWidget {
@@ -23,6 +25,12 @@ class _HeadCoachLoginScreenState extends State<HeadCoachLoginScreen> {
   Future<void> _handleLogin() async {
     final l = AppLocalizations.of(context);
     if (_emailCtrl.text.trim().isEmpty || _passCtrl.text.trim().isEmpty) { _showError(l.translate('fill_all_fields')); return; }
+    if (!ConnectivityService.isOnline) {
+      AppFeedback.showError(context, Exception(),
+          fallback: "You're offline — please connect to the internet to sign in.");
+      return;
+    }
+    HapticFeedback.mediumImpact();
     setState(() => _loading = true);
     try {
       final res = await ApiService().post('/auth/login', data: {'email': _emailCtrl.text.trim(), 'password': _passCtrl.text.trim()});
@@ -34,17 +42,16 @@ class _HeadCoachLoginScreenState extends State<HeadCoachLoginScreen> {
       await prefs.setString('headCoachMode', 'true');
       if (!mounted) return;
       await context.read<AuthProvider>().login(authUser);
+      if (!mounted) return;
       context.go('/head-coach-branches');
     } catch (e) {
-      String msg = l.translate('login_failed');
-      if (e is DioException && e.response?.data != null) msg = e.response!.data['detail']?.toString() ?? msg;
-      _showError(msg);
+      if (mounted) AppFeedback.showError(context, e, fallback: l.translate('login_failed'));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
-  void _showError(String msg) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: AppColors.error));
+  void _showError(String msg) { if (mounted) AppFeedback.showError(context, Exception(), fallback: msg); }
 
   @override
   Widget build(BuildContext context) {
@@ -55,7 +62,9 @@ class _HeadCoachLoginScreenState extends State<HeadCoachLoginScreen> {
         backgroundColor: Colors.white,
         leading: IconButton(icon: const Icon(Icons.arrow_back_rounded), onPressed: () => context.pop()),
       ),
-      body: SingleChildScrollView(
+      body: Stack(
+        children: [
+          SingleChildScrollView(
         physics: const BouncingScrollPhysics(),
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
         child: Column(
@@ -89,6 +98,8 @@ class _HeadCoachLoginScreenState extends State<HeadCoachLoginScreen> {
             const SizedBox(height: 40),
           ],
         ),
+          ),
+        ],
       ),
     );
   }

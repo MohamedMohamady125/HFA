@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
-import 'package:dio/dio.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../services/api_service.dart';
+import '../../services/offline/connectivity_service.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/app_feedback.dart';
 import '../../l10n/app_localizations.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -31,7 +34,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
       _showMsg(l.translate('fill_all_fields'), isError: true); return;
     }
     if (_passCtrl.text != _confirmCtrl.text) { _showMsg(l.translate('passwords_no_match'), isError: true); return; }
+    if (!ConnectivityService.isOnline) {
+      AppFeedback.showError(context, Exception(),
+          fallback: "You're offline — please connect to the internet to register.");
+      return;
+    }
 
+    HapticFeedback.mediumImpact();
     setState(() => _loading = true);
     try {
       await ApiService().post('/auth/register', data: {
@@ -44,13 +53,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
       }
       setState(() => _selectedBranchId = null);
       await _showSuccessDialog(l);
+      if (mounted) AppFeedback.showSuccess(context, l.translate('registration_submitted'));
     } catch (e) {
-      String msg = l.translate('server_error');
-      if (e is DioException) {
-        final data = e.response?.data;
-        if (data is Map && data['detail'] != null) msg = data['detail'].toString();
-      }
-      _showMsg(msg, isError: true);
+      if (mounted) AppFeedback.showError(context, e, fallback: l.translate('server_error'));
     } finally { if (mounted) setState(() => _loading = false); }
   }
 
@@ -71,7 +76,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   void _showMsg(String msg, {bool isError = false}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: isError ? AppColors.error : AppColors.success));
+    if (isError) {
+      AppFeedback.showError(context, Exception(), fallback: msg);
+    } else {
+      AppFeedback.showSuccess(context, msg);
+    }
   }
 
   @override
@@ -83,7 +92,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
         backgroundColor: Colors.white,
         leading: IconButton(icon: const Icon(Icons.arrow_back_rounded), onPressed: () => context.pop()),
       ),
-      body: SingleChildScrollView(
+      body: Stack(
+        children: [
+          SingleChildScrollView(
         physics: const BouncingScrollPhysics(),
         padding: const EdgeInsetsDirectional.fromSTEB(AppSpacing.xxl, 0, AppSpacing.xxl, 40),
         child: Column(
@@ -151,8 +162,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 Expanded(child: Text(l.translate('registration_info'), style: AppTypography.bodyMedium.copyWith(fontSize: 13))),
               ]),
             )),
+            const SizedBox(height: AppSpacing.md),
+            FadeSlideIn(delay: 660, child: Center(
+              child: GestureDetector(
+                onTap: () => launchUrl(Uri.parse('${ApiService.baseUrl}/privacy-policy'), mode: LaunchMode.externalApplication),
+                child: Text(
+                  l.translate('privacy_policy'),
+                  style: AppTypography.label.copyWith(color: AppColors.accent, decoration: TextDecoration.underline),
+                ),
+              ),
+            )),
           ],
         ),
+          ),
+        ],
       ),
     );
   }
