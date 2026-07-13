@@ -31,6 +31,15 @@ def _init_firebase():
         if "\\n" in pk and "\n" not in pk:
             cred_dict["private_key"] = pk.replace("\\n", "\n")
         logger.info(f"Private key length: {len(cred_dict.get('private_key', ''))}, starts with BEGIN: {'BEGIN' in cred_dict.get('private_key', '')}")
+
+        # Delete any existing Firebase app to ensure fresh credentials
+        try:
+            existing = firebase_admin.get_app()
+            firebase_admin.delete_app(existing)
+            logger.info("Deleted existing Firebase app for re-initialization")
+        except ValueError:
+            pass  # No existing app
+
         cred = credentials.Certificate(cred_dict)
         firebase_admin.initialize_app(cred)
         _fcm_initialized = True
@@ -39,6 +48,13 @@ def _init_firebase():
     except Exception as e:
         logger.error(f"Firebase init failed: {e}")
         return False
+
+
+def force_reinit():
+    """Force re-initialization of Firebase (useful after credential changes)."""
+    global _fcm_initialized
+    _fcm_initialized = False
+    return _init_firebase()
 
 
 def send_push_to_user(cursor, user_id: int, title: str, body: str):

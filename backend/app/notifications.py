@@ -81,7 +81,7 @@ def send_notification(user_id: int, message: str, user=Depends(get_current_user)
 @router.post("/test-push")
 def test_push(user=Depends(get_current_user)):
     """Debug endpoint: sends a test push to the current user and returns detailed results."""
-    from app.utils.push import _init_firebase
+    from app.utils.push import force_reinit
     import os
 
     results = {"steps": []}
@@ -114,7 +114,7 @@ def test_push(user=Depends(get_current_user)):
 
     # Step 2: Try Firebase init
     try:
-        firebase_ok = _init_firebase()
+        firebase_ok = force_reinit()
         results["steps"].append({"step": "Firebase init", "status": "ok" if firebase_ok else "FAILED"})
     except Exception as e:
         results["steps"].append({"step": "Firebase init", "status": "ERROR", "error": str(e)})
