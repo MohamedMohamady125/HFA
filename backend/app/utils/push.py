@@ -19,7 +19,14 @@ def _init_firebase():
             logger.warning("FIREBASE_SERVICE_ACCOUNT not set — push notifications disabled")
             return False
 
-        cred_dict = json.loads(cred_json)
+        # Railway may convert literal \n in the private key into actual newlines,
+        # which breaks JSON parsing. Try parsing as-is first, then try fixing.
+        try:
+            cred_dict = json.loads(cred_json)
+        except json.JSONDecodeError:
+            # The env var might have real newlines from Railway — try to repair
+            cred_json_fixed = cred_json.replace('\n', '\\n').replace('\\\\n', '\\n')
+            cred_dict = json.loads(cred_json_fixed)
         cred = credentials.Certificate(cred_dict)
         firebase_admin.initialize_app(cred)
         _fcm_initialized = True
