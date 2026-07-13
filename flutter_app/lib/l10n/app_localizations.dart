@@ -108,7 +108,7 @@ class AppLocalizations {
       // Dashboard (Athlete)
       'dashboard': 'Dashboard',
       'weekly_attendance': 'Weekly Attendance',
-      'latest_thread': 'Latest Thread',
+      'latest_chat': 'Latest Chat',
       'gear_check': 'Gear Check',
       'payment': 'Payment',
       'status': 'Status',
@@ -122,10 +122,10 @@ class AppLocalizations {
       'present': 'Present',
       'absent': 'Absent',
 
-      // Threads
-      'threads': 'Threads',
-      'loading_threads': 'Loading threads...',
-      'no_threads': 'No threads available',
+      // Chat
+      'threads': 'Chat',
+      'loading_threads': 'Loading chat...',
+      'no_threads': 'No chat available',
       'no_messages': 'No messages yet',
 
       // Gear
@@ -160,7 +160,7 @@ class AppLocalizations {
       'payment_tracking': 'Payment Tracking',
       'attendance': 'Attendance',
 
-      // Coach Threads
+      // Coach Chat
       'branch_chat': 'Branch Chat',
       'messages': 'messages',
       'type_message': 'Type a message...',
@@ -239,7 +239,7 @@ class AppLocalizations {
       'payments': 'Payments',
       'profile': 'Profile',
       'athletes': 'Athletes',
-      'threads_nav': 'Threads',
+      'threads_nav': 'Chat',
 
       // Extra UI
       'hi': 'Hi',
@@ -295,7 +295,7 @@ class AppLocalizations {
       'error_loading_gear': 'Error loading gear information.',
       'no_gear_updates': 'No gear updates.',
       'no_posts': 'No posts yet.',
-      'no_threads_available': 'No threads available.',
+      'no_threads_available': 'No chat available.',
       'message_hint': 'Message',
       'confirm_password_label': 'Confirm Password',
       'created_text': 'created!',
@@ -473,7 +473,7 @@ class AppLocalizations {
       // Dashboard (Athlete)
       'dashboard': '\u0644\u0648\u062d\u0629 \u0627\u0644\u062a\u062d\u0643\u0645',
       'weekly_attendance': '\u0627\u0644\u062d\u0636\u0648\u0631 \u0627\u0644\u0623\u0633\u0628\u0648\u0639\u064a',
-      'latest_thread': '\u0622\u062e\u0631 \u0645\u0648\u0636\u0648\u0639',
+      'latest_chat': '\u0622\u062e\u0631 \u0645\u062d\u0627\u062f\u062b\u0629',
       'gear_check': '\u0641\u062d\u0635 \u0627\u0644\u0645\u0639\u062f\u0627\u062a',
       'payment': '\u0627\u0644\u062f\u0641\u0639',
       'status': '\u0627\u0644\u062d\u0627\u0644\u0629',
@@ -487,10 +487,10 @@ class AppLocalizations {
       'present': '\u062d\u0627\u0636\u0631',
       'absent': '\u063a\u0627\u0626\u0628',
 
-      // Threads
-      'threads': '\u0627\u0644\u0645\u0648\u0627\u0636\u064a\u0639',
-      'loading_threads': '\u062a\u062d\u0645\u064a\u0644 \u0627\u0644\u0645\u0648\u0627\u0636\u064a\u0639...',
-      'no_threads': '\u0644\u0627 \u062a\u0648\u062c\u062f \u0645\u0648\u0627\u0636\u064a\u0639',
+      // Chat
+      'threads': '\u0627\u0644\u0645\u062d\u0627\u062f\u062b\u0629',
+      'loading_threads': '\u062a\u062d\u0645\u064a\u0644 \u0627\u0644\u0645\u062d\u0627\u062f\u062b\u0629...',
+      'no_threads': '\u0644\u0627 \u062a\u0648\u062c\u062f \u0645\u062d\u0627\u062f\u062b\u0629',
       'no_messages': '\u0644\u0627 \u062a\u0648\u062c\u062f \u0631\u0633\u0627\u0626\u0644',
 
       // Gear
@@ -525,7 +525,7 @@ class AppLocalizations {
       'payment_tracking': '\u062a\u062a\u0628\u0639 \u0627\u0644\u0645\u062f\u0641\u0648\u0639\u0627\u062a',
       'attendance': '\u0627\u0644\u062d\u0636\u0648\u0631',
 
-      // Coach Threads
+      // Coach Chat
       'branch_chat': '\u0645\u062d\u0627\u062f\u062b\u0629 \u0627\u0644\u0641\u0631\u0639',
       'messages': '\u0631\u0633\u0627\u0626\u0644',
       'type_message': '\u0627\u0643\u062a\u0628 \u0631\u0633\u0627\u0644\u0629...',
@@ -604,7 +604,7 @@ class AppLocalizations {
       'payments': '\u0627\u0644\u0645\u062f\u0641\u0648\u0639\u0627\u062a',
       'profile': '\u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u0634\u062e\u0635\u064a',
       'athletes': '\u0627\u0644\u0644\u0627\u0639\u0628\u0648\u0646',
-      'threads_nav': '\u0627\u0644\u0645\u0648\u0627\u0636\u064a\u0639',
+      'threads_nav': '\u0627\u0644\u0645\u062d\u0627\u062f\u062b\u0629',
 
       // Extra UI
       'hi': '\u0645\u0631\u062d\u0628\u0627\u064b',
@@ -660,7 +660,7 @@ class AppLocalizations {
       'error_loading_gear': '\u062e\u0637\u0623 \u0641\u064a \u062a\u062d\u0645\u064a\u0644 \u0645\u0639\u0644\u0648\u0645\u0627\u062a \u0627\u0644\u0645\u0639\u062f\u0627\u062a.',
       'no_gear_updates': '\u0644\u0627 \u062a\u0648\u062c\u062f \u062a\u062d\u062f\u064a\u062b\u0627\u062a \u0645\u0639\u062f\u0627\u062a.',
       'no_posts': '\u0644\u0627 \u062a\u0648\u062c\u062f \u0645\u0646\u0634\u0648\u0631\u0627\u062a \u0628\u0639\u062f.',
-      'no_threads_available': '\u0644\u0627 \u062a\u0648\u062c\u062f \u0645\u0648\u0627\u0636\u064a\u0639.',
+      'no_threads_available': '\u0644\u0627 \u062a\u0648\u062c\u062f \u0645\u062d\u0627\u062f\u062b\u0629.',
       'message_hint': '\u0631\u0633\u0627\u0644\u0629',
       'confirm_password_label': '\u062a\u0623\u0643\u064a\u062f \u0643\u0644\u0645\u0629 \u0627\u0644\u0645\u0631\u0648\u0631',
       'created_text': '\u062a\u0645 \u0625\u0646\u0634\u0627\u0624\u0647!',

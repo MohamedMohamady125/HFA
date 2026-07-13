@@ -3,7 +3,6 @@ import 'package:go_router/go_router.dart';
 import 'dart:convert';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../../services/api_service.dart';
 import '../../services/offline/offline_repository.dart';
 import '../../theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
@@ -90,11 +89,13 @@ class AthleteHomeScreenState extends State<AthleteHomeScreen> with AutomaticKeep
       paymentStatus = (results[3] is Map ? results[3] as Map : {})[_dueDateKey()] ?? 'pending';
       _fetched = true;
 
-      // Fetch unread notification count
+      // Fetch unread notification count (cache-first, silent failure → 0)
       try {
-        final notifRes = await ApiService().get('/notifications/unread-count');
-        _unreadCount = notifRes.data['count'] ?? 0;
-      } catch (_) {}
+        final notif = await OfflineRepository.getUnreadCount(onFresh: (d) {
+          if (mounted && d is Map) setState(() => _unreadCount = d['count'] ?? 0);
+        });
+        _unreadCount = (notif is Map ? notif['count'] : null) ?? 0;
+      } catch (_) { _unreadCount = 0; }
     } catch (_) {} finally { if (mounted) setState(() => loading = false); }
   }
 
@@ -172,11 +173,11 @@ class AthleteHomeScreenState extends State<AthleteHomeScreen> with AutomaticKeep
                   )),
                   const SizedBox(height: AppSpacing.xs),
 
-                  FadeSlideIn(delay: 150, child: SectionHeader(title: l.translate('latest_thread'))),
+                  FadeSlideIn(delay: 150, child: SectionHeader(title: l.translate('latest_chat'))),
                   FadeSlideIn(delay: 200, child: ActionTile(
                     icon: Icons.forum_rounded,
                     color: AppColors.info,
-                    title: l.translate('latest_thread'),
+                    title: l.translate('latest_chat'),
                     subtitle: lastThreadMessage.isEmpty ? l.translate('no_messages') : lastThreadMessage,
                     onTap: () => AthleteTabSwitcher.of(context)?.switchTo(1),
                   )),

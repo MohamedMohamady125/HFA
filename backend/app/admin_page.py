@@ -143,7 +143,7 @@ ADMIN_HTML = """<!DOCTYPE html>
 <div class="overlay" id="delOverlay">
   <div class="modal">
     <h3>Delete branch?</h3>
-    <p style="color:var(--text-2);font-size:14.5px;margin-bottom:22px">This will permanently delete <b id="delName"></b> and its chat threads. This cannot be undone.</p>
+    <p style="color:var(--text-2);font-size:14.5px;margin-bottom:22px">This will permanently delete <b id="delName"></b> and its chat messages. This cannot be undone.</p>
     <div class="modal-actions">
       <button class="btn btn-outline" onclick="closeDel()">Cancel</button>
       <button class="btn btn-danger" id="delBtn" onclick="doDelete()">Delete</button>
