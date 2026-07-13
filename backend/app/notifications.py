@@ -87,10 +87,28 @@ def test_push(user=Depends(get_current_user)):
 
     # Step 1: Check env var
     cred_json = os.getenv("FIREBASE_SERVICE_ACCOUNT")
+    # Check if JSON parses and private key looks right
+    key_info = {}
+    if cred_json:
+        try:
+            parsed = json.loads(cred_json)
+            pk = parsed.get("private_key", "")
+            key_info = {
+                "json_valid": True,
+                "has_private_key": bool(pk),
+                "key_length": len(pk),
+                "starts_with": pk[:30] if pk else "",
+                "contains_real_newlines": '\n' in pk.replace('\\n', ''),
+                "newline_count": pk.count('\n'),
+                "escaped_newline_count": pk.count('\\n'),
+            }
+        except Exception as e:
+            key_info = {"json_valid": False, "parse_error": str(e)}
     results["steps"].append({
         "step": "FIREBASE_SERVICE_ACCOUNT env var",
         "status": "set" if cred_json else "MISSING",
         "length": len(cred_json) if cred_json else 0,
+        "key_info": key_info,
     })
 
     # Step 2: Try Firebase init
