@@ -112,6 +112,34 @@ def test_push(user=Depends(get_current_user)):
         "key_info": key_info,
     })
 
+    # Step 1b: Try getting an OAuth2 token directly to test credentials
+    if cred_json:
+        try:
+            from google.oauth2 import service_account as sa
+            import google.auth.transport.requests
+            parsed_cred = json.loads(cred_json)
+            pk = parsed_cred.get("private_key", "")
+            if "\\n" in pk and "\n" not in pk:
+                parsed_cred["private_key"] = pk.replace("\\n", "\n")
+            scopes = ["https://www.googleapis.com/auth/firebase.messaging"]
+            credentials_obj = sa.Credentials.from_service_account_info(parsed_cred, scopes=scopes)
+            request = google.auth.transport.requests.Request()
+            credentials_obj.refresh(request)
+            results["steps"].append({
+                "step": "OAuth2 token test",
+                "status": "ok",
+                "token_preview": str(credentials_obj.token)[:20] + "..." if credentials_obj.token else "none",
+            })
+        except Exception as e:
+            results["steps"].append({
+                "step": "OAuth2 token test",
+                "status": "FAILED",
+                "error": str(e),
+                "error_type": type(e).__name__,
+                "private_key_id": parsed_cred.get("private_key_id", "")[:10] + "...",
+                "client_email": parsed_cred.get("client_email", ""),
+            })
+
     # Step 2: Try Firebase init
     try:
         firebase_ok = force_reinit()
