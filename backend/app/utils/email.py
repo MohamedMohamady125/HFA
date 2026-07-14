@@ -19,7 +19,7 @@ def send_reset_email(to_email: str, code: str):
         "https://api.resend.com/emails",
         headers={"Authorization": f"Bearer {settings.RESEND_API_KEY}"},
         json={
-            "from": "HFA Fitness Academy <onboarding@resend.dev>",
+            "from": "HFA Fitness Academy <noreply@hfafitness.fit>",
             "reply_to": "thehfafitness@gmail.com",
             "to": [to_email],
             "subject": "HFA - Password Reset Code",
