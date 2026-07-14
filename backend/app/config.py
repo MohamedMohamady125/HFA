@@ -10,5 +10,6 @@ class Settings:
 
     FROM_EMAIL = os.getenv("FROM_EMAIL")
     GMAIL_APP_PASSWORD = os.getenv("GMAIL_APP_PASSWORD")
+    RESEND_API_KEY = os.getenv("RESEND_API_KEY")
 
 settings = Settings()

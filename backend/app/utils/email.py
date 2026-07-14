@@ -1,15 +1,8 @@
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+import httpx
 from app.config import settings
 
 
 def send_reset_email(to_email: str, code: str):
-    msg = MIMEMultipart("alternative")
-    msg["Subject"] = "HFA - Password Reset Code"
-    msg["From"] = settings.FROM_EMAIL
-    msg["To"] = to_email
-
     html = f"""
     <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px;">
         <h2 style="color: #1a1a2e; margin-bottom: 8px;">Reset Your Password</h2>
@@ -22,9 +15,16 @@ def send_reset_email(to_email: str, code: str):
     </div>
     """
 
-    msg.attach(MIMEText(html, "html"))
-
-    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
-        server.login(settings.FROM_EMAIL, settings.GMAIL_APP_PASSWORD)
-        server.sendmail(settings.FROM_EMAIL, to_email, msg.as_string())
+    response = httpx.post(
+        "https://api.resend.com/emails",
+        headers={"Authorization": f"Bearer {settings.RESEND_API_KEY}"},
+        json={
+            "from": "HFA Fitness Academy <onboarding@resend.dev>",
+            "to": [to_email],
+            "subject": "HFA - Password Reset Code",
+            "html": html,
+        },
+        timeout=10,
+    )
+    response.raise_for_status()
     print(f"Email sent to {to_email}")
