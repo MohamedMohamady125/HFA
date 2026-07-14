@@ -39,7 +39,8 @@ class CoachProfileScreenState extends State<CoachProfileScreen> {
 
   Future<void> _showDeleteAccount(BuildContext context, AuthProvider auth) async {
     if (!ConnectivityService.isOnline) {
-      AppFeedback.showError(context, Exception(), fallback: "You're offline — account changes need a connection.");
+      final l = AppLocalizations.of(context);
+      AppFeedback.showError(context, Exception(), fallback: l.translate('offline_account'));
       return;
     }
     final passCtrl = TextEditingController();
@@ -102,7 +103,7 @@ class CoachProfileScreenState extends State<CoachProfileScreen> {
           children: [
             FadeSlideIn(
               child: HeroHeader(
-                title: auth.userName ?? 'Coach',
+                title: auth.userName ?? l.translate('coach_fallback'),
                 subtitle: auth.userEmail ?? '',
                 leading: GradientAvatar(name: auth.userName ?? 'C', size: 52),
                 bottom: Row(children: [

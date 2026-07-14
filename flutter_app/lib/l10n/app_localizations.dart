@@ -26,6 +26,7 @@ class AppLocalizations {
       'view_branches': 'View Our Branches',
       'coach_login': 'Coach Login',
       'swimming_academy': 'SWIMMING ACADEMY',
+      'fitness_academy': 'FITNESS ACADEMY',
 
       // Login
       'welcome_back': 'Welcome Back',
@@ -45,7 +46,7 @@ class AppLocalizations {
 
       // Register
       'create_account': 'Create Account',
-      'join_academy': 'Join our swimming academy',
+      'join_academy': 'Join our fitness academy',
       'full_name': 'FULL NAME',
       'phone': 'PHONE',
       'confirm_password': 'CONFIRM PASSWORD',
@@ -369,6 +370,27 @@ class AppLocalizations {
       'account_deleted': 'Account deleted successfully',
       'privacy_policy': 'Privacy Policy',
 
+      // Offline
+      'no_connection': 'No connection',
+      'no_connection_data': 'No connection and no saved data yet',
+      'offline_sign_in': "You're offline — please connect to the internet to sign in.",
+      'offline_register': "You're offline — please connect to the internet to register.",
+      'offline_reset_password': "You're offline — please connect to the internet to reset your password.",
+      'offline_change_password': "You're offline — please connect to the internet to change your password.",
+      'offline_account': "You're offline — account changes need a connection.",
+      'offline_branches': "You're offline — connect to the internet to view our branches.",
+      'offline_switch_branch': "You're offline — switching branches needs a connection.",
+      'offline_manage_branches': "You're offline — managing branches needs a connection.",
+      'offline_manage_coaches': "You're offline — managing coaches needs a connection.",
+      'offline_load_chat': 'No saved messages yet — connect to the internet to load the chat.',
+      'offline_pull_refresh': 'No saved data yet — connect to the internet and pull to refresh.',
+      'offline_manage_reconnect': 'Managing needs a connection. Reconnect and try again.',
+      'retry': 'Retry',
+      'record_deleted': 'Record deleted',
+      'copied_label': 'copied!',
+      'coach_fallback': 'Coach',
+      'unknown_author': 'Unknown',
+
       // Notifications
       'notifications': 'Notifications',
       'no_notifications': 'No notifications yet',
@@ -391,6 +413,7 @@ class AppLocalizations {
       'view_branches': '\u0639\u0631\u0636 \u062c\u0645\u064a\u0639 \u0627\u0644\u0641\u0631\u0648\u0639',
       'coach_login': '\u062f\u062e\u0648\u0644 \u0627\u0644\u0645\u062f\u0631\u0628',
       'swimming_academy': '\u0623\u0643\u0627\u062f\u064a\u0645\u064a\u0629 \u0627\u0644\u0633\u0628\u0627\u062d\u0629',
+      'fitness_academy': '\u0623\u0643\u0627\u062f\u064a\u0645\u064a\u0629 \u0627\u0644\u0644\u064a\u0627\u0642\u0629',
 
       // Login
       'welcome_back': '\u0645\u0631\u062d\u0628\u064b\u0627 \u0628\u0639\u0648\u062f\u062a\u0643',
@@ -410,7 +433,7 @@ class AppLocalizations {
 
       // Register
       'create_account': '\u0625\u0646\u0634\u0627\u0621 \u062d\u0633\u0627\u0628',
-      'join_academy': '\u0627\u0646\u0636\u0645 \u0625\u0644\u0649 \u0623\u0643\u0627\u062f\u064a\u0645\u064a\u0629 \u0627\u0644\u0633\u0628\u0627\u062d\u0629',
+      'join_academy': '\u0627\u0646\u0636\u0645 \u0625\u0644\u0649 \u0623\u0643\u0627\u062f\u064a\u0645\u064a\u0629 \u0627\u0644\u0644\u064a\u0627\u0642\u0629',
       'full_name': '\u0627\u0644\u0627\u0633\u0645 \u0627\u0644\u0643\u0627\u0645\u0644',
       'phone': '\u0631\u0642\u0645 \u0627\u0644\u0647\u0627\u062a\u0641',
       'confirm_password': '\u062a\u0623\u0643\u064a\u062f \u0643\u0644\u0645\u0629 \u0627\u0644\u0645\u0631\u0648\u0631',
@@ -733,6 +756,27 @@ class AppLocalizations {
       'delete_account_password': '\u0623\u062f\u062e\u0644 \u0643\u0644\u0645\u0629 \u0627\u0644\u0645\u0631\u0648\u0631 \u0644\u0644\u062a\u0623\u0643\u064a\u062f',
       'account_deleted': '\u062a\u0645 \u062d\u0630\u0641 \u0627\u0644\u062d\u0633\u0627\u0628 \u0628\u0646\u062c\u0627\u062d',
       'privacy_policy': '\u0633\u064a\u0627\u0633\u0629 \u0627\u0644\u062e\u0635\u0648\u0635\u064a\u0629',
+
+      // Offline
+      'no_connection': '\u0644\u0627 \u064a\u0648\u062c\u062f \u0627\u062a\u0635\u0627\u0644',
+      'no_connection_data': '\u0644\u0627 \u064a\u0648\u062c\u062f \u0627\u062a\u0635\u0627\u0644 \u0648\u0644\u0627 \u062a\u0648\u062c\u062f \u0628\u064a\u0627\u0646\u0627\u062a \u0645\u062d\u0641\u0648\u0638\u0629 \u0628\u0639\u062f',
+      'offline_sign_in': '\u0623\u0646\u062a \u063a\u064a\u0631 \u0645\u062a\u0635\u0644 \u2014 \u064a\u0631\u062c\u0649 \u0627\u0644\u0627\u062a\u0635\u0627\u0644 \u0628\u0627\u0644\u0625\u0646\u062a\u0631\u0646\u062a \u0644\u062a\u0633\u062c\u064a\u0644 \u0627\u0644\u062f\u062e\u0648\u0644.',
+      'offline_register': '\u0623\u0646\u062a \u063a\u064a\u0631 \u0645\u062a\u0635\u0644 \u2014 \u064a\u0631\u062c\u0649 \u0627\u0644\u0627\u062a\u0635\u0627\u0644 \u0628\u0627\u0644\u0625\u0646\u062a\u0631\u0646\u062a \u0644\u0644\u062a\u0633\u062c\u064a\u0644.',
+      'offline_reset_password': '\u0623\u0646\u062a \u063a\u064a\u0631 \u0645\u062a\u0635\u0644 \u2014 \u064a\u0631\u062c\u0649 \u0627\u0644\u0627\u062a\u0635\u0627\u0644 \u0628\u0627\u0644\u0625\u0646\u062a\u0631\u0646\u062a \u0644\u0625\u0639\u0627\u062f\u0629 \u062a\u0639\u064a\u064a\u0646 \u0643\u0644\u0645\u0629 \u0627\u0644\u0645\u0631\u0648\u0631.',
+      'offline_change_password': '\u0623\u0646\u062a \u063a\u064a\u0631 \u0645\u062a\u0635\u0644 \u2014 \u064a\u0631\u062c\u0649 \u0627\u0644\u0627\u062a\u0635\u0627\u0644 \u0628\u0627\u0644\u0625\u0646\u062a\u0631\u0646\u062a \u0644\u062a\u063a\u064a\u064a\u0631 \u0643\u0644\u0645\u0629 \u0627\u0644\u0645\u0631\u0648\u0631.',
+      'offline_account': '\u0623\u0646\u062a \u063a\u064a\u0631 \u0645\u062a\u0635\u0644 \u2014 \u062a\u063a\u064a\u064a\u0631\u0627\u062a \u0627\u0644\u062d\u0633\u0627\u0628 \u062a\u062a\u0637\u0644\u0628 \u0627\u062a\u0635\u0627\u0644\u0627\u064b \u0628\u0627\u0644\u0625\u0646\u062a\u0631\u0646\u062a.',
+      'offline_branches': '\u0623\u0646\u062a \u063a\u064a\u0631 \u0645\u062a\u0635\u0644 \u2014 \u0627\u062a\u0635\u0644 \u0628\u0627\u0644\u0625\u0646\u062a\u0631\u0646\u062a \u0644\u0639\u0631\u0636 \u0641\u0631\u0648\u0639\u0646\u0627.',
+      'offline_switch_branch': '\u0623\u0646\u062a \u063a\u064a\u0631 \u0645\u062a\u0635\u0644 \u2014 \u062a\u0628\u062f\u064a\u0644 \u0627\u0644\u0641\u0631\u0648\u0639 \u064a\u062a\u0637\u0644\u0628 \u0627\u062a\u0635\u0627\u0644\u0627\u064b.',
+      'offline_manage_branches': '\u0623\u0646\u062a \u063a\u064a\u0631 \u0645\u062a\u0635\u0644 \u2014 \u0625\u062f\u0627\u0631\u0629 \u0627\u0644\u0641\u0631\u0648\u0639 \u062a\u062a\u0637\u0644\u0628 \u0627\u062a\u0635\u0627\u0644\u0627\u064b.',
+      'offline_manage_coaches': '\u0623\u0646\u062a \u063a\u064a\u0631 \u0645\u062a\u0635\u0644 \u2014 \u0625\u062f\u0627\u0631\u0629 \u0627\u0644\u0645\u062f\u0631\u0628\u064a\u0646 \u062a\u062a\u0637\u0644\u0628 \u0627\u062a\u0635\u0627\u0644\u0627\u064b.',
+      'offline_load_chat': '\u0644\u0627 \u062a\u0648\u062c\u062f \u0631\u0633\u0627\u0626\u0644 \u0645\u062d\u0641\u0648\u0638\u0629 \u2014 \u0627\u062a\u0635\u0644 \u0628\u0627\u0644\u0625\u0646\u062a\u0631\u0646\u062a \u0644\u062a\u062d\u0645\u064a\u0644 \u0627\u0644\u0645\u062d\u0627\u062f\u062b\u0629.',
+      'offline_pull_refresh': '\u0644\u0627 \u062a\u0648\u062c\u062f \u0628\u064a\u0627\u0646\u0627\u062a \u0645\u062d\u0641\u0648\u0638\u0629 \u2014 \u0627\u062a\u0635\u0644 \u0628\u0627\u0644\u0625\u0646\u062a\u0631\u0646\u062a \u0648\u0627\u0633\u062d\u0628 \u0644\u0644\u062a\u062d\u062f\u064a\u062b.',
+      'offline_manage_reconnect': '\u0627\u0644\u0625\u062f\u0627\u0631\u0629 \u062a\u062a\u0637\u0644\u0628 \u0627\u062a\u0635\u0627\u0644\u0627\u064b. \u0623\u0639\u062f \u0627\u0644\u0627\u062a\u0635\u0627\u0644 \u0648\u062d\u0627\u0648\u0644 \u0645\u0631\u0629 \u0623\u062e\u0631\u0649.',
+      'retry': '\u0625\u0639\u0627\u062f\u0629 \u0627\u0644\u0645\u062d\u0627\u0648\u0644\u0629',
+      'record_deleted': '\u062a\u0645 \u062d\u0630\u0641 \u0627\u0644\u0633\u062c\u0644',
+      'copied_label': '\u062a\u0645 \u0627\u0644\u0646\u0633\u062e!',
+      'coach_fallback': '\u0645\u062f\u0631\u0628',
+      'unknown_author': '\u063a\u064a\u0631 \u0645\u0639\u0631\u0648\u0641',
 
       // Notifications
       'notifications': '\u0627\u0644\u0625\u0634\u0639\u0627\u0631\u0627\u062a',

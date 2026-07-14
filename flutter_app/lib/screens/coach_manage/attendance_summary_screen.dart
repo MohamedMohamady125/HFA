@@ -3,8 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
-import '../../services/api_service.dart';
 import '../../services/offline/offline_repository.dart';
+import '../../services/offline/connectivity_service.dart';
 import '../../theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
 import 'package:intl/intl.dart';
@@ -21,12 +21,24 @@ class _AttendanceSummaryScreenState extends State<AttendanceSummaryScreen> {
   String search = '';
 
   @override
-  void initState() { super.initState(); _fetch(); }
+  void initState() {
+    super.initState();
+    // Cache-first: show instantly if we have saved stats (even offline).
+    final branchId = context.read<AuthProvider>().branchId;
+    if (branchId != null) {
+      final cached = OfflineRepository.getCached('/attendance/branch/$branchId/athletes-stats');
+      if (cached is List && cached.isNotEmpty) { athletes = cached; loading = false; }
+    }
+    _fetch();
+  }
 
   Future<void> _fetch() async {
     final branchId = context.read<AuthProvider>().branchId;
     try {
-      final data = await OfflineRepository.getAthletesStats(branchId!);
+      final data = await OfflineRepository.getAthletesStats(
+        branchId!,
+        onFresh: (fresh) { if (mounted && fresh is List) setState(() => athletes = fresh); },
+      );
       athletes = data;
     } catch (_) {} finally { if (mounted) setState(() => loading = false); }
   }
@@ -71,7 +83,13 @@ class _AttendanceSummaryScreenState extends State<AttendanceSummaryScreen> {
               child: filtered.isEmpty
                   ? ListView(physics: const AlwaysScrollableScrollPhysics(), children: [
                       const SizedBox(height: 60),
-                      EmptyState(icon: Icons.people_outline_rounded, title: AppLocalizations.of(context).translate('no_athletes')),
+                      athletes.isEmpty && !ConnectivityService.isOnline
+                          ? EmptyState(
+                              icon: Icons.wifi_off_rounded,
+                              title: AppLocalizations.of(context).translate('no_connection'),
+                              message: AppLocalizations.of(context).translate('offline_pull_refresh'),
+                            )
+                          : EmptyState(icon: Icons.people_outline_rounded, title: AppLocalizations.of(context).translate('no_athletes')),
                     ])
                   : ListView.builder(
                       physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
@@ -158,12 +176,18 @@ class _AthleteAttendanceDetailState extends State<_AthleteAttendanceDetail> {
   @override
   void initState() { super.initState(); _fetchMonth(); }
 
+  Map<String, String> _toMap(List data) =>
+      { for (var r in data) r['date'].toString(): r['status']?.toString() ?? '' };
+
   Future<void> _fetchMonth() async {
     setState(() => _loading = true);
+    final month = _currentMonth;
     try {
-      final res = await ApiService().get('/attendance/athlete/${widget.userId}/month/${_currentMonth.year}/${_currentMonth.month}');
-      final data = res.data as List;
-      _attendanceMap = { for (var r in data) r['date'].toString(): r['status']?.toString() ?? '' };
+      final data = await OfflineRepository.getAttendanceMonth(
+        widget.userId, month.year, month.month,
+        onFresh: (fresh) { if (mounted && fresh is List && _currentMonth == month) setState(() => _attendanceMap = _toMap(fresh)); },
+      );
+      _attendanceMap = _toMap(data);
     } catch (_) { _attendanceMap = {}; }
     finally { if (mounted) setState(() => _loading = false); }
   }

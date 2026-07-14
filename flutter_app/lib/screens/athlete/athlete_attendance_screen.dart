@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:intl/intl.dart';
-import '../../services/api_service.dart';
+import '../../services/offline/offline_repository.dart';
+import '../../services/offline/connectivity_service.dart';
 import '../../theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
 
@@ -28,15 +29,37 @@ class _AthleteAttendanceScreenState extends State<AthleteAttendanceScreen> {
     _fetchMonth();
   }
 
+  void _applyMonth(dynamic data) {
+    if (data is List) {
+      _attendanceMap = { for (var r in data) r['date'].toString(): r['status']?.toString() ?? '' };
+    } else {
+      _attendanceMap = {};
+    }
+  }
+
   Future<void> _fetchMonth() async {
     if (_userId == null) return;
-    setState(() => _loading = true);
-    try {
-      final res = await ApiService().get('/attendance/athlete/$_userId/month/${_currentMonth.year}/${_currentMonth.month}');
-      final data = res.data as List;
-      _attendanceMap = { for (var r in data) r['date'].toString(): r['status']?.toString() ?? '' };
-    } catch (_) { _attendanceMap = {}; }
-    finally { if (mounted) setState(() => _loading = false); }
+    final month = _currentMonth; // guard against month changing mid-flight
+
+    // 1. Instant cache read — no spinner if we already have this month
+    final cached = OfflineRepository.getCached('/attendance/athlete/$_userId/month/${month.year}/${month.month}');
+    if (cached is List) {
+      _applyMonth(cached);
+      if (mounted) setState(() => _loading = false);
+    } else {
+      if (mounted) setState(() { _attendanceMap = {}; _loading = true; });
+    }
+
+    // 2. Cache-first fetch with background refresh
+    final data = await OfflineRepository.getAttendanceMonth(
+      _userId!, month.year, month.month,
+      onFresh: (fresh) {
+        if (mounted && month == _currentMonth) setState(() => _applyMonth(fresh));
+      },
+    );
+    if (mounted && month == _currentMonth) {
+      setState(() { _applyMonth(data); _loading = false; });
+    }
   }
 
   void _prevMonth() { setState(() => _currentMonth = DateTime(_currentMonth.year, _currentMonth.month - 1)); _fetchMonth(); }
@@ -106,6 +129,14 @@ class _AthleteAttendanceScreenState extends State<AthleteAttendanceScreen> {
           // Calendar
           if (_loading)
             const Expanded(child: ShimmerList(count: 4))
+          else if (_attendanceMap.isEmpty && !ConnectivityService.isOnline)
+            Expanded(
+              child: EmptyState(
+                icon: Icons.cloud_off_rounded,
+                title: l.translate('no_connection'),
+                message: l.translate('no_connection_data'),
+              ),
+            )
           else
             Expanded(
               child: SingleChildScrollView(

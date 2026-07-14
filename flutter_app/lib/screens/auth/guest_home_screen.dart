@@ -72,13 +72,13 @@ class _GuestHomeScreenState extends State<GuestHomeScreen> with TickerProviderSt
                     const SizedBox(height: AppSpacing.xxl),
                     FadeSlideIn(
                       delay: 60,
-                      child: Text('HFA', style: AppTypography.displayXL.copyWith(color: AppColors.primary, letterSpacing: 10)),
+                      child: Text('HFA', style: AppTypography.displayXL.copyWith(color: AppColors.primary, letterSpacing: 2)),
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     FadeSlideIn(
                       delay: 120,
                       child: Text(
-                        l.translate('swimming_academy'),
+                        l.translate('fitness_academy'),
                         style: AppTypography.overline.copyWith(color: AppColors.textSecondary, letterSpacing: 4),
                       ),
                     ),

@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/offline/offline_repository.dart';
+import '../../services/offline/connectivity_service.dart';
+import '../../widgets/app_feedback.dart';
 import '../../theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
 
@@ -21,11 +23,25 @@ class _AttendanceScreenState extends State<AttendanceScreen> with SingleTickerPr
   List<String> sessionDates = [];
   String? error;
   late AnimationController _listAnim;
+  // Show the "saved offline" notice at most once per screen session.
+  bool _queuedNoticeShown = false;
 
   @override
   void initState() {
     super.initState();
     _listAnim = AnimationController(vsync: this, duration: const Duration(milliseconds: 600))..forward();
+    // Cache-first: populate synchronously so there's no shimmer when cached.
+    final bId = context.read<AuthProvider>().branchId;
+    if (bId != null) {
+      final cachedDates = OfflineRepository.getCached('/attendance/branch/$bId/session-dates');
+      if (cachedDates is List) {
+        sessionDates = List<String>.from(cachedDates);
+        if (sessionDates.isNotEmpty) {
+          final cachedDay = OfflineRepository.getCached('/attendance/branch/$bId/day/${sessionDates[0]}');
+          if (cachedDay is List) { attendance = cachedDay; loading = false; }
+        }
+      }
+    }
     _fetchSessionDates();
   }
 
@@ -40,11 +56,20 @@ class _AttendanceScreenState extends State<AttendanceScreen> with SingleTickerPr
   }
 
   Future<void> _fetchAttendance({bool silent = false}) async {
-    if (!silent) setState(() { loading = true; error = null; });
+    if (!silent && attendance.isEmpty) setState(() { loading = true; error = null; });
     try {
       if (selectedDay >= sessionDates.length) throw Exception('No date');
-      final data = await OfflineRepository.getAttendanceDay(_branchId!, sessionDates[selectedDay]);
+      final day = sessionDates[selectedDay];
+      final data = await OfflineRepository.getAttendanceDay(
+        _branchId!, day,
+        onFresh: (fresh) {
+          if (mounted && fresh is List && selectedDay < sessionDates.length && sessionDates[selectedDay] == day) {
+            setState(() => attendance = fresh);
+          }
+        },
+      );
       attendance = data;
+      error = null;
       if (!silent) { _listAnim.reset(); _listAnim.forward(); }
     } catch (e) { error = e.toString(); }
     finally { if (mounted) setState(() => loading = false); }
@@ -52,17 +77,40 @@ class _AttendanceScreenState extends State<AttendanceScreen> with SingleTickerPr
 
   void _mark(int athleteId, String status, int index) {
     HapticFeedback.lightImpact();
+    final sessionDate = sessionDates[selectedDay];
+    String? prevStatus;
     // Instant local update - zero await, zero spinner
     setState(() {
       for (int i = 0; i < attendance.length; i++) {
         if (attendance[i]['athlete_id'] == athleteId) {
+          prevStatus = attendance[i]['status']?.toString();
           attendance[i] = {...Map<String, dynamic>.from(attendance[i]), 'status': status};
           break;
         }
       }
     });
-    // Fire and forget - syncs in background or queues offline
-    OfflineRepository.markAttendance(athleteId, sessionDates[selectedDay], status, _branchId!);
+    // Sync in background; queue offline. Revert only on a real server rejection.
+    () async {
+      try {
+        final r = await OfflineRepository.markAttendance(athleteId, sessionDate, status, _branchId!);
+        if (!mounted) return;
+        if (!r.synced && !_queuedNoticeShown) {
+          _queuedNoticeShown = true;
+          AppFeedback.showQueued(context);
+        }
+      } catch (e) {
+        if (!mounted) return;
+        AppFeedback.showError(context, e);
+        setState(() {
+          for (int i = 0; i < attendance.length; i++) {
+            if (attendance[i]['athlete_id'] == athleteId) {
+              attendance[i] = {...Map<String, dynamic>.from(attendance[i]), 'status': prevStatus};
+              break;
+            }
+          }
+        });
+      }
+    }();
   }
 
   @override
@@ -117,7 +165,13 @@ class _AttendanceScreenState extends State<AttendanceScreen> with SingleTickerPr
                   child: attendance.isEmpty
                       ? ListView(physics: const AlwaysScrollableScrollPhysics(), children: [
                           const SizedBox(height: 60),
-                          EmptyState(icon: Icons.fact_check_outlined, title: l.translate('no_athletes')),
+                          !ConnectivityService.isOnline
+                              ? EmptyState(
+                                  icon: Icons.wifi_off_rounded,
+                                  title: l.translate('no_connection'),
+                                  message: l.translate('offline_pull_refresh'),
+                                )
+                              : EmptyState(icon: Icons.fact_check_outlined, title: l.translate('no_athletes')),
                         ])
                       : ListView.builder(
                           physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),

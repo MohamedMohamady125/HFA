@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
-import '../../services/api_service.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import '../../services/offline/offline_repository.dart';
+import '../../services/offline/connectivity_service.dart';
 import '../../theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
 
@@ -19,31 +22,44 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     _fetch();
   }
 
+  void _apply(dynamic data) {
+    if (data is List) {
+      notifications = data.map((e) => Map<String, dynamic>.from(e)).toList();
+    }
+  }
+
   Future<void> _fetch() async {
-    setState(() => loading = true);
-    try {
-      final res = await ApiService().get('/notifications/');
-      notifications = (res.data as List).map((e) => Map<String, dynamic>.from(e)).toList();
-    } catch (_) {}
-    if (mounted) setState(() => loading = false);
+    // Cache-first: returns cached instantly if present, refreshes in background
+    final data = await OfflineRepository.getNotifications(onFresh: (fresh) {
+      if (mounted) setState(() => _apply(fresh));
+    });
+    if (mounted) {
+      setState(() {
+        _apply(data);
+        loading = false;
+      });
+    }
   }
 
   Future<void> _markAllRead() async {
-    try {
-      await ApiService().post('/notifications/read-all', data: {});
+    HapticFeedback.lightImpact();
+    // Optimistic UI update
+    setState(() {
       for (var n in notifications) {
         n['read_status'] = true;
       }
-      if (mounted) setState(() {});
-    } catch (_) {}
+    });
+    try {
+      await OfflineRepository.markNotificationsReadAll();
+    } catch (_) {} // fire-and-forget
   }
 
   Future<void> _markRead(int id, int index) async {
     if (notifications[index]['read_status'] == true) return;
     setState(() => notifications[index]['read_status'] = true);
     try {
-      await ApiService().post('/notifications/read/$id', data: {});
-    } catch (_) {}
+      await OfflineRepository.markNotificationRead(id);
+    } catch (_) {} // fire-and-forget
   }
 
   String _timeAgo(String? createdAt, AppLocalizations l) {
@@ -102,11 +118,17 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             child: loading
                 ? const ShimmerList(count: 6)
                 : notifications.isEmpty
-                    ? EmptyState(
-                        icon: Icons.notifications_off_rounded,
-                        title: l.translate('no_notifications'),
-                        message: l.translate('no_notifications_desc'),
-                      )
+                    ? (!ConnectivityService.isOnline
+                        ? EmptyState(
+                            icon: Icons.cloud_off_rounded,
+                            title: l.translate('no_connection'),
+                            message: l.translate('no_connection_data'),
+                          )
+                        : EmptyState(
+                            icon: Icons.notifications_off_rounded,
+                            title: l.translate('no_notifications'),
+                            message: l.translate('no_notifications_desc'),
+                          ))
                     : RefreshIndicator(
                         onRefresh: _fetch,
                         color: AppColors.accent,
@@ -120,9 +142,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                             final type = n['type']?.toString();
                             final color = _colorForType(type);
 
-                            return FadeSlideIn(
-                              delay: i * 50,
-                              child: AppCard(
+                            return _animatedItem(i, AppCard(
                                 onTap: () => _markRead(n['id'], i),
                                 color: isRead ? AppColors.cardBg : AppColors.accentLight.withValues(alpha: 0.35),
                                 padding: const EdgeInsets.all(AppSpacing.lg),
@@ -165,8 +185,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                                       ),
                                   ],
                                 ),
-                              ),
-                            );
+                              ));
                           },
                         ),
                       ),
@@ -175,4 +194,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       ),
     );
   }
+
+  /// Staggered entrance for list items (capped so long lists stay snappy).
+  Widget _animatedItem(int i, Widget child) => child
+      .animate(delay: (40 * (i > 8 ? 8 : i)).ms)
+      .fadeIn(duration: 250.ms)
+      .slideY(begin: 0.08, curve: Curves.easeOutCubic);
 }

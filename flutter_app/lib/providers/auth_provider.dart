@@ -85,6 +85,23 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  /// Check with the server if the user has been approved.
+  /// Returns true if status changed to approved.
+  Future<bool> checkApproval() async {
+    if (_user == null || isApproved) return false;
+    try {
+      final resp = await ApiService().get('/auth/me');
+      if (resp.data != null && resp.data['approved'] == true) {
+        _user!['isApproved'] = true;
+        _prefs ??= await SharedPreferences.getInstance();
+        await _prefs!.setString('authUser', jsonEncode(_user));
+        notifyListeners();
+        return true;
+      }
+    } catch (_) {}
+    return false;
+  }
+
   Future<void> setHeadCoachMode(bool value) async {
     _prefs ??= await SharedPreferences.getInstance();
     if (value) {

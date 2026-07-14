@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../../services/api_service.dart';
+import '../../services/offline/offline_repository.dart';
+import '../../services/offline/connectivity_service.dart';
 import '../../theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
 
@@ -30,32 +31,71 @@ class AthleteThreadsScreenState extends State<AthleteThreadsScreen> with Automat
 
   Color _colorFor(String name) => _authorColors.putIfAbsent(name, () => _nameColors[_authorColors.length % _nameColors.length]);
 
+  List<dynamic> _filterThreads(dynamic data) {
+    if (data is! List) return [];
+    return data.where((t) {
+      final title = (t['title'] as String? ?? '').toLowerCase();
+      return !title.contains('gear') && !title.contains('equipment');
+    }).toList();
+  }
+
   Future<void> _fetchData() async {
-    setState(() => loading = true);
     try {
       final prefs = await SharedPreferences.getInstance();
       user = jsonDecode(prefs.getString('authUser')!);
-      final api = ApiService();
-      final me = await api.get('/users/me');
-      final branchId = me.data['branch_id'];
-      final results = await Future.wait([api.get('/branches/$branchId'), api.get('/threads/branch/$branchId')]);
-      branchName = results[0].data['name'] ?? '';
-      threads = (results[1].data as List).where((t) {
-        final title = (t['title'] as String).toLowerCase();
-        return !title.contains('gear') && !title.contains('equipment');
-      }).toList();
-      if (threads.isNotEmpty) await _selectThread(threads[0]);
+      final branchId = user!['branch_id'] ?? (OfflineRepository.getCached('/users/me') as Map?)?['branch_id'];
+
+      // Instant cache reads — render immediately when possible
+      if (branchId != null) {
+        final cachedBranch = OfflineRepository.getCached('/branches/$branchId');
+        if (cachedBranch is Map) branchName = cachedBranch['name']?.toString() ?? '';
+        final cachedThreads = _filterThreads(OfflineRepository.getCached('/threads/branch/$branchId'));
+        if (cachedThreads.isNotEmpty) {
+          threads = cachedThreads;
+          if (mounted) setState(() => loading = false);
+        }
+      }
+
+      // Cache-first fetch with background refresh
+      final effectiveBranchId = branchId ?? (await OfflineRepository.getUserMe())['branch_id'];
+      if (effectiveBranchId == null) return;
+      final results = await Future.wait([
+        OfflineRepository.getBranch(effectiveBranchId, onFresh: (d) {
+          if (mounted && d is Map) setState(() => branchName = d['name']?.toString() ?? branchName);
+        }),
+        OfflineRepository.getThreads(effectiveBranchId, onFresh: (d) {
+          final fresh = _filterThreads(d);
+          if (mounted && fresh.isNotEmpty) setState(() => threads = fresh);
+        }),
+      ]);
+      branchName = (results[0] as Map)['name']?.toString() ?? branchName;
+      threads = _filterThreads(results[1]);
+      if (threads.isNotEmpty && selectedThread == null) await _selectThread(threads[0]);
       _fetched = true;
     } catch (_) {} finally { if (mounted) setState(() => loading = false); }
   }
 
+  void _applyPosts(dynamic data) {
+    if (data is! List) return;
+    posts = List.of(data);
+    posts.sort((a, b) => DateTime.parse(a['created_at']).compareTo(DateTime.parse(b['created_at'])));
+    WidgetsBinding.instance.addPostFrameCallback((_) { if (_scrollCtrl.hasClients) _scrollCtrl.jumpTo(_scrollCtrl.position.maxScrollExtent); });
+  }
+
   Future<void> _selectThread(dynamic thread) async {
-    setState(() { postsLoading = true; selectedThread = Map<String, dynamic>.from(thread); });
+    final threadId = thread['id'];
+    // Instant cache read — skip the shimmer when we already have posts
+    final cached = OfflineRepository.getCached('/threads/$threadId/posts');
+    setState(() {
+      selectedThread = Map<String, dynamic>.from(thread);
+      postsLoading = cached is! List;
+      if (cached is List) _applyPosts(cached);
+    });
     try {
-      final r = await ApiService().get('/threads/${thread['id']}/posts');
-      posts = r.data;
-      posts.sort((a, b) => DateTime.parse(a['created_at']).compareTo(DateTime.parse(b['created_at'])));
-      WidgetsBinding.instance.addPostFrameCallback((_) { if (_scrollCtrl.hasClients) _scrollCtrl.jumpTo(_scrollCtrl.position.maxScrollExtent); });
+      final data = await OfflineRepository.getPosts(threadId, onFresh: (fresh) {
+        if (mounted && selectedThread?['id'] == threadId) setState(() => _applyPosts(fresh));
+      });
+      if (selectedThread?['id'] == threadId) _applyPosts(data);
     } catch (_) {} finally { if (mounted) setState(() => postsLoading = false); }
   }
 
@@ -143,10 +183,16 @@ class AthleteThreadsScreenState extends State<AthleteThreadsScreen> with Automat
               child: postsLoading
                   ? const ShimmerList(count: 5)
                   : posts.isEmpty
-                      ? EmptyState(
-                          icon: Icons.chat_bubble_outline_rounded,
-                          title: l.translate('no_messages'),
-                        )
+                      ? (!ConnectivityService.isOnline
+                          ? EmptyState(
+                              icon: Icons.cloud_off_rounded,
+                              title: l.translate('no_connection'),
+                              message: l.translate('no_connection_data'),
+                            )
+                          : EmptyState(
+                              icon: Icons.chat_bubble_outline_rounded,
+                              title: l.translate('no_messages'),
+                            ))
                       : ListView.builder(
                           controller: _scrollCtrl,
                           physics: const BouncingScrollPhysics(),
@@ -164,7 +210,7 @@ class AthleteThreadsScreenState extends State<AthleteThreadsScreen> with Automat
   Widget _buildMsg(int i) {
     final msg = Map<String, dynamic>.from(posts[i]);
     final createdAt = msg['created_at']?.toString() ?? DateTime.now().toIso8601String();
-    final author = msg['author']?.toString() ?? 'Unknown';
+    final author = msg['author']?.toString() ?? AppLocalizations.of(context).translate('unknown_author');
     final message = msg['message']?.toString() ?? '';
     final isMine = msg['user_id'] == user?['id'];
     final showDate = i == 0 || !_sameDay(createdAt, posts[i - 1]['created_at']?.toString() ?? '');

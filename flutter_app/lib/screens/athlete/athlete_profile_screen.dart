@@ -183,11 +183,9 @@ class AthleteProfileScreenState extends State<AthleteProfileScreen> {
 
   bool _requireOnline() {
     if (ConnectivityService.isOnline) return true;
-    final isAr = AppLocalizations.of(context).locale.languageCode == 'ar';
+    final l = AppLocalizations.of(context);
     AppFeedback.showError(context, Exception(),
-        fallback: isAr
-            ? 'أنت غير متصل — تغييرات الحساب تتطلب اتصالاً بالإنترنت.'
-            : "You're offline — account changes need a connection.");
+        fallback: l.translate('offline_account'));
     return false;
   }
 

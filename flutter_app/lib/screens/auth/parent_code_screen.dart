@@ -28,7 +28,7 @@ class _ParentCodeScreenState extends State<ParentCodeScreen> {
     if (code.isEmpty) { _showError(l.translate('enter_code')); return; }
     if (!ConnectivityService.isOnline) {
       AppFeedback.showError(context, Exception(),
-          fallback: "You're offline — please connect to the internet to sign in.");
+          fallback: l.translate('offline_sign_in'));
       return;
     }
     HapticFeedback.mediumImpact();

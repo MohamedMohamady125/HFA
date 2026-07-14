@@ -90,6 +90,27 @@ def login(user: UserLogin):
     }
 
 
+@router.get("/me")
+def get_me(user=Depends(get_current_user)):
+    conn = get_connection()
+    cursor = get_cursor(conn)
+    cursor.execute("SELECT id, name, email, phone, role, approved, branch_id FROM users WHERE id = %s", (user["id"],))
+    db_user = cursor.fetchone()
+    cursor.close()
+    conn.close()
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return {
+        "id": db_user["id"],
+        "name": db_user["name"],
+        "email": db_user["email"],
+        "phone": db_user["phone"],
+        "role": db_user["role"],
+        "approved": db_user.get("approved", False),
+        "branch_id": db_user.get("branch_id"),
+    }
+
+
 class DeleteAccountRequest(BaseModel):
     password: str
 

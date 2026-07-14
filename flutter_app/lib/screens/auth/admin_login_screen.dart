@@ -26,7 +26,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
     if (_emailCtrl.text.trim().isEmpty || _passCtrl.text.trim().isEmpty) { _showError(l.translate('fill_all_fields')); return; }
     if (!ConnectivityService.isOnline) {
       AppFeedback.showError(context, Exception(),
-          fallback: "You're offline — please connect to the internet to sign in.");
+          fallback: l.translate('offline_sign_in'));
       return;
     }
     HapticFeedback.mediumImpact();

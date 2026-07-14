@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
-import '../../services/api_service.dart';
 import '../../services/offline/offline_repository.dart';
+import '../../services/offline/connectivity_service.dart';
+import '../../widgets/app_feedback.dart';
 import '../../theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
 
@@ -20,26 +21,37 @@ class _RegisterRequestsScreenState extends State<RegisterRequestsScreen> {
   final Set<int> _processing = {};
 
   @override
-  void initState() { super.initState(); _fetchRequests(); }
+  void initState() {
+    super.initState();
+    // Cache-first: show instantly if we have saved data (even offline).
+    final cached = OfflineRepository.getCached('/users/requests');
+    if (cached is List) { requests = cached; loading = false; }
+    _fetchRequests();
+  }
 
   Future<void> _fetchRequests() async {
-    setState(() => loading = true);
+    if (requests.isEmpty) setState(() => loading = true);
     try {
-      final data = await OfflineRepository.getRequests();
+      final data = await OfflineRepository.getRequests(
+        onFresh: (fresh) { if (mounted && fresh is List) setState(() => requests = fresh); },
+      );
       requests = data;
     } catch (_) {}
     finally { if (mounted) setState(() => loading = false); }
   }
 
   Future<void> _approve(int id, int index) async {
-    setState(() => _processing.add(id));
+    // Optimistic: remove immediately, restore only on a real server error.
+    final removed = requests[index];
+    _removeItem(index, AppColors.success);
     try {
-      await ApiService().post('/users/approve/$id');
-      _removeItem(index, AppColors.success);
-    } catch (_) {
+      final r = await OfflineRepository.approveRequest(id);
       if (!mounted) return;
-      _msg(AppLocalizations.of(context).translate('failed_to_approve'), error: true);
-      setState(() => _processing.remove(id));
+      if (!r.synced) AppFeedback.showQueued(context);
+    } catch (e) {
+      if (!mounted) return;
+      AppFeedback.showError(context, e);
+      _restoreItem(removed);
     }
   }
 
@@ -74,15 +86,25 @@ class _RegisterRequestsScreenState extends State<RegisterRequestsScreen> {
     );
     if (ok != true) return;
 
-    setState(() => _processing.add(id));
+    // Optimistic: remove immediately, restore only on a real server error.
+    final removed = requests[index];
+    _removeItem(index, AppColors.error);
     try {
-      await ApiService().post('/users/reject/$id');
-      _removeItem(index, AppColors.error);
-    } catch (_) {
+      final r = await OfflineRepository.rejectRequest(id);
       if (!mounted) return;
-      _msg(AppLocalizations.of(context).translate('failed_to_reject'), error: true);
-      setState(() => _processing.remove(id));
+      if (!r.synced) AppFeedback.showQueued(context);
+    } catch (e) {
+      if (!mounted) return;
+      AppFeedback.showError(context, e);
+      _restoreItem(removed);
     }
+  }
+
+  /// Puts a request back at the top of the list after a failed decision.
+  void _restoreItem(dynamic req) {
+    if (!mounted) return;
+    setState(() => requests.insert(0, req));
+    _listKey.currentState?.insertItem(0, duration: const Duration(milliseconds: 300));
   }
 
   void _removeItem(int index, Color color) {
@@ -171,11 +193,17 @@ class _RegisterRequestsScreenState extends State<RegisterRequestsScreen> {
           ),
         ),
         Expanded(child: requests.isEmpty
-          ? EmptyState(
-              icon: Icons.how_to_reg_rounded,
-              title: l.translate('no_requests'),
-              message: l.translate('all_caught_up'),
-            )
+          ? (!ConnectivityService.isOnline && OfflineRepository.getCached('/users/requests') == null
+              ? EmptyState(
+                  icon: Icons.wifi_off_rounded,
+                  title: l.translate('no_connection'),
+                  message: l.translate('no_connection_data'),
+                )
+              : EmptyState(
+                  icon: Icons.how_to_reg_rounded,
+                  title: l.translate('no_requests'),
+                  message: l.translate('all_caught_up'),
+                ))
           : AnimatedList(
               key: _listKey,
               padding: const EdgeInsetsDirectional.fromSTEB(20, 16, 20, 20),

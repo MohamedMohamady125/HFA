@@ -1,7 +1,9 @@
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../services/api_service.dart';
+import '../../services/offline/offline_repository.dart';
+import '../../services/offline/connectivity_service.dart';
+import '../../widgets/app_feedback.dart';
 import '../../theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
 
@@ -23,8 +25,11 @@ class _ManageBranchesScreenState extends State<ManageBranchesScreen> {
 
   Future<void> _fetchBranches() async {
     try {
-      final res = await ApiService().get('/branches/');
-      branches = res.data is List ? res.data : [];
+      // Cache-first read with background refresh.
+      final data = await OfflineRepository.getPublicBranches(
+        onFresh: (fresh) { if (mounted && fresh is List) setState(() => branches = fresh); },
+      );
+      branches = data;
     } catch (_) {
       // Keep whatever we have; errors surface via empty state / snackbars on actions.
     } finally {
@@ -32,12 +37,12 @@ class _ManageBranchesScreenState extends State<ManageBranchesScreen> {
     }
   }
 
-  String _errorDetail(Object e, String fallback) {
-    if (e is DioException && e.response?.data is Map) {
-      final detail = (e.response!.data as Map)['detail'];
-      if (detail != null) return detail.toString();
-    }
-    return fallback;
+  /// Writes on this screen are online-only. Returns true (and warns) if offline.
+  bool _blockIfOffline() {
+    if (ConnectivityService.isOnline) return false;
+    AppFeedback.showError(context, Exception(),
+        fallback: AppLocalizations.of(context).translate('offline_manage_branches'));
+    return true;
   }
 
   void _showSnack(String message, {bool error = false}) {
@@ -87,6 +92,7 @@ class _ManageBranchesScreenState extends State<ManageBranchesScreen> {
       ),
     );
     if (confirmed != true) return;
+    if (_blockIfOffline()) return;
 
     try {
       await ApiService().delete('/branches/${branch['id']}');
@@ -94,7 +100,7 @@ class _ManageBranchesScreenState extends State<ManageBranchesScreen> {
       setState(() => loading = true);
       await _fetchBranches();
     } catch (e) {
-      _showSnack(_errorDetail(e, l.translate('server_error')), error: true);
+      if (mounted) AppFeedback.showError(context, e, fallback: l.translate('server_error'));
     }
   }
 
@@ -121,12 +127,18 @@ class _ManageBranchesScreenState extends State<ManageBranchesScreen> {
             child: loading
                 ? const ShimmerList(count: 5)
                 : branches.isEmpty
-                    ? EmptyState(
-                        icon: Icons.location_city_rounded,
-                        title: l.translate('no_branches_found'),
-                        actionLabel: l.translate('add_branch'),
-                        onAction: () => _openBranchSheet(),
-                      )
+                    ? (!ConnectivityService.isOnline
+                        ? EmptyState(
+                            icon: Icons.wifi_off_rounded,
+                            title: l.translate('no_connection'),
+                            message: l.translate('offline_manage_reconnect'),
+                          )
+                        : EmptyState(
+                            icon: Icons.location_city_rounded,
+                            title: l.translate('no_branches_found'),
+                            actionLabel: l.translate('add_branch'),
+                            onAction: () => _openBranchSheet(),
+                          ))
                     : RefreshIndicator(
                         onRefresh: _fetchBranches,
                         color: AppColors.accent,
@@ -241,6 +253,12 @@ class _BranchFormSheetState extends State<_BranchFormSheet> {
       ));
       return;
     }
+    if (!ConnectivityService.isOnline) {
+      final l = AppLocalizations.of(context);
+      AppFeedback.showError(context, Exception(),
+          fallback: l.translate('offline_manage_branches'));
+      return;
+    }
 
     setState(() => _saving = true);
     final data = {
@@ -261,15 +279,7 @@ class _BranchFormSheetState extends State<_BranchFormSheet> {
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
       if (!mounted) return;
-      String message = l.translate('server_error');
-      if (e is DioException && e.response?.data is Map) {
-        final detail = (e.response!.data as Map)['detail'];
-        if (detail != null) message = detail.toString();
-      }
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(message),
-        backgroundColor: AppColors.error,
-      ));
+      AppFeedback.showError(context, e, fallback: l.translate('server_error'));
     } finally {
       if (mounted) setState(() => _saving = false);
     }

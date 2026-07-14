@@ -6,6 +6,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
+import '../../services/offline/offline_repository.dart';
+import '../../services/offline/connectivity_service.dart';
+import '../../widgets/app_feedback.dart';
 import '../../theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
 
@@ -21,14 +24,30 @@ class _HeadCoachBranchesScreenState extends State<HeadCoachBranchesScreen> {
   int? _switchingId;
 
   @override
-  void initState() { super.initState(); _fetchBranches(); }
+  void initState() {
+    super.initState();
+    // Cache-first: show instantly from cache while fresh data loads.
+    final cached = OfflineRepository.getCached('/head-coach/branches');
+    if (cached is List && cached.isNotEmpty) { branches = cached; loading = false; }
+    _fetchBranches();
+  }
 
   Future<void> _fetchBranches() async {
-    try { final res = await ApiService().get('/head-coach/branches'); branches = res.data; }
-    catch (_) {} finally { if (mounted) setState(() => loading = false); }
+    try {
+      final data = await OfflineRepository.getBranches(
+        onFresh: (fresh) { if (mounted && fresh is List) setState(() => branches = fresh); },
+      );
+      branches = data;
+    } catch (_) {} finally { if (mounted) setState(() => loading = false); }
   }
 
   Future<void> _switchToBranch(Map<String, dynamic> branch) async {
+    // Switching the active branch requires the server — online only.
+    if (!ConnectivityService.isOnline) {
+      AppFeedback.showError(context, Exception(),
+          fallback: AppLocalizations.of(context).translate('offline_switch_branch'));
+      return;
+    }
     setState(() => _switchingId = branch['id']);
     try {
       await ApiService().post('/head-coach/select-branch/${branch['id']}');
@@ -44,7 +63,7 @@ class _HeadCoachBranchesScreenState extends State<HeadCoachBranchesScreen> {
       await context.read<AuthProvider>().login(authUser);
       nav.go('/coach/home');
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLocalizations.of(context).translate('failed_switch')), backgroundColor: AppColors.error));
+      if (mounted) AppFeedback.showError(context, e, fallback: AppLocalizations.of(context).translate('failed_switch'));
     } finally { if (mounted) setState(() => _switchingId = null); }
   }
 
@@ -80,7 +99,13 @@ class _HeadCoachBranchesScreenState extends State<HeadCoachBranchesScreen> {
             ),
             Expanded(
               child: branches.isEmpty
-                  ? EmptyState(icon: Icons.location_city_rounded, title: l.translate('no_branches'))
+                  ? (!ConnectivityService.isOnline
+                      ? EmptyState(
+                          icon: Icons.wifi_off_rounded,
+                          title: l.translate('no_connection'),
+                          message: l.translate('no_connection_data'),
+                        )
+                      : EmptyState(icon: Icons.location_city_rounded, title: l.translate('no_branches')))
                   : ListView.builder(
                       physics: const BouncingScrollPhysics(),
                       padding: const EdgeInsetsDirectional.fromSTEB(20, 20, 20, 20),

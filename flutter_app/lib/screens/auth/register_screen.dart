@@ -36,7 +36,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (_passCtrl.text != _confirmCtrl.text) { _showMsg(l.translate('passwords_no_match'), isError: true); return; }
     if (!ConnectivityService.isOnline) {
       AppFeedback.showError(context, Exception(),
-          fallback: "You're offline — please connect to the internet to register.");
+          fallback: l.translate('offline_register'));
       return;
     }
 

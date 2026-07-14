@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
-import '../../services/api_service.dart';
+import '../../services/offline/connectivity_service.dart';
+import '../../services/offline/offline_repository.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/web_video_embed.dart';
 import '../../l10n/app_localizations.dart';
 
 class BranchesScreen extends StatefulWidget {
@@ -16,7 +18,7 @@ class BranchesScreen extends StatefulWidget {
 class _BranchesScreenState extends State<BranchesScreen> {
   List<dynamic> branches = [];
   bool loading = true;
-  String? error;
+  bool offlineNoData = false;
 
   /// Lazily-created inline video controllers, keyed by branch index.
   final Map<int, WebViewController> _videoControllers = {};
@@ -24,20 +26,35 @@ class _BranchesScreenState extends State<BranchesScreen> {
   @override
   void initState() {
     super.initState();
+    // Cache-first: show cached branches instantly (works offline once visited).
+    final cached = OfflineRepository.getCached('branches_public_list');
+    if (cached is List) {
+      branches = cached;
+      loading = false;
+    }
     _fetchBranches();
   }
 
+  void _applyBranches(List fresh) {
+    // Only reset video controllers when the list actually changed, so an
+    // in-progress inline video isn't reloaded by a silent background refresh.
+    if (fresh.length != branches.length) _videoControllers.clear();
+    branches = fresh;
+  }
+
   Future<void> _fetchBranches() async {
-    setState(() { loading = true; error = null; });
-    try {
-      final res = await ApiService().get('/branches/');
-      branches = res.data is List ? res.data : [];
-      _videoControllers.clear();
-    } catch (_) {
-      error = 'failed_load_branches';
-    } finally {
-      if (mounted) setState(() => loading = false);
+    if (branches.isEmpty && mounted) {
+      setState(() { loading = true; offlineNoData = false; });
     }
+    final data = await OfflineRepository.getPublicBranches(onFresh: (fresh) {
+      if (mounted && fresh is List) setState(() => _applyBranches(fresh));
+    });
+    if (!mounted) return;
+    setState(() {
+      if (data.isNotEmpty) _applyBranches(data);
+      loading = false;
+      offlineNoData = branches.isEmpty && !ConnectivityService.isOnline;
+    });
   }
 
   Future<void> _openUrl(String url) async {
@@ -55,8 +72,14 @@ class _BranchesScreenState extends State<BranchesScreen> {
   }
 
   Future<void> _openWhatsApp(String number) async {
-    final digits = number.replaceAll(RegExp(r'[^0-9]'), '');
+    var digits = number.replaceAll(RegExp(r'[^0-9]'), '');
     if (digits.isEmpty) return;
+    // All numbers are Egyptian — normalize to the +20 international format.
+    if (digits.startsWith('0')) {
+      digits = '2$digits'; // 010... -> 2010...
+    } else if (digits.startsWith('1') && digits.length == 10) {
+      digits = '20$digits'; // 10... -> 2010...
+    }
     final uri = Uri.parse('https://wa.me/$digits');
     await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
@@ -111,11 +134,12 @@ class _BranchesScreenState extends State<BranchesScreen> {
           Expanded(
             child: loading
                 ? const ShimmerList(count: 4)
-                : error != null
+                : offlineNoData
                     ? EmptyState(
-                        icon: Icons.error_outline_rounded,
-                        title: l.translate(error!),
-                        actionLabel: l.translate('loading'),
+                        icon: Icons.wifi_off_rounded,
+                        title: l.translate('failed_load_branches'),
+                        message: l.translate('offline_branches'),
+                        actionLabel: l.translate('retry'),
                         onAction: _fetchBranches,
                       )
                     : RefreshIndicator(
@@ -261,9 +285,9 @@ class _BranchesScreenState extends State<BranchesScreen> {
   }
 
   Widget _videoSection(String videoUrl, int index, AppLocalizations l) {
-    final embedUrl = kIsWeb ? null : _youtubeEmbedUrl(videoUrl);
+    final embedUrl = _youtubeEmbedUrl(videoUrl);
     if (embedUrl == null) {
-      // Non-YouTube link (or web platform) — open externally.
+      // Non-YouTube link — open externally.
       return ScaleOnTap(
         onTap: () => _openUrl(videoUrl),
         child: Container(
@@ -295,7 +319,9 @@ class _BranchesScreenState extends State<BranchesScreen> {
         borderRadius: BorderRadius.circular(AppRadius.md),
         child: AspectRatio(
           aspectRatio: 16 / 9,
-          child: WebViewWidget(controller: _videoController(index, embedUrl)),
+          child: kIsWeb
+              ? buildWebVideoEmbed(embedUrl)
+              : WebViewWidget(controller: _videoController(index, embedUrl)),
         ),
       ),
     ]);

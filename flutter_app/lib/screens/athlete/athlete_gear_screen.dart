@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../services/api_service.dart';
+import '../../services/offline/offline_repository.dart';
+import '../../services/offline/connectivity_service.dart';
 import '../../theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
 
@@ -21,12 +22,28 @@ class AthleteGearScreenState extends State<AthleteGearScreen> {
 
   Future<void> _fetchGear({bool silent = false}) async {
     try {
-      final api = ApiService();
-      final me = await api.get('/users/me');
-      final res = await api.get('/gear/${me.data['branch_id']}');
-      gearMessage = res.data?['message'];
+      // Instant cache reads — show data before any network round-trip
+      final cachedMe = OfflineRepository.getCached('/users/me');
+      final cachedBranchId = cachedMe is Map ? cachedMe['branch_id'] : null;
+      if (cachedBranchId != null) {
+        final cachedGear = OfflineRepository.getCached('/gear/$cachedBranchId');
+        if (cachedGear is Map) {
+          gearMessage = cachedGear['message']?.toString();
+          if (mounted) setState(() => loading = false);
+        }
+      }
+
+      // Cache-first fetch with background refresh
+      final me = await OfflineRepository.getUserMe();
+      final branchId = me['branch_id'];
+      if (branchId != null) {
+        final gear = await OfflineRepository.getGear(branchId, onFresh: (d) {
+          if (mounted && d is Map) setState(() => gearMessage = d['message']?.toString());
+        });
+        gearMessage = gear['message']?.toString();
+      }
       _fetched = true;
-    } catch (_) { gearMessage = null; }
+    } catch (_) {}
     finally { if (mounted) setState(() => loading = false); }
   }
 
@@ -49,11 +66,17 @@ class AthleteGearScreenState extends State<AthleteGearScreen> {
             child: loading
                 ? const ShimmerList(count: 3)
                 : (gearMessage == null || gearMessage!.isEmpty)
-                    ? EmptyState(
-                        icon: Icons.backpack_outlined,
-                        title: l.translate('gear_update'),
-                        message: l.translate('no_gear_posted'),
-                      )
+                    ? (!ConnectivityService.isOnline
+                        ? EmptyState(
+                            icon: Icons.cloud_off_rounded,
+                            title: l.translate('no_connection'),
+                            message: l.translate('no_connection_data'),
+                          )
+                        : EmptyState(
+                            icon: Icons.backpack_outlined,
+                            title: l.translate('gear_update'),
+                            message: l.translate('no_gear_posted'),
+                          ))
                     : SingleChildScrollView(
                         physics: const BouncingScrollPhysics(),
                         padding: const EdgeInsets.all(AppSpacing.xl),

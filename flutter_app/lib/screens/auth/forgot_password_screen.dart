@@ -29,8 +29,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
   bool _checkOnline() {
     if (ConnectivityService.isOnline) return true;
+    final l = AppLocalizations.of(context);
     AppFeedback.showError(context, Exception(),
-        fallback: "You're offline — please connect to the internet to reset your password.");
+        fallback: l.translate('offline_reset_password'));
     return false;
   }
 

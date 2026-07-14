@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
-import 'package:dio/dio.dart';
 import '../../services/api_service.dart';
+import '../../services/offline/offline_repository.dart';
+import '../../services/offline/connectivity_service.dart';
+import '../../widgets/app_feedback.dart';
 import '../../theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
 
@@ -18,19 +20,39 @@ class _ManageCoachesScreenState extends State<ManageCoachesScreen> {
   bool loading = true;
 
   @override
-  void initState() { super.initState(); _loadData(); }
+  void initState() {
+    super.initState();
+    // Cache-first: show instantly from cache while fresh data loads.
+    final cachedCoaches = OfflineRepository.getCached('/head-coach/coaches');
+    final cachedBranches = OfflineRepository.getCached('/head-coach/branches');
+    if (cachedCoaches is List) coaches = cachedCoaches;
+    if (cachedBranches is List) branches = cachedBranches;
+    if (coaches.isNotEmpty) loading = false;
+    _loadData();
+  }
 
   Future<void> _loadData() async {
-    setState(() => loading = true);
+    if (coaches.isEmpty) setState(() => loading = true);
     try {
-      final results = await Future.wait([ApiService().get('/head-coach/coaches'), ApiService().get('/head-coach/branches')]);
-      coaches = results[0].data;
-      branches = results[1].data;
-    } catch (_) {
-      if (mounted) _msg(AppLocalizations.of(context).translate('failed_to_load'), error: true);
+      final results = await Future.wait([
+        OfflineRepository.getCoaches(onFresh: (fresh) { if (mounted && fresh is List) setState(() => coaches = fresh); }),
+        OfflineRepository.getBranches(onFresh: (fresh) { if (mounted && fresh is List) setState(() => branches = fresh); }),
+      ]);
+      coaches = results[0];
+      branches = results[1];
+    } catch (e) {
+      if (mounted) AppFeedback.showError(context, e, fallback: AppLocalizations.of(context).translate('failed_to_load'));
     } finally {
       if (mounted) setState(() => loading = false);
     }
+  }
+
+  /// Writes on this screen are online-only. Returns true (and warns) if offline.
+  bool _blockIfOffline() {
+    if (ConnectivityService.isOnline) return false;
+    AppFeedback.showError(context, Exception(),
+        fallback: AppLocalizations.of(context).translate('offline_manage_coaches'));
+    return true;
   }
 
   void _msg(String msg, {bool error = false}) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: error ? AppColors.error : AppColors.success));
@@ -121,6 +143,7 @@ class _ManageCoachesScreenState extends State<ManageCoachesScreen> {
                   child: ElevatedButton(
                     onPressed: creating ? null : () async {
                       if (nameCtrl.text.trim().isEmpty || emailCtrl.text.trim().isEmpty) { _msg(l.translate('name_email_required'), error: true); return; }
+                      if (_blockIfOffline()) return;
                       setSheetState(() => creating = true);
                       try {
                         final res = await ApiService().post('/head-coach/coaches', data: {
@@ -132,7 +155,7 @@ class _ManageCoachesScreenState extends State<ManageCoachesScreen> {
                         _showCredentialsSheet(res.data['email'], res.data['password'], nameCtrl.text.trim());
                         _loadData();
                       } catch (e) {
-                        _msg(_extractError(e, l.translate('failed_create_coach')), error: true);
+                        if (mounted) AppFeedback.showError(context, e, fallback: l.translate('failed_create_coach'));
                         setSheetState(() => creating = false);
                       }
                     },
@@ -209,7 +232,7 @@ class _ManageCoachesScreenState extends State<ManageCoachesScreen> {
     return GestureDetector(
       onTap: () {
         Clipboard.setData(ClipboardData(text: value));
-        _msg('$label copied!');
+        _msg('$label ${AppLocalizations.of(context).translate("copied_label")}');
       },
       child: Container(
         padding: const EdgeInsets.all(14),
@@ -277,6 +300,7 @@ class _ManageCoachesScreenState extends State<ManageCoachesScreen> {
                 const SizedBox(height: 28),
                 SizedBox(width: double.infinity, child: ElevatedButton(
                   onPressed: saving ? null : () async {
+                    if (_blockIfOffline()) return;
                     setSheetState(() => saving = true);
                     try {
                       await ApiService().put('/head-coach/coaches/${coach['id']}', data: {'name': nameCtrl.text.trim(), 'email': emailCtrl.text.trim(), 'phone': phoneCtrl.text.trim(), 'branch_id': selectedBranch});
@@ -284,7 +308,10 @@ class _ManageCoachesScreenState extends State<ManageCoachesScreen> {
                       Navigator.pop(ctx);
                       _msg(l.translate('coach_updated'));
                       _loadData();
-                    } catch (e) { _msg(_extractError(e, l.translate('failed_generic')), error: true); setSheetState(() => saving = false); }
+                    } catch (e) {
+                      if (mounted) AppFeedback.showError(context, e, fallback: l.translate('failed_generic'));
+                      setSheetState(() => saving = false);
+                    }
                   },
                   style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
                   child: saving ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white)) : Text(l.translate('save_changes')),
@@ -319,13 +346,16 @@ class _ManageCoachesScreenState extends State<ManageCoachesScreen> {
           SizedBox(width: double.infinity, child: ElevatedButton(
             onPressed: () async {
               if (passCtrl.text.trim().isEmpty) return;
+              if (_blockIfOffline()) return;
               try {
                 await ApiService().post('/head-coach/coaches/${coach['id']}/reset-password', data: {'new_password': passCtrl.text.trim()});
                 if (!ctx.mounted) return;
                 Navigator.pop(ctx);
                 _msg(l.translate('password_reset_done'));
                 _loadData();
-              } catch (_) { _msg(l.translate('failed_generic'), error: true); }
+              } catch (e) {
+                if (mounted) AppFeedback.showError(context, e, fallback: l.translate('failed_generic'));
+              }
             },
             style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
             child: Text(l.translate('reset_password')),
@@ -391,13 +421,16 @@ class _ManageCoachesScreenState extends State<ManageCoachesScreen> {
               SizedBox(width: double.infinity, child: ElevatedButton(
                 onPressed: () async {
                   if (selectedBranch == null) return;
+                  if (_blockIfOffline()) return;
                   try {
                     await ApiService().put('/head-coach/coaches/${coach['id']}', data: {'branch_id': selectedBranch});
                     if (!ctx.mounted) return;
                     Navigator.pop(ctx);
                     _msg(l.translate('branch_assigned'));
                     _loadData();
-                  } catch (e) { _msg(_extractError(e, l.translate('failed_generic')), error: true); }
+                  } catch (e) {
+                    if (mounted) AppFeedback.showError(context, e, fallback: l.translate('failed_generic'));
+                  }
                 },
                 style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
                 child: Text(l.translate('assign_branch')),
@@ -419,7 +452,14 @@ class _ManageCoachesScreenState extends State<ManageCoachesScreen> {
       actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l.translate('cancel'))), TextButton(onPressed: () => Navigator.pop(ctx, true), style: TextButton.styleFrom(foregroundColor: AppColors.error), child: Text(l.translate('delete')))],
     ));
     if (ok != true) return;
-    try { await ApiService().delete('/head-coach/coaches/$id'); _msg(l.translate('coach_deleted')); _loadData(); } catch (_) { _msg(l.translate('failed_generic'), error: true); }
+    if (_blockIfOffline()) return;
+    try {
+      await ApiService().delete('/head-coach/coaches/$id');
+      _msg(l.translate('coach_deleted'));
+      _loadData();
+    } catch (e) {
+      if (mounted) AppFeedback.showError(context, e, fallback: l.translate('failed_generic'));
+    }
   }
 
   // ═══════════════════════════════════════════════════════
@@ -434,11 +474,6 @@ class _ManageCoachesScreenState extends State<ManageCoachesScreen> {
         decoration: InputDecoration(hintText: label, prefixIcon: Icon(icon, color: AppColors.textTertiary, size: 20)),
       ),
     );
-  }
-
-  String _extractError(dynamic e, String fallback) {
-    if (e is DioException && e.response?.data != null) return e.response!.data['detail']?.toString() ?? fallback;
-    return fallback;
   }
 
   // ═══════════════════════════════════════════════════════
@@ -475,12 +510,18 @@ class _ManageCoachesScreenState extends State<ManageCoachesScreen> {
         child: coaches.isEmpty
             ? ListView(physics: const AlwaysScrollableScrollPhysics(), children: [
                 const SizedBox(height: 60),
-                EmptyState(
-                  icon: Icons.people_outline_rounded,
-                  title: AppLocalizations.of(context).translate('no_coaches'),
-                  actionLabel: AppLocalizations.of(context).translate('add_first_coach'),
-                  onAction: _showCreateSheet,
-                ),
+                !ConnectivityService.isOnline
+                    ? EmptyState(
+                        icon: Icons.wifi_off_rounded,
+                        title: AppLocalizations.of(context).translate('no_connection'),
+                        message: AppLocalizations.of(context).translate('offline_manage_coaches'),
+                      )
+                    : EmptyState(
+                        icon: Icons.people_outline_rounded,
+                        title: AppLocalizations.of(context).translate('no_coaches'),
+                        actionLabel: AppLocalizations.of(context).translate('add_first_coach'),
+                        onAction: _showCreateSheet,
+                      ),
               ])
             : ListView.builder(
                 physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),

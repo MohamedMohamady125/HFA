@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import '../../services/offline/offline_repository.dart';
+import '../../services/offline/connectivity_service.dart';
+import '../../widgets/app_feedback.dart';
 import '../../theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -18,6 +20,8 @@ class CoachThreadsScreenState extends State<CoachThreadsScreen> {
   List<dynamic> messages = [];
   final _msgCtrl = TextEditingController();
   bool loading = true, sending = false;
+  // Show the "saved offline" notice at most once per screen session.
+  bool _queuedNoticeShown = false;
   int? threadId, displayBranchId;
   String branchName = '';
   final _scrollCtrl = ScrollController();
@@ -93,9 +97,20 @@ class CoachThreadsScreenState extends State<CoachThreadsScreen> {
     _msgCtrl.clear();
     _scrollToBottom();
     try {
-      await OfflineRepository.postMessage(threadId!, text);
-      await _loadMessages();
-    } catch (_) { setState(() { messages.removeWhere((m) => m['id'] == optimistic['id']); }); }
+      final r = await OfflineRepository.postMessage(threadId!, text);
+      if (r.synced) {
+        await _loadMessages();
+      } else if (mounted && !_queuedNoticeShown) {
+        // Keep the optimistic bubble (clock icon = pending sync).
+        _queuedNoticeShown = true;
+        AppFeedback.showQueued(context);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() { messages.removeWhere((m) => m['id'] == optimistic['id']); });
+        AppFeedback.showError(context, e);
+      }
+    }
     finally { if (mounted) setState(() => sending = false); }
   }
 
@@ -149,7 +164,13 @@ class CoachThreadsScreenState extends State<CoachThreadsScreen> {
               child: Container(
                 color: AppColors.scaffoldBg,
                 child: messages.isEmpty
-                    ? EmptyState(icon: Icons.chat_bubble_outline_rounded, title: AppLocalizations.of(context).translate('no_messages'))
+                    ? (!ConnectivityService.isOnline && threadId == null
+                        ? EmptyState(
+                            icon: Icons.wifi_off_rounded,
+                            title: AppLocalizations.of(context).translate('no_connection'),
+                            message: AppLocalizations.of(context).translate('offline_load_chat'),
+                          )
+                        : EmptyState(icon: Icons.chat_bubble_outline_rounded, title: AppLocalizations.of(context).translate('no_messages')))
                     : ListView.builder(
                         controller: _scrollCtrl,
                         physics: const BouncingScrollPhysics(),
@@ -217,7 +238,7 @@ class CoachThreadsScreenState extends State<CoachThreadsScreen> {
   Widget _buildMsg(int i) {
     final msg = Map<String, dynamic>.from(messages[i]);
     final createdAt = msg['created_at']?.toString() ?? DateTime.now().toIso8601String();
-    final author = msg['author']?.toString() ?? 'Unknown';
+    final author = msg['author']?.toString() ?? AppLocalizations.of(context).translate('unknown_author');
     final message = msg['message']?.toString() ?? '';
     final isMine = msg['user_id'] == user?['id'];
     final isSending = msg['_sending'] == true;

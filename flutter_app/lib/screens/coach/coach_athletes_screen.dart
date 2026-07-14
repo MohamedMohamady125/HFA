@@ -4,8 +4,9 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'dart:convert';
 import '../../providers/auth_provider.dart';
-import '../../services/api_service.dart';
 import '../../services/offline/offline_repository.dart';
+import '../../services/offline/connectivity_service.dart';
+import '../../widgets/app_feedback.dart';
 import '../../theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
 
@@ -37,7 +38,10 @@ class CoachAthletesScreenState extends State<CoachAthletesScreen> {
     if (!silent && athletes.isEmpty) setState(() => loading = true);
     final branchId = context.read<AuthProvider>().branchId;
     try {
-      final data = await OfflineRepository.getAthletesFull(branchId!);
+      final data = await OfflineRepository.getAthletesFull(
+        branchId!,
+        onFresh: (fresh) { if (mounted && fresh is List) setState(() => athletes = fresh); },
+      );
       athletes = data;
     } catch (_) {} finally { if (mounted) setState(() => loading = false); }
   }
@@ -82,7 +86,13 @@ class CoachAthletesScreenState extends State<CoachAthletesScreen> {
                 child: filtered.isEmpty
                     ? ListView(physics: const AlwaysScrollableScrollPhysics(), children: [
                         const SizedBox(height: 60),
-                        EmptyState(icon: Icons.people_outline_rounded, title: l.translate('no_athletes')),
+                        athletes.isEmpty && !ConnectivityService.isOnline
+                            ? EmptyState(
+                                icon: Icons.wifi_off_rounded,
+                                title: l.translate('no_connection'),
+                                message: l.translate('offline_pull_refresh'),
+                              )
+                            : EmptyState(icon: Icons.people_outline_rounded, title: l.translate('no_athletes')),
                       ])
                     : ListView.builder(
                         physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
@@ -146,28 +156,52 @@ class _AthleteDetailScreenState extends State<_AthleteDetailScreen> {
   Map<String, dynamic> get a => widget.athlete;
 
   @override
-  void initState() { super.initState(); _fetchMonth(); _fetchHealthRecords(); _fetchCoachNotes(); }
+  void initState() {
+    super.initState();
+    // Cache-first sync reads so data shows instantly (even offline).
+    final cachedMonth = OfflineRepository.getCached('/attendance/athlete/${a['user_id']}/month/${_currentMonth.year}/${_currentMonth.month}');
+    if (cachedMonth is List) { _attMap = _toAttMap(cachedMonth); _loadingCal = false; }
+    final cachedHealth = OfflineRepository.getCached('/athlete/${a['user_id']}/health-records');
+    if (cachedHealth is List) _healthRecords = cachedHealth;
+    final cachedNotes = OfflineRepository.getCached('/coach/notes/${a['athlete_id']}');
+    if (cachedNotes is List) _coachNotes = cachedNotes;
+    _fetchMonth();
+    _fetchHealthRecords();
+    _fetchCoachNotes();
+  }
+
+  Map<String, String> _toAttMap(List data) =>
+      { for (var r in data) r['date'].toString(): r['status']?.toString() ?? '' };
 
   Future<void> _fetchMonth() async {
-    setState(() => _loadingCal = true);
+    if (_attMap.isEmpty) setState(() => _loadingCal = true);
     try {
-      final res = await ApiService().get('/attendance/athlete/${a['user_id']}/month/${_currentMonth.year}/${_currentMonth.month}');
-      _attMap = { for (var r in (res.data as List)) r['date'].toString(): r['status']?.toString() ?? '' };
+      final data = await OfflineRepository.getAttendanceMonth(
+        a['user_id'], _currentMonth.year, _currentMonth.month,
+        onFresh: (fresh) { if (mounted && fresh is List) setState(() => _attMap = _toAttMap(fresh)); },
+      );
+      _attMap = _toAttMap(data);
     } catch (_) { _attMap = {}; }
     finally { if (mounted) setState(() => _loadingCal = false); }
   }
 
   Future<void> _fetchHealthRecords() async {
     try {
-      final res = await ApiService().get('/athlete/${a['user_id']}/health-records');
-      if (mounted) setState(() => _healthRecords = res.data is List ? res.data : []);
+      final data = await OfflineRepository.cachedGet(
+        '/athlete/${a['user_id']}/health-records',
+        onFresh: (fresh) { if (mounted && fresh is List) setState(() => _healthRecords = fresh); },
+      );
+      if (mounted && data is List) setState(() => _healthRecords = data);
     } catch (_) {}
   }
 
   Future<void> _fetchCoachNotes() async {
     try {
-      final res = await ApiService().get('/coach/notes/${a['athlete_id']}');
-      if (mounted) setState(() => _coachNotes = res.data is List ? res.data : []);
+      final data = await OfflineRepository.getCoachNotes(
+        a['athlete_id'],
+        onFresh: (fresh) { if (mounted && fresh is List) setState(() => _coachNotes = fresh); },
+      );
+      if (mounted && data is List) setState(() => _coachNotes = data);
     } catch (_) {}
   }
 
@@ -204,14 +238,22 @@ class _AthleteDetailScreenState extends State<_AthleteDetailScreen> {
     );
 
     if (result != true || noteCtrl.text.trim().isEmpty) return;
+    final noteText = noteCtrl.text.trim();
+    // Optimistic: show the note immediately, even offline.
+    setState(() => _coachNotes = [
+      {'note': noteText, 'period_label': periodLabel, 'coach_name': ''},
+      ..._coachNotes,
+    ]);
     try {
-      await ApiService().post('/coach/notes', data: {
-        'athlete_id': a['athlete_id'],
-        'note': noteCtrl.text.trim(),
-        'period_label': periodLabel,
-      });
-      _fetchCoachNotes();
-    } catch (_) {}
+      final r = await OfflineRepository.saveCoachNote(a['athlete_id'], noteText);
+      if (!mounted) return;
+      AppFeedback.showWriteResult(context, r, successMessage: l.translate('saved'));
+      if (r.synced) _fetchCoachNotes();
+    } catch (e) {
+      if (!mounted) return;
+      AppFeedback.showError(context, e);
+      setState(() => _coachNotes = _coachNotes.where((n) => n['note'] != noteText || n['coach_name'] != '').toList());
+    }
   }
 
   void _prevMonth() { setState(() => _currentMonth = DateTime(_currentMonth.year, _currentMonth.month - 1)); _fetchMonth(); }

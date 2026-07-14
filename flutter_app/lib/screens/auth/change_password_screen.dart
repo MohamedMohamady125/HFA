@@ -26,7 +26,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     }
     if (!ConnectivityService.isOnline) {
       AppFeedback.showError(context, Exception(),
-          fallback: "You're offline — please connect to the internet to change your password.");
+          fallback: l.translate('offline_change_password'));
       return;
     }
     HapticFeedback.mediumImpact();

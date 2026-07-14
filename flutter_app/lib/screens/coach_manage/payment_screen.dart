@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/offline/offline_repository.dart';
+import '../../services/offline/connectivity_service.dart';
+import '../../widgets/app_feedback.dart';
 import '../../theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
 
@@ -18,24 +20,79 @@ class _PaymentScreenState extends State<PaymentScreen> {
   List<String> sessionDates = [];
   bool loading = true;
   String search = '';
+  // Show the "saved offline" notice at most once per screen session.
+  bool _queuedNoticeShown = false;
+
   @override
-  void initState() { super.initState(); _fetchSummary(); }
+  void initState() {
+    super.initState();
+    // Cache-first: populate synchronously so there's no shimmer when cached.
+    final branchId = context.read<AuthProvider>().branchId;
+    if (branchId != null) {
+      final cached = OfflineRepository.getCached('/payments/summary/$branchId');
+      if (cached is Map) {
+        records = (cached['records'] as List?) ?? [];
+        sessionDates = List<String>.from(cached['session_dates'] ?? []);
+        if (records.isNotEmpty) loading = false;
+      }
+    }
+    _fetchSummary();
+  }
+
+  void _applySummary(dynamic data) {
+    if (data is! Map) return;
+    records = data['records'] ?? [];
+    sessionDates = List<String>.from(data['session_dates'] ?? []);
+  }
 
   Future<void> _fetchSummary({bool silent = false}) async {
-    if (!silent) setState(() => loading = true);
+    if (!silent && records.isEmpty) setState(() => loading = true);
     final branchId = context.read<AuthProvider>().branchId;
     try {
-      final data = await OfflineRepository.getPaymentSummary(branchId!);
-      records = data['records'] ?? [];
-      sessionDates = List<String>.from(data['session_dates'] ?? []);
+      final data = await OfflineRepository.getPaymentSummary(
+        branchId!,
+        onFresh: (fresh) { if (mounted) setState(() => _applySummary(fresh)); },
+      );
+      _applySummary(data);
     } catch (_) {} finally { if (mounted) setState(() => loading = false); }
   }
 
   void _markPayment(int athleteId, String date, String status) {
     HapticFeedback.lightImpact();
     final branchId = context.read<AuthProvider>().branchId;
-    setState(() { for (var r in records) { if (r['athlete_id'] == athleteId) { (r['statuses'] as Map)[date] = status; break; } } });
-    OfflineRepository.markPayment(athleteId, date, status, branchId!);
+    String? prevStatus;
+    setState(() {
+      for (var r in records) {
+        if (r['athlete_id'] == athleteId) {
+          prevStatus = ((r['statuses'] as Map?) ?? {})[date]?.toString();
+          (r['statuses'] as Map)[date] = status;
+          break;
+        }
+      }
+    });
+    // Sync in background; queue offline. Revert only on a real server rejection.
+    () async {
+      try {
+        final r = await OfflineRepository.markPayment(athleteId, date, status, branchId!);
+        if (!mounted) return;
+        if (!r.synced && !_queuedNoticeShown) {
+          _queuedNoticeShown = true;
+          AppFeedback.showQueued(context);
+        }
+      } catch (e) {
+        if (!mounted) return;
+        AppFeedback.showError(context, e);
+        setState(() {
+          for (var r in records) {
+            if (r['athlete_id'] == athleteId) {
+              if (prevStatus == null) { (r['statuses'] as Map).remove(date); }
+              else { (r['statuses'] as Map)[date] = prevStatus; }
+              break;
+            }
+          }
+        });
+      }
+    }();
   }
 
   @override
@@ -82,7 +139,13 @@ class _PaymentScreenState extends State<PaymentScreen> {
                 child: filtered.isEmpty
                     ? ListView(physics: const AlwaysScrollableScrollPhysics(), children: [
                         const SizedBox(height: 60),
-                        EmptyState(icon: Icons.payments_rounded, title: l.translate('no_athletes')),
+                        records.isEmpty && !ConnectivityService.isOnline
+                            ? EmptyState(
+                                icon: Icons.wifi_off_rounded,
+                                title: l.translate('no_connection'),
+                                message: l.translate('offline_pull_refresh'),
+                              )
+                            : EmptyState(icon: Icons.payments_rounded, title: l.translate('no_athletes')),
                       ])
                     : ListView.builder(
                         physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),

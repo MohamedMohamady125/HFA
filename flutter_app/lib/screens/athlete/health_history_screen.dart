@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
-import '../../services/api_service.dart';
+import '../../services/offline/offline_repository.dart';
+import '../../services/offline/connectivity_service.dart';
+import '../../widgets/app_feedback.dart';
 import '../../theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
 
@@ -18,14 +21,27 @@ class _HealthHistoryScreenState extends State<HealthHistoryScreen> {
   bool loading = true;
 
   @override
-  void initState() { super.initState(); _fetch(); }
+  void initState() {
+    super.initState();
+    // Instant cache read — no spinner if we already have data
+    final cached = OfflineRepository.getCached('/athlete/health-records');
+    if (cached is List) {
+      records = cached;
+      loading = false;
+    }
+    _fetch();
+  }
 
   Future<void> _fetch() async {
-    try {
-      final res = await ApiService().get('/athlete/health-records');
-      records = res.data is List ? res.data : [];
-    } catch (_) {}
-    if (mounted) setState(() => loading = false);
+    final data = await OfflineRepository.getHealthRecords(onFresh: (fresh) {
+      if (mounted && fresh is List) setState(() => records = fresh);
+    });
+    if (mounted) {
+      setState(() {
+        records = data;
+        loading = false;
+      });
+    }
   }
 
   Future<void> _deleteRecord(int id) async {
@@ -45,12 +61,22 @@ class _HealthHistoryScreenState extends State<HealthHistoryScreen> {
         ],
       ),
     );
-    if (confirm != true) return;
+    if (confirm != true || !mounted) return;
+    HapticFeedback.mediumImpact();
+    // Optimistic — remove from the list immediately
+    setState(() => records.removeWhere((r) => r['id'] == id));
     try {
-      await ApiService().delete('/athlete/health-records/$id');
-      records.removeWhere((r) => r['id'] == id);
-      if (mounted) setState(() {});
-    } catch (_) {}
+      final result = await OfflineRepository.deleteHealthRecord(id);
+      if (mounted) {
+        AppFeedback.showWriteResult(context, result,
+            successMessage: l.translate('record_deleted'));
+      }
+    } catch (e) {
+      if (mounted) {
+        AppFeedback.showError(context, e);
+        _fetch(); // restore the record on real server error
+      }
+    }
   }
 
   void _openCreateDialog() {
@@ -82,11 +108,17 @@ class _HealthHistoryScreenState extends State<HealthHistoryScreen> {
             child: loading
                 ? const ShimmerList(count: 3)
                 : records.isEmpty
-                    ? EmptyState(
-                        icon: Icons.medical_information_outlined,
-                        title: l.translate('no_health_records'),
-                        message: l.translate('tap_add_record'),
-                      )
+                    ? (!ConnectivityService.isOnline
+                        ? EmptyState(
+                            icon: Icons.cloud_off_rounded,
+                            title: l.translate('no_connection'),
+                            message: l.translate('no_connection_data'),
+                          )
+                        : EmptyState(
+                            icon: Icons.medical_information_outlined,
+                            title: l.translate('no_health_records'),
+                            message: l.translate('tap_add_record'),
+                          ))
                     : RefreshIndicator(
                         onRefresh: _fetch,
                         color: AppColors.accent,
@@ -100,7 +132,7 @@ class _HealthHistoryScreenState extends State<HealthHistoryScreen> {
                             final date = r['created_at'] != null ? DateTime.tryParse(r['created_at']) : null;
                             final dateStr = date != null ? '${date.day}/${date.month}/${date.year}' : '';
 
-                            return FadeSlideIn(delay: i * 50, child: AppCard(
+                            return _animatedItem(i, AppCard(
                               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                                 Row(children: [
                                   const IconBadge(icon: Icons.medical_information_rounded, color: AppColors.error),
@@ -157,6 +189,12 @@ class _HealthHistoryScreenState extends State<HealthHistoryScreen> {
     );
   }
 
+  /// Staggered entrance for list items (capped so long lists stay snappy).
+  Widget _animatedItem(int i, Widget child) => child
+      .animate(delay: (40 * (i > 8 ? 8 : i)).ms)
+      .fadeIn(duration: 250.ms)
+      .slideY(begin: 0.08, curve: Curves.easeOutCubic);
+
   void _showFullImage(Uint8List bytes, String name) {
     showDialog(
       context: context,
@@ -205,6 +243,7 @@ class _CreateHealthRecordScreenState extends State<_CreateHealthRecordScreen> {
       return;
     }
 
+    HapticFeedback.mediumImpact();
     setState(() => _saving = true);
     try {
       final filesData = <Map<String, String>>[];
@@ -216,7 +255,7 @@ class _CreateHealthRecordScreenState extends State<_CreateHealthRecordScreen> {
         });
       }
 
-      await ApiService().post('/athlete/health-records', data: {
+      final result = await OfflineRepository.addHealthRecord({
         'title': _titleCtrl.text.trim(),
         'notes': _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
         'files': filesData.isEmpty ? null : filesData,
@@ -224,11 +263,11 @@ class _CreateHealthRecordScreenState extends State<_CreateHealthRecordScreen> {
 
       widget.onCreated();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l.translate('record_created')), backgroundColor: AppColors.success));
+        AppFeedback.showWriteResult(context, result, successMessage: l.translate('record_created'));
         Navigator.pop(context);
       }
-    } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l.translate('save_failed')), backgroundColor: AppColors.error));
+    } catch (e) {
+      if (mounted) AppFeedback.showError(context, e, fallback: l.translate('save_failed'));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
