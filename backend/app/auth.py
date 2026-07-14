@@ -1,5 +1,6 @@
 import random
 import string
+import threading
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, EmailStr
@@ -216,6 +217,13 @@ def change_password(data: ChangePasswordRequest, user=Depends(get_current_user))
     return {"message": "Password changed successfully"}
 
 
+def _send_email_safe(email: str, code: str):
+    try:
+        send_reset_email(email, code)
+    except Exception as e:
+        print(f"Email send failed: {e}")
+
+
 class ForgotPasswordRequest(BaseModel):
     email: EmailStr
 
@@ -246,12 +254,9 @@ def forgot_password(data: ForgotPasswordRequest):
     cursor.close()
     conn.close()
 
-    # Send the code via email
-    try:
-        send_reset_email(data.email, code)
-    except Exception as e:
-        print(f"Email send failed: {e}")
-        raise HTTPException(status_code=500, detail="Failed to send reset email. Please try again later.")
+    # Send the code via email in background so the response returns immediately
+    threading.Thread(target=_send_email_safe, args=(data.email, code)).start()
+
     return {"message": "If the account exists, a reset code will be sent."}
 
 
