@@ -1,6 +1,7 @@
 import json
 import os
 import logging
+import threading
 
 logger = logging.getLogger(__name__)
 
@@ -98,11 +99,13 @@ def _send_fcm_v1(token: str, title: str, body: str, access_token: str, project_i
     req.add_header("Content-Type", "application/json")
 
     try:
-        with urllib.request.urlopen(req) as resp:
+        with urllib.request.urlopen(req, timeout=10) as resp:
             return {"success": True, "status": resp.status}
     except urllib.error.HTTPError as e:
         error_body = e.read().decode("utf-8", errors="replace")
         return {"success": False, "status": e.code, "error": error_body}
+    except Exception as e:
+        return {"success": False, "status": None, "error": str(e)}
 
 
 # Arabic translations for push notification titles
@@ -129,19 +132,26 @@ def _localize_body(body: str, lang: str, title: str) -> str:
     return body
 
 
-def send_push_to_user(cursor, user_id: int, title: str, body: str):
-    """Send push notification to all devices registered for a user."""
+def _send_pushes_worker(user_ids: list, title: str, body: str):
+    """Runs in a background thread: fetches token once, uses its own DB connection."""
+    from app.database import get_connection, get_cursor
+
+    conn = None
     try:
         access_token, project_id = _get_access_token()
         if not access_token:
             logger.warning("Could not get FCM access token — push disabled")
             return
 
-        cursor.execute("SELECT token, lang FROM device_tokens WHERE user_id = %s", (user_id,))
+        conn = get_connection()
+        cursor = get_cursor(conn)
+        cursor.execute(
+            "SELECT user_id, token, lang FROM device_tokens WHERE user_id = ANY(%s)",
+            (list(user_ids),)
+        )
         rows = cursor.fetchall()
-        if not rows:
-            return
 
+        invalid_tokens = []
         for row in rows:
             device_token = row["token"]
             lang = row.get("lang", "en") or "en"
@@ -150,16 +160,41 @@ def send_push_to_user(cursor, user_id: int, title: str, body: str):
             result = _send_fcm_v1(device_token, localized_title, localized_body, access_token, project_id)
             if not result["success"]:
                 logger.error(f"FCM send failed for token {device_token[:20]}...: {result}")
-                # Clean up invalid tokens
-                error_str = result.get("error", "")
+                error_str = result.get("error", "") or ""
                 if any(code in error_str for code in ["NOT_FOUND", "UNREGISTERED", "INVALID_ARGUMENT"]):
-                    cursor.execute("DELETE FROM device_tokens WHERE token = %s", (device_token,))
+                    invalid_tokens.append(device_token)
 
+        # Clean up invalid tokens
+        if invalid_tokens:
+            cursor.execute("DELETE FROM device_tokens WHERE token = ANY(%s)", (invalid_tokens,))
+            conn.commit()
+
+        cursor.close()
     except Exception as e:
-        logger.error(f"Push notification failed for user {user_id}: {e}")
+        logger.error(f"Push notification batch failed: {e}")
+    finally:
+        if conn:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
+
+def send_push_to_user(cursor, user_id: int, title: str, body: str):
+    """Send push notification to all devices registered for a user (non-blocking)."""
+    send_push_to_users(cursor, [user_id], title, body)
 
 
 def send_push_to_users(cursor, user_ids: list, title: str, body: str):
-    """Send push notification to multiple users."""
-    for uid in user_ids:
-        send_push_to_user(cursor, uid, title, body)
+    """Send push notifications in a background thread so the request returns immediately.
+
+    The `cursor` argument is unused (kept for call-site compatibility); the worker
+    opens its own DB connection since the request's cursor is closed after return.
+    """
+    if not user_ids:
+        return
+    threading.Thread(
+        target=_send_pushes_worker,
+        args=(list(user_ids), title, body),
+        daemon=True,
+    ).start()
