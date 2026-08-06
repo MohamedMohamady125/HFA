@@ -49,6 +49,8 @@ class AppLocalizations {
       'join_academy': 'Join our fitness academy',
       'full_name': 'FULL NAME',
       'phone': 'PHONE',
+      'phone_optional': 'PHONE (OPTIONAL)',
+      'phone_verify_hint': 'Strongly recommended \u2014 your coach uses your phone number to verify your identity and approve your registration quickly. Without it, your approval may be delayed until you verify in person at your branch.',
       'confirm_password': 'CONFIRM PASSWORD',
       'branch': 'BRANCH',
       'select_branch': 'Select your branch',
@@ -369,6 +371,9 @@ class AppLocalizations {
       'delete_account_password': 'Enter your password to confirm',
       'account_deleted': 'Account deleted successfully',
       'privacy_policy': 'Privacy Policy',
+      'terms_of_service': 'Terms of Service',
+      'agree_terms_prefix': 'By registering, you agree to our ',
+      'and_word': ' and ',
 
       // Offline
       'no_connection': 'No connection',
@@ -436,6 +441,8 @@ class AppLocalizations {
       'join_academy': '\u0627\u0646\u0636\u0645 \u0625\u0644\u0649 \u0623\u0643\u0627\u062f\u064a\u0645\u064a\u0629 \u0627\u0644\u0644\u064a\u0627\u0642\u0629',
       'full_name': '\u0627\u0644\u0627\u0633\u0645 \u0627\u0644\u0643\u0627\u0645\u0644',
       'phone': '\u0631\u0642\u0645 \u0627\u0644\u0647\u0627\u062a\u0641',
+      'phone_optional': '\u0631\u0642\u0645 \u0627\u0644\u0647\u0627\u062a\u0641 (\u0627\u062e\u062a\u064a\u0627\u0631\u064a)',
+      'phone_verify_hint': '\u064a\u064f\u0646\u0635\u062d \u0628\u0647 \u0628\u0634\u062f\u0629 \u2014 \u064a\u0633\u062a\u062e\u062f\u0645 \u0627\u0644\u0645\u062f\u0631\u0628 \u0631\u0642\u0645 \u0647\u0627\u062a\u0641\u0643 \u0644\u0644\u062a\u062d\u0642\u0642 \u0645\u0646 \u0647\u0648\u064a\u062a\u0643 \u0648\u0627\u0639\u062a\u0645\u0627\u062f \u062a\u0633\u062c\u064a\u0644\u0643 \u0628\u0633\u0631\u0639\u0629. \u0641\u064a \u062d\u0627\u0644 \u0639\u062f\u0645 \u0625\u062f\u062e\u0627\u0644 \u0631\u0642\u0645 \u0627\u0644\u0647\u0627\u062a\u0641\u060c \u0642\u062f \u064a\u062a\u0623\u062e\u0631 \u0627\u0639\u062a\u0645\u0627\u062f \u0627\u0644\u062a\u0633\u062c\u064a\u0644 \u0644\u062d\u064a\u0646 \u0627\u0644\u062a\u062d\u0642\u0642 \u0645\u0646 \u0647\u0648\u064a\u062a\u0643 \u0634\u062e\u0635\u064a\u064b\u0627 \u0641\u064a \u0627\u0644\u0641\u0631\u0639.',
       'confirm_password': '\u062a\u0623\u0643\u064a\u062f \u0643\u0644\u0645\u0629 \u0627\u0644\u0645\u0631\u0648\u0631',
       'branch': '\u0627\u0644\u0641\u0631\u0639',
       'select_branch': '\u0627\u062e\u062a\u0631 \u0641\u0631\u0639\u0643',
@@ -756,6 +763,9 @@ class AppLocalizations {
       'delete_account_password': '\u0623\u062f\u062e\u0644 \u0643\u0644\u0645\u0629 \u0627\u0644\u0645\u0631\u0648\u0631 \u0644\u0644\u062a\u0623\u0643\u064a\u062f',
       'account_deleted': '\u062a\u0645 \u062d\u0630\u0641 \u0627\u0644\u062d\u0633\u0627\u0628 \u0628\u0646\u062c\u0627\u062d',
       'privacy_policy': '\u0633\u064a\u0627\u0633\u0629 \u0627\u0644\u062e\u0635\u0648\u0635\u064a\u0629',
+      'terms_of_service': '\u0634\u0631\u0648\u0637 \u0627\u0644\u062e\u062f\u0645\u0629',
+      'agree_terms_prefix': '\u0628\u0627\u0644\u062a\u0633\u062c\u064a\u0644\u060c \u0623\u0646\u062a \u062a\u0648\u0627\u0641\u0642 \u0639\u0644\u0649 ',
+      'and_word': ' \u0648 ',
 
       // Offline
       'no_connection': '\u0644\u0627 \u064a\u0648\u062c\u062f \u0627\u062a\u0635\u0627\u0644',

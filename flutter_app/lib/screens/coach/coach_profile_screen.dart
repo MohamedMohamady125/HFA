@@ -7,6 +7,7 @@ import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
 import '../../services/offline/connectivity_service.dart';
 import '../../services/offline/offline_repository.dart';
+import '../../services/refresh_bus.dart';
 import '../../widgets/app_feedback.dart';
 import '../../theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
@@ -17,10 +18,13 @@ class CoachProfileScreen extends StatefulWidget {
   State<CoachProfileScreen> createState() => CoachProfileScreenState();
 }
 
-class CoachProfileScreenState extends State<CoachProfileScreen> {
+class CoachProfileScreenState extends State<CoachProfileScreen> with LiveRefreshMixin {
   String branchName = '';
 
   void silentRefresh() { _fetchDetails(); }
+
+  @override
+  void onLiveRefresh() { _fetchDetails(); }
 
   @override
   void initState() {
@@ -46,32 +50,47 @@ class CoachProfileScreenState extends State<CoachProfileScreen> {
     final passCtrl = TextEditingController();
     final l = AppLocalizations.of(context);
 
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showModalBottomSheet<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l.translate('delete_account'), style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.error)),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(l.translate('delete_account_confirm'), style: AppTypography.bodyMedium),
-              const SizedBox(height: 16),
-              TextField(
-                controller: passCtrl,
-                obscureText: true,
-                decoration: InputDecoration(labelText: l.translate('delete_account_password')),
-              ),
-            ],
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: EdgeInsets.fromLTRB(24, 8, 24, MediaQuery.of(ctx).viewInsets.bottom + 24),
+        decoration: const BoxDecoration(color: AppColors.cardBg, borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+        child: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(width: 40, height: 4, margin: const EdgeInsets.only(bottom: 20), decoration: BoxDecoration(color: AppColors.divider, borderRadius: BorderRadius.circular(2))),
+          Container(
+            width: 56, height: 56,
+            decoration: BoxDecoration(color: AppColors.error.withValues(alpha: 0.1), shape: BoxShape.circle),
+            child: const Icon(Icons.warning_rounded, color: AppColors.error, size: 28),
           ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l.translate('cancel'))),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(l.translate('delete_account')),
+          const SizedBox(height: 16),
+          Text(l.translate('delete_account'), style: AppTypography.titleLarge.copyWith(color: AppColors.error)),
+          const SizedBox(height: 8),
+          Text(l.translate('delete_account_confirm'), style: AppTypography.bodyMedium, textAlign: TextAlign.center),
+          const SizedBox(height: 24),
+          AppFormField(
+            label: l.translate('delete_account_password'),
+            controller: passCtrl,
+            obscure: true,
+            hint: l.translate('enter_password'),
+            prefixIcon: Icons.lock_outline_rounded,
           ),
-        ],
+          const SizedBox(height: 8),
+          Row(children: [
+            Expanded(child: OutlinedButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14), side: BorderSide(color: AppColors.divider)),
+              child: Text(l.translate('cancel'), style: TextStyle(color: AppColors.textSecondary)),
+            )),
+            const SizedBox(width: 12),
+            Expanded(child: ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md))),
+              child: Text(l.translate('delete_account'), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+            )),
+          ]),
+        ])),
       ),
     );
 
@@ -177,6 +196,12 @@ class CoachProfileScreenState extends State<CoachProfileScreen> {
                       color: AppColors.accent,
                       title: l.translate('privacy_policy'),
                       onTap: () => launchUrl(Uri.parse('${ApiService.baseUrl}/privacy-policy'), mode: LaunchMode.externalApplication),
+                    )),
+                    FadeSlideIn(delay: 475, child: ActionTile(
+                      icon: Icons.description_outlined,
+                      color: AppColors.info,
+                      title: l.translate('terms_of_service'),
+                      onTap: () => launchUrl(Uri.parse('${ApiService.baseUrl}/terms-of-service'), mode: LaunchMode.externalApplication),
                     )),
 
                     const SizedBox(height: AppSpacing.xxl),

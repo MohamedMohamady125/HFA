@@ -42,6 +42,8 @@ class HiveCache {
   static Future<void> clearPrefix(String prefix) async {
     if (_box == null) return;
     final keys = _box!.keys.where((k) => k.toString().startsWith(prefix)).toList();
-    for (final k in keys) await _box!.delete(k);
+    for (final k in keys) {
+      await _box!.delete(k);
+    }
   }
 }

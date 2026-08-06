@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/offline/offline_repository.dart';
 import '../../services/offline/connectivity_service.dart';
+import '../../services/refresh_bus.dart';
 import '../../theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
 import 'package:intl/intl.dart';
@@ -15,7 +16,7 @@ class AttendanceSummaryScreen extends StatefulWidget {
   State<AttendanceSummaryScreen> createState() => _AttendanceSummaryScreenState();
 }
 
-class _AttendanceSummaryScreenState extends State<AttendanceSummaryScreen> {
+class _AttendanceSummaryScreenState extends State<AttendanceSummaryScreen> with LiveRefreshMixin {
   List<dynamic> athletes = [];
   bool loading = true;
   String search = '';
@@ -31,6 +32,9 @@ class _AttendanceSummaryScreenState extends State<AttendanceSummaryScreen> {
     }
     _fetch();
   }
+
+  @override
+  void onLiveRefresh() { _fetch(); }
 
   Future<void> _fetch() async {
     final branchId = context.read<AuthProvider>().branchId;

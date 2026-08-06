@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import '../../services/offline/offline_repository.dart';
 import '../../services/offline/connectivity_service.dart';
+import '../../services/refresh_bus.dart';
 import '../../widgets/app_feedback.dart';
 import '../../theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
@@ -15,7 +16,7 @@ class CoachThreadsScreen extends StatefulWidget {
   State<CoachThreadsScreen> createState() => CoachThreadsScreenState();
 }
 
-class CoachThreadsScreenState extends State<CoachThreadsScreen> {
+class CoachThreadsScreenState extends State<CoachThreadsScreen> with LiveRefreshMixin {
   Map<String, dynamic>? user;
   List<dynamic> messages = [];
   final _msgCtrl = TextEditingController();
@@ -29,6 +30,15 @@ class CoachThreadsScreenState extends State<CoachThreadsScreen> {
   static const _nameColors = [Color(0xFF00A8E8), Color(0xFF7C4DFF), Color(0xFFFF6B6B), Color(0xFFFF9800), Color(0xFFE91E63), Color(0xFF00BFA5)];
 
   void silentRefresh() { if (threadId != null) _loadMessages(); }
+
+  @override
+  void onLiveRefresh() {
+    if (threadId != null) {
+      _loadMessages();
+    } else {
+      _loadThread();
+    }
+  }
 
   @override
   void initState() {

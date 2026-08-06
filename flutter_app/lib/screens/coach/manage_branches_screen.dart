@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import '../../services/api_service.dart';
 import '../../services/offline/offline_repository.dart';
 import '../../services/offline/connectivity_service.dart';
+import '../../services/refresh_bus.dart';
 import '../../widgets/app_feedback.dart';
 import '../../theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
@@ -13,7 +14,7 @@ class ManageBranchesScreen extends StatefulWidget {
   State<ManageBranchesScreen> createState() => _ManageBranchesScreenState();
 }
 
-class _ManageBranchesScreenState extends State<ManageBranchesScreen> {
+class _ManageBranchesScreenState extends State<ManageBranchesScreen> with LiveRefreshMixin {
   List<dynamic> branches = [];
   bool loading = true;
 
@@ -22,6 +23,9 @@ class _ManageBranchesScreenState extends State<ManageBranchesScreen> {
     super.initState();
     _fetchBranches();
   }
+
+  @override
+  void onLiveRefresh() { _fetchBranches(); }
 
   Future<void> _fetchBranches() async {
     try {
@@ -73,22 +77,38 @@ class _ManageBranchesScreenState extends State<ManageBranchesScreen> {
 
   Future<void> _confirmDelete(Map<String, dynamic> branch) async {
     final l = AppLocalizations.of(context);
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showModalBottomSheet<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.lg)),
-        title: Text(l.translate('delete_branch'), style: AppTypography.titleLarge),
-        content: Text(l.translate('delete_branch_confirm'), style: AppTypography.bodyMedium),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(l.translate('cancel'), style: const TextStyle(color: AppColors.textSecondary)),
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
+        decoration: const BoxDecoration(color: AppColors.cardBg, borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(width: 40, height: 4, margin: const EdgeInsets.only(bottom: 24), decoration: BoxDecoration(color: AppColors.divider, borderRadius: BorderRadius.circular(2))),
+          Container(
+            width: 56, height: 56,
+            decoration: BoxDecoration(color: AppColors.error.withValues(alpha: 0.1), shape: BoxShape.circle),
+            child: const Icon(Icons.delete_forever_rounded, color: AppColors.error, size: 28),
           ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text(l.translate('delete'), style: const TextStyle(color: AppColors.error, fontWeight: FontWeight.w700)),
-          ),
-        ],
+          const SizedBox(height: 16),
+          Text(l.translate('delete_branch'), style: AppTypography.titleLarge.copyWith(color: AppColors.error)),
+          const SizedBox(height: 8),
+          Text(l.translate('delete_branch_confirm'), style: AppTypography.bodyMedium, textAlign: TextAlign.center),
+          const SizedBox(height: 24),
+          Row(children: [
+            Expanded(child: OutlinedButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14), side: BorderSide(color: AppColors.divider)),
+              child: Text(l.translate('cancel'), style: TextStyle(color: AppColors.textSecondary)),
+            )),
+            const SizedBox(width: 12),
+            Expanded(child: ElevatedButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md))),
+              child: Text(l.translate('delete'), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+            )),
+          ]),
+        ]),
       ),
     );
     if (confirmed != true) return;

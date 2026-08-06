@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/offline/offline_repository.dart';
 import '../../services/offline/connectivity_service.dart';
+import '../../services/refresh_bus.dart';
 import '../../theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
 
@@ -13,7 +14,7 @@ class AthleteThreadsScreen extends StatefulWidget {
   State<AthleteThreadsScreen> createState() => AthleteThreadsScreenState();
 }
 
-class AthleteThreadsScreenState extends State<AthleteThreadsScreen> with AutomaticKeepAliveClientMixin {
+class AthleteThreadsScreenState extends State<AthleteThreadsScreen> with AutomaticKeepAliveClientMixin, LiveRefreshMixin {
   @override
   bool get wantKeepAlive => true;
   List<dynamic> threads = [], posts = [];
@@ -25,6 +26,12 @@ class AthleteThreadsScreenState extends State<AthleteThreadsScreen> with Automat
   static const _nameColors = [Color(0xFF00A8E8), Color(0xFF7C4DFF), Color(0xFFFF6B6B), Color(0xFFFF9800), Color(0xFFE91E63), Color(0xFF00BFA5)];
 
   void silentRefresh() { if (_fetched && selectedThread != null) _selectThread(selectedThread!); }
+
+  @override
+  void onLiveRefresh() {
+    _fetchData();
+    if (selectedThread != null) _selectThread(selectedThread!);
+  }
 
   @override
   void initState() { super.initState(); _fetchData(); }

@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/offline/offline_repository.dart';
+import '../../services/refresh_bus.dart';
 import '../../theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
 import 'athlete_shell.dart';
@@ -14,7 +15,7 @@ class AthleteHomeScreen extends StatefulWidget {
   State<AthleteHomeScreen> createState() => AthleteHomeScreenState();
 }
 
-class AthleteHomeScreenState extends State<AthleteHomeScreen> with AutomaticKeepAliveClientMixin {
+class AthleteHomeScreenState extends State<AthleteHomeScreen> with AutomaticKeepAliveClientMixin, LiveRefreshMixin {
   List<dynamic> attendance = [];
   String gearMessage = '', lastThreadMessage = '';
   String? paymentStatus;
@@ -59,6 +60,9 @@ class AthleteHomeScreenState extends State<AthleteHomeScreen> with AutomaticKeep
   void silentRefresh() {
     if (_fetched) _fetchData(silent: true);
   }
+
+  @override
+  void onLiveRefresh() { _fetchData(silent: true); }
 
   Future<void> _fetchData({bool silent = false}) async {
     if (!silent && !_fetched) setState(() => loading = true);

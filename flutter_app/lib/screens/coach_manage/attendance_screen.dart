@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/offline/offline_repository.dart';
 import '../../services/offline/connectivity_service.dart';
+import '../../services/refresh_bus.dart';
 import '../../widgets/app_feedback.dart';
 import '../../theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
@@ -15,7 +16,7 @@ class AttendanceScreen extends StatefulWidget {
   State<AttendanceScreen> createState() => _AttendanceScreenState();
 }
 
-class _AttendanceScreenState extends State<AttendanceScreen> with SingleTickerProviderStateMixin {
+class _AttendanceScreenState extends State<AttendanceScreen> with SingleTickerProviderStateMixin, LiveRefreshMixin {
   List<String> get days => [for (int i = 1; i <= 3; i++) '${AppLocalizations.of(context).translate('day')} $i'];
   int selectedDay = 0;
   bool loading = true;
@@ -47,6 +48,16 @@ class _AttendanceScreenState extends State<AttendanceScreen> with SingleTickerPr
 
   @override
   void dispose() { _listAnim.dispose(); super.dispose(); }
+
+  @override
+  void onLiveRefresh() {
+    if (_branchId == null) return;
+    if (sessionDates.length == 3) {
+      _fetchAttendance(silent: true);
+    } else {
+      _fetchSessionDates();
+    }
+  }
 
   int? get _branchId => context.read<AuthProvider>().branchId;
 

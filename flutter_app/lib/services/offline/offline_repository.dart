@@ -1,11 +1,19 @@
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 import '../api_service.dart';
 import 'hive_cache.dart';
 import 'sync_queue.dart';
-import 'sync_engine.dart';
+import 'sync_status.dart';
 import 'connectivity_service.dart';
+
+/// Result of an offline-aware write.
+/// [synced] true  → reached the server; [data] holds the response body.
+/// [synced] false → saved locally and queued; will sync automatically.
+class WriteResult {
+  final bool synced;
+  final dynamic data;
+  const WriteResult({required this.synced, this.data});
+}
 
 class OfflineRepository {
   static final _api = ApiService();
@@ -32,6 +40,10 @@ class OfflineRepository {
       futures.add(_prefetch('/branches/$branchId', ttl: const Duration(days: 1)));
       futures.add(_prefetch('/athlete/measurements', ttl: const Duration(hours: 8)));
       futures.add(_prefetch('/athlete/performance-logs', ttl: const Duration(hours: 8)));
+      futures.add(_prefetch('/athlete/health-records', ttl: const Duration(hours: 8)));
+      futures.add(_prefetch('/notifications/', cacheKey: 'notifications_list', ttl: const Duration(hours: 1)));
+      final now = DateTime.now();
+      futures.add(_prefetch('/attendance/athlete/$userId/month/${now.year}/${now.month}', ttl: const Duration(hours: 1)));
     } else if (role == 'coach' || role == 'head_coach') {
       if (branchId != null) {
         futures.add(_prefetch('/athletes/branch/$branchId/full', ttl: const Duration(hours: 4)));
@@ -40,6 +52,9 @@ class OfflineRepository {
         futures.add(_prefetch('/threads/branch/$branchId', ttl: const Duration(hours: 1)));
         futures.add(_prefetch('/gear/$branchId', ttl: const Duration(hours: 4)));
         futures.add(_prefetch('/users/requests', ttl: const Duration(hours: 1)));
+        futures.add(_prefetch('/attendance/branch/$branchId/athletes-stats', ttl: const Duration(hours: 2)));
+        final today = DateTime.now().toIso8601String().substring(0, 10);
+        futures.add(_prefetch('/attendance/branch/$branchId/day/$today', ttl: const Duration(hours: 1)));
       }
       if (role == 'head_coach') {
         futures.add(_prefetch('/head-coach/branches', ttl: const Duration(days: 1)));
@@ -51,10 +66,10 @@ class OfflineRepository {
     await Future.wait(futures.map((f) => f.catchError((_) {})));
   }
 
-  static Future<void> _prefetch(String path, {Duration ttl = const Duration(hours: 4)}) async {
+  static Future<void> _prefetch(String path, {Duration ttl = const Duration(hours: 4), String? cacheKey}) async {
     try {
       final res = await _api.get(path);
-      await HiveCache.put(HiveCache.pathToKey(path), res.data, ttl: ttl);
+      await HiveCache.put(cacheKey ?? HiveCache.pathToKey(path), res.data, ttl: ttl);
     } catch (_) {}
   }
 
@@ -140,12 +155,15 @@ class OfflineRepository {
   /// Tries to execute immediately if online.
   /// If offline or connection fails, queues for later sync.
   /// Applies optimistic update to local cache if provided.
-  static Future<dynamic> queueWrite({
+  /// Throws DioException on real server errors (4xx/5xx while online) so
+  /// callers can show a meaningful message.
+  static Future<WriteResult> queueWrite({
     required String method,
     required String path,
     Map<String, dynamic>? data,
     String? cacheInvalidationKey,
     String? optimisticCacheKey,
+    String? label,
     dynamic Function(dynamic currentCache, Map<String, dynamic>? data)? optimisticUpdate,
   }) async {
     // 1. Optimistic local update
@@ -170,13 +188,14 @@ class OfflineRepository {
         if (cacheInvalidationKey != null) {
           await HiveCache.clearPrefix(cacheInvalidationKey);
         }
-        return res?.data;
+        return WriteResult(synced: true, data: res?.data);
       } on DioException catch (e) {
         if (e.type != DioExceptionType.connectionError &&
-            e.type != DioExceptionType.connectionTimeout) {
-          rethrow; // real server error
+            e.type != DioExceptionType.connectionTimeout &&
+            e.type != DioExceptionType.receiveTimeout) {
+          rethrow; // real server error — caller shows the message
         }
-        // Fall through to queue
+        // Connection dropped mid-request — fall through to queue
       }
     }
 
@@ -188,9 +207,24 @@ class OfflineRepository {
       data: data,
       createdAt: DateTime.now(),
       cacheInvalidationKey: cacheInvalidationKey,
+      label: label,
     ));
+    SyncStatus.instance.refreshCounts();
 
-    return null; // queued
+    return const WriteResult(synced: false); // queued
+  }
+
+  /// Extract a human-readable message from any error (Dio or otherwise).
+  static String errorMessage(Object error, {String fallback = 'Something went wrong. Please try again.'}) {
+    if (error is DioException) {
+      final data = error.response?.data;
+      if (data is Map && data['detail'] is String) return data['detail'] as String;
+      if (error.type == DioExceptionType.connectionError ||
+          error.type == DioExceptionType.connectionTimeout) {
+        return 'No connection. Your change was not saved — please try again.';
+      }
+    }
+    return fallback;
   }
 
   // ═══════════════════════════════════════════════════════
@@ -218,10 +252,11 @@ class OfflineRepository {
     return data is List ? data : [];
   }
 
-  static Future<void> markAttendance(int athleteId, String sessionDate, String status, int branchId) =>
+  static Future<WriteResult> markAttendance(int athleteId, String sessionDate, String status, int branchId) =>
       queueWrite(
         method: 'POST', path: '/attendance/mark',
         data: {'athlete_id': athleteId, 'session_date': sessionDate, 'status': status},
+        label: 'Attendance · $sessionDate',
         optimisticCacheKey: HiveCache.pathToKey('/attendance/branch/$branchId/day/$sessionDate'),
         optimisticUpdate: (cache, data) {
           if (cache is! List) return cache;
@@ -239,10 +274,11 @@ class OfflineRepository {
     return data is Map ? Map<String, dynamic>.from(data) : {};
   }
 
-  static Future<void> markPayment(int athleteId, String sessionDate, String status, int branchId) =>
+  static Future<WriteResult> markPayment(int athleteId, String sessionDate, String status, int branchId) =>
       queueWrite(
         method: 'POST', path: '/payments/mark',
         data: {'athlete_id': athleteId, 'session_date': sessionDate, 'status': status},
+        label: 'Payment · $sessionDate',
         optimisticCacheKey: HiveCache.pathToKey('/payments/summary/$branchId'),
         optimisticUpdate: (cache, data) {
           if (cache is! Map) return cache;
@@ -269,11 +305,12 @@ class OfflineRepository {
     return data is List ? data : [];
   }
 
-  static Future<void> postMessage(int threadId, String message) =>
+  static Future<WriteResult> postMessage(int threadId, String message) =>
       queueWrite(
         method: 'POST', path: '/threads/$threadId/post',
         data: {'message': message},
         cacheInvalidationKey: HiveCache.pathToKey('/threads/$threadId/posts'),
+        label: 'Message',
       );
 
   // --- Gear ---
@@ -282,11 +319,12 @@ class OfflineRepository {
     return data is Map ? Map<String, dynamic>.from(data) : {};
   }
 
-  static Future<void> postGear(int branchId, String content) =>
+  static Future<WriteResult> postGear(int branchId, String content) =>
       queueWrite(
         method: 'POST', path: '/gear/$branchId',
         data: {'content': content},
         cacheInvalidationKey: HiveCache.pathToKey('/gear/$branchId'),
+        label: 'Gear update',
       );
 
   // --- Athletes ---
@@ -339,6 +377,133 @@ class OfflineRepository {
   static Future<List> getPerformanceLogs({Function(dynamic)? onFresh}) async {
     final data = await cachedGet('/athlete/performance-logs', ttl: const Duration(hours: 8), onFresh: onFresh);
     return data is List ? data : [];
+  }
+
+  // --- Coach notes ---
+  static Future<dynamic> getCoachNotes(int athleteId, {Function(dynamic)? onFresh}) async {
+    return await cachedGet('/coach/notes/$athleteId', ttl: const Duration(hours: 8), onFresh: onFresh);
+  }
+
+  static Future<WriteResult> saveCoachNote(int athleteId, String note) =>
+      queueWrite(
+        method: 'POST', path: '/coach/notes',
+        data: {'athlete_id': athleteId, 'note': note},
+        cacheInvalidationKey: HiveCache.pathToKey('/coach/notes/$athleteId'),
+        label: 'Coach note',
+      );
+
+  // --- Registration requests (approve/reject) ---
+  static Future<WriteResult> approveRequest(int userId) => _decideRequest(userId, 'approve');
+  static Future<WriteResult> rejectRequest(int userId) => _decideRequest(userId, 'reject');
+
+  static Future<WriteResult> _decideRequest(int userId, String action) =>
+      queueWrite(
+        method: 'POST', path: '/users/$action/$userId',
+        optimisticCacheKey: HiveCache.pathToKey('/users/requests'),
+        optimisticUpdate: (cache, _) {
+          if (cache is! List) return cache;
+          return cache.where((r) => r is Map && r['id'] != userId).toList();
+        },
+        cacheInvalidationKey: HiveCache.pathToKey('/users/requests'),
+        label: action == 'approve' ? 'Approve request' : 'Reject request',
+      );
+
+  // --- Health records ---
+  static Future<List> getHealthRecords({Function(dynamic)? onFresh}) async {
+    final data = await cachedGet('/athlete/health-records', ttl: const Duration(hours: 8), onFresh: onFresh);
+    return data is List ? data : [];
+  }
+
+  static Future<WriteResult> addHealthRecord(Map<String, dynamic> record) =>
+      queueWrite(
+        method: 'POST', path: '/athlete/health-records',
+        data: record,
+        cacheInvalidationKey: HiveCache.pathToKey('/athlete/health-records'),
+        label: 'Health record',
+      );
+
+  static Future<WriteResult> deleteHealthRecord(int id) =>
+      queueWrite(
+        method: 'DELETE', path: '/athlete/health-records/$id',
+        optimisticCacheKey: HiveCache.pathToKey('/athlete/health-records'),
+        optimisticUpdate: (cache, _) {
+          if (cache is! List) return cache;
+          return cache.where((r) => r is Map && r['id'] != id).toList();
+        },
+        cacheInvalidationKey: HiveCache.pathToKey('/athlete/health-records'),
+        label: 'Delete health record',
+      );
+
+  // --- Measurements / performance (writes) ---
+  static Future<WriteResult> saveMeasurements(Map<String, dynamic> data) =>
+      queueWrite(
+        method: 'POST', path: '/athlete/measurements',
+        data: data,
+        cacheInvalidationKey: HiveCache.pathToKey('/athlete/measurements'),
+        label: 'Measurements',
+      );
+
+  static Future<WriteResult> addPerformanceLog(Map<String, dynamic> data) =>
+      queueWrite(
+        method: 'POST', path: '/athlete/performance-log',
+        data: data,
+        cacheInvalidationKey: HiveCache.pathToKey('/athlete/performance-logs'),
+        label: 'Performance log',
+      );
+
+  static Future<WriteResult> deletePerformanceLogs() =>
+      queueWrite(
+        method: 'DELETE', path: '/athlete/performance-logs',
+        optimisticCacheKey: HiveCache.pathToKey('/athlete/performance-logs'),
+        optimisticUpdate: (cache, _) => <dynamic>[],
+        cacheInvalidationKey: HiveCache.pathToKey('/athlete/performance-logs'),
+        label: 'Clear performance logs',
+      );
+
+  // --- Notifications ---
+  static Future<List> getNotifications({Function(dynamic)? onFresh}) async {
+    final data = await cachedGet('/notifications/', cacheKey: 'notifications_list',
+        ttl: const Duration(hours: 1), onFresh: onFresh);
+    return data is List ? data : [];
+  }
+
+  static Future<dynamic> getUnreadCount({Function(dynamic)? onFresh}) async {
+    return await cachedGet('/notifications/unread-count', ttl: const Duration(minutes: 30), onFresh: onFresh);
+  }
+
+  static Future<WriteResult> markNotificationsReadAll() =>
+      queueWrite(
+        method: 'POST', path: '/notifications/read-all',
+        cacheInvalidationKey: 'notifications',
+        label: 'Mark notifications read',
+      );
+
+  static Future<WriteResult> markNotificationRead(int id) =>
+      queueWrite(
+        method: 'POST', path: '/notifications/read/$id',
+        cacheInvalidationKey: 'notifications',
+        label: 'Mark notification read',
+      );
+
+  // --- Profile ---
+  static Future<WriteResult> updateCoachProfile(Map<String, dynamic> data) =>
+      queueWrite(
+        method: 'PUT', path: '/coach/profile',
+        data: data,
+        cacheInvalidationKey: HiveCache.pathToKey('/users/me'),
+        label: 'Profile update',
+      );
+
+  // --- Public branches (guest page) ---
+  static Future<List> getPublicBranches({Function(dynamic)? onFresh}) async {
+    final data = await cachedGet('/branches/', cacheKey: 'branches_public_list',
+        ttl: const Duration(days: 1), onFresh: onFresh);
+    return data is List ? data : [];
+  }
+
+  static Future<Map<String, dynamic>> getBranch(int branchId, {Function(dynamic)? onFresh}) async {
+    final data = await cachedGet('/branches/$branchId', ttl: const Duration(days: 1), onFresh: onFresh);
+    return data is Map ? Map<String, dynamic>.from(data) : {};
   }
 
   // --- Sync status ---

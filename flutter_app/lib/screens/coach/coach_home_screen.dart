@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/offline/offline_repository.dart';
+import '../../services/refresh_bus.dart';
 import '../../theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
 
@@ -13,10 +14,13 @@ class CoachHomeScreen extends StatefulWidget {
   State<CoachHomeScreen> createState() => CoachHomeScreenState();
 }
 
-class CoachHomeScreenState extends State<CoachHomeScreen> {
+class CoachHomeScreenState extends State<CoachHomeScreen> with LiveRefreshMixin {
   String name = '';
 
   void silentRefresh() { _fetchUser(); }
+
+  @override
+  void onLiveRefresh() { _fetchUser(); }
 
   @override
   void initState() {
@@ -24,6 +28,9 @@ class CoachHomeScreenState extends State<CoachHomeScreen> {
     // Sync cache read - instant, no shimmer
     final cached = OfflineRepository.getCached('/users/me');
     if (cached is Map) name = cached['name']?.toString() ?? '';
+    // Offline with no cache: fall back to the logged-in user so the
+    // dashboard still renders instead of an endless shimmer.
+    if (name.isEmpty) name = context.read<AuthProvider>().userName ?? '';
     _fetchUser();
   }
 

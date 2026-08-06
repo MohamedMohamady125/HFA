@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import '../../services/offline/offline_repository.dart';
 import '../../services/offline/connectivity_service.dart';
+import '../../services/refresh_bus.dart';
 import '../../widgets/app_feedback.dart';
 import '../../theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
@@ -13,7 +14,7 @@ class RegisterRequestsScreen extends StatefulWidget {
   State<RegisterRequestsScreen> createState() => _RegisterRequestsScreenState();
 }
 
-class _RegisterRequestsScreenState extends State<RegisterRequestsScreen> {
+class _RegisterRequestsScreenState extends State<RegisterRequestsScreen> with LiveRefreshMixin {
   List<dynamic> requests = [];
   bool loading = true;
   final _listKey = GlobalKey<AnimatedListState>();
@@ -28,6 +29,9 @@ class _RegisterRequestsScreenState extends State<RegisterRequestsScreen> {
     if (cached is List) { requests = cached; loading = false; }
     _fetchRequests();
   }
+
+  @override
+  void onLiveRefresh() { _fetchRequests(); }
 
   Future<void> _fetchRequests() async {
     if (requests.isEmpty) setState(() => loading = true);
@@ -244,13 +248,13 @@ class _RegisterRequestsScreenState extends State<RegisterRequestsScreen> {
                                 padding: const EdgeInsets.all(10),
                                 decoration: BoxDecoration(color: AppColors.surfaceLight, borderRadius: BorderRadius.circular(10)),
                                 child: Row(children: [
-                                  if (req['phone'] != null) ...[
+                                  if ((req['phone'] ?? '').toString().trim().isNotEmpty) ...[
                                     const Icon(Icons.phone_rounded, size: 14, color: AppColors.textTertiary),
                                     const SizedBox(width: 6),
                                     Text(req['phone'], style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
                                   ],
                                   if (req['branch_name'] != null) ...[
-                                    if (req['phone'] != null) const SizedBox(width: 16),
+                                    if ((req['phone'] ?? '').toString().trim().isNotEmpty) const SizedBox(width: 16),
                                     const Icon(Icons.location_city_rounded, size: 14, color: AppColors.accent),
                                     const SizedBox(width: 6),
                                     Text(req['branch_name'], style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.textPrimary)),

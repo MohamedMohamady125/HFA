@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/offline/offline_repository.dart';
 import '../../services/offline/connectivity_service.dart';
+import '../../services/refresh_bus.dart';
 import '../../widgets/app_feedback.dart';
 import '../../theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
@@ -15,7 +16,7 @@ class PaymentScreen extends StatefulWidget {
   State<PaymentScreen> createState() => _PaymentScreenState();
 }
 
-class _PaymentScreenState extends State<PaymentScreen> {
+class _PaymentScreenState extends State<PaymentScreen> with LiveRefreshMixin {
   List<dynamic> records = [];
   List<String> sessionDates = [];
   bool loading = true;
@@ -38,6 +39,9 @@ class _PaymentScreenState extends State<PaymentScreen> {
     }
     _fetchSummary();
   }
+
+  @override
+  void onLiveRefresh() { _fetchSummary(silent: true); }
 
   void _applySummary(dynamic data) {
     if (data is! Map) return;

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../services/offline/offline_repository.dart';
+import '../../services/refresh_bus.dart';
+import '../../widgets/app_feedback.dart';
 import '../../theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
 
@@ -10,7 +12,7 @@ class CoachGearScreen extends StatefulWidget {
   State<CoachGearScreen> createState() => CoachGearScreenState();
 }
 
-class CoachGearScreenState extends State<CoachGearScreen> with SingleTickerProviderStateMixin {
+class CoachGearScreenState extends State<CoachGearScreen> with SingleTickerProviderStateMixin, LiveRefreshMixin {
   int? branchId;
   String branchName = '';
   final _msgCtrl = TextEditingController();
@@ -19,6 +21,9 @@ class CoachGearScreenState extends State<CoachGearScreen> with SingleTickerProvi
   late AnimationController _checkAnim;
 
   void silentRefresh() { _loadData(); }
+
+  @override
+  void onLiveRefresh() { _loadData(); }
 
   @override
   void initState() {
@@ -53,12 +58,18 @@ class CoachGearScreenState extends State<CoachGearScreen> with SingleTickerProvi
     if (_msgCtrl.text.isEmpty || branchId == null) return;
     setState(() { submitting = true; _saved = false; });
     try {
-      await OfflineRepository.postGear(branchId!, _msgCtrl.text);
-      setState(() => _saved = true);
-      _checkAnim.forward(from: 0);
-      Future.delayed(const Duration(seconds: 2), () { if (mounted) setState(() => _saved = false); });
-    } catch (_) {
-      if (mounted) { final l = AppLocalizations.of(context); ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l.translate('gear_failed')), backgroundColor: AppColors.error)); }
+      final r = await OfflineRepository.postGear(branchId!, _msgCtrl.text);
+      if (!mounted) return;
+      if (r.synced) {
+        setState(() => _saved = true);
+        _checkAnim.forward(from: 0);
+        Future.delayed(const Duration(seconds: 2), () { if (mounted) setState(() => _saved = false); });
+      } else {
+        // Saved locally — will sync when back online.
+        AppFeedback.showQueued(context);
+      }
+    } catch (e) {
+      if (mounted) AppFeedback.showError(context, e);
     } finally { if (mounted) setState(() => submitting = false); }
   }
 

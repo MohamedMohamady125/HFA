@@ -38,6 +38,7 @@ import 'services/offline/hive_cache.dart';
 import 'services/offline/sync_queue.dart';
 import 'services/offline/connectivity_service.dart';
 import 'services/push_notification_service.dart';
+import 'services/refresh_bus.dart';
 import 'widgets/offline_status_bar.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -94,9 +95,11 @@ class _HFAAppState extends State<HFAApp> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // Coming back to the app is a good moment to retry queued offline writes.
+    // Coming back to the app is a good moment to retry queued offline writes
+    // and refresh whatever screen is currently visible.
     if (state == AppLifecycleState.resumed) {
       ConnectivityService.recheckAndFlush();
+      RefreshBus.notify();
     }
   }
 
@@ -127,6 +130,12 @@ class _HFAAppState extends State<HFAApp> with WidgetsBindingObserver {
         }
 
         if (!auth.isApproved && loc != '/pending') return '/pending';
+
+        // Head-coach-only screens: block non-head-coach users.
+        const headCoachOnly = ['/head-coach-branches', '/head-coach-manage-coaches', '/head-coach-manage-branches'];
+        if (headCoachOnly.contains(loc) && auth.role != 'head_coach') {
+          return auth.role == 'coach' ? '/coach/home' : '/athlete/home';
+        }
 
         if (isGuestOnly) {
           if (auth.role == 'head_coach') return '/head-coach-branches';

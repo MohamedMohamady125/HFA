@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
-import '../../services/api_service.dart';
+import '../../services/offline/offline_repository.dart';
+import '../../widgets/app_feedback.dart';
 import '../../theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
 
@@ -27,15 +28,18 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   Future<void> _handleSave() async {
     setState(() => _saving = true);
     try {
-      await ApiService().put('/coach/profile', data: {'name': _nameCtrl.text, 'email': _emailCtrl.text});
+      final r = await OfflineRepository.updateCoachProfile({'name': _nameCtrl.text, 'email': _emailCtrl.text});
       if (!mounted) return;
-      await context.read<AuthProvider>().refreshUser();
+      if (r.synced) {
+        // Refresh only when the server actually accepted the change.
+        try { await context.read<AuthProvider>().refreshUser(); } catch (_) {}
+      }
       if (!mounted) return;
       final l = AppLocalizations.of(context);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l.translate('profile_updated')), backgroundColor: AppColors.success));
+      AppFeedback.showWriteResult(context, r, successMessage: l.translate('profile_updated'));
       context.pop();
-    } catch (_) {
-      if (mounted) { final l = AppLocalizations.of(context); ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l.translate('profile_failed')), backgroundColor: AppColors.error)); }
+    } catch (e) {
+      if (mounted) AppFeedback.showError(context, e);
     } finally {
       if (mounted) setState(() => _saving = false);
     }

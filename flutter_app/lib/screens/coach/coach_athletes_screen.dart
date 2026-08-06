@@ -6,6 +6,7 @@ import 'dart:convert';
 import '../../providers/auth_provider.dart';
 import '../../services/offline/offline_repository.dart';
 import '../../services/offline/connectivity_service.dart';
+import '../../services/refresh_bus.dart';
 import '../../widgets/app_feedback.dart';
 import '../../theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
@@ -16,12 +17,15 @@ class CoachAthletesScreen extends StatefulWidget {
   State<CoachAthletesScreen> createState() => CoachAthletesScreenState();
 }
 
-class CoachAthletesScreenState extends State<CoachAthletesScreen> {
+class CoachAthletesScreenState extends State<CoachAthletesScreen> with LiveRefreshMixin {
   List<dynamic> athletes = [];
   bool loading = true;
   String search = '';
 
   void silentRefresh() { _fetch(silent: true); }
+
+  @override
+  void onLiveRefresh() { _fetch(silent: true); }
 
   @override
   void initState() {
@@ -213,27 +217,60 @@ class _AthleteDetailScreenState extends State<_AthleteDetailScreen> {
     final periodEnd = periodStart.add(const Duration(days: 13));
     final periodLabel = '${DateFormat('MMM d').format(periodStart)} - ${DateFormat('MMM d, yyyy').format(periodEnd)}';
 
-    final result = await showDialog<bool>(
+    final result = await showModalBottomSheet<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l.translate('add_coach_note'), style: const TextStyle(fontWeight: FontWeight.w700)),
-        content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(color: AppColors.accentLight, borderRadius: BorderRadius.circular(8)),
-            child: Row(children: [
-              const Icon(Icons.date_range_rounded, size: 16, color: AppColors.accent),
-              const SizedBox(width: 8),
-              Text(periodLabel, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.accent)),
-            ]),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: EdgeInsets.fromLTRB(24, 8, 24, MediaQuery.of(ctx).viewInsets.bottom + 24),
+        decoration: const BoxDecoration(color: AppColors.cardBg, borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+        child: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(width: 40, height: 4, margin: const EdgeInsets.only(bottom: 20), decoration: BoxDecoration(color: AppColors.divider, borderRadius: BorderRadius.circular(2))),
+          Row(children: [
+            Container(
+              width: 44, height: 44,
+              decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
+              child: const Icon(Icons.note_add_rounded, color: AppColors.accent, size: 22),
+            ),
+            const SizedBox(width: 14),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(l.translate('add_coach_note'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+              const SizedBox(height: 4),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(color: AppColors.accentLight, borderRadius: BorderRadius.circular(6)),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  const Icon(Icons.date_range_rounded, size: 14, color: AppColors.accent),
+                  const SizedBox(width: 6),
+                  Text(periodLabel, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.accent)),
+                ]),
+              ),
+            ])),
+          ]),
+          const SizedBox(height: 20),
+          TextField(
+            controller: noteCtrl,
+            maxLines: 5,
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+            decoration: InputDecoration(
+              hintText: l.translate('coach_note_hint'),
+              filled: true,
+              fillColor: AppColors.surfaceLight,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md), borderSide: BorderSide.none),
+              contentPadding: const EdgeInsets.all(16),
+            ),
           ),
-          const SizedBox(height: 14),
-          TextField(controller: noteCtrl, maxLines: 5, decoration: InputDecoration(hintText: l.translate('coach_note_hint'))),
+          const SizedBox(height: 16),
+          Row(children: [
+            Expanded(child: OutlinedButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14), side: BorderSide(color: AppColors.divider)),
+              child: Text(l.translate('cancel'), style: TextStyle(color: AppColors.textSecondary)),
+            )),
+            const SizedBox(width: 12),
+            Expanded(child: PrimaryButton(label: l.translate('save'), onPressed: () => Navigator.pop(ctx, true))),
+          ]),
         ])),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l.translate('cancel'))),
-          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: Text(l.translate('save'))),
-        ],
       ),
     );
 
@@ -254,6 +291,19 @@ class _AthleteDetailScreenState extends State<_AthleteDetailScreen> {
       AppFeedback.showError(context, e);
       setState(() => _coachNotes = _coachNotes.where((n) => n['note'] != noteText || n['coach_name'] != '').toList());
     }
+  }
+
+  void _showFullImage(Uint8List bytes, String name, {List<Uint8List>? allImages, int initialIndex = 0}) {
+    Navigator.of(context).push(PageRouteBuilder(
+      opaque: false,
+      barrierColor: Colors.black87,
+      pageBuilder: (_, __, ___) => _FullImageViewer(
+        images: allImages ?? [bytes],
+        names: allImages != null ? List.generate(allImages.length, (i) => name) : [name],
+        initialIndex: allImages != null ? initialIndex : 0,
+      ),
+      transitionsBuilder: (_, anim, __, child) => FadeTransition(opacity: anim, child: child),
+    ));
   }
 
   void _prevMonth() { setState(() => _currentMonth = DateTime(_currentMonth.year, _currentMonth.month - 1)); _fetchMonth(); }
@@ -374,32 +424,48 @@ class _AthleteDetailScreenState extends State<_AthleteDetailScreen> {
                   final files = r['files'] as List? ?? [];
                   final date = r['created_at'] != null ? DateTime.tryParse(r['created_at']) : null;
                   final dateStr = date != null ? '${date.day}/${date.month}/${date.year}' : '';
-                  return Padding(padding: const EdgeInsets.only(bottom: 8), child: AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  return Padding(padding: const EdgeInsets.only(bottom: 10), child: AppCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Row(children: [
-                      Container(width: 36, height: 36, decoration: BoxDecoration(color: AppColors.error.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
-                        child: const Icon(Icons.medical_information_rounded, color: AppColors.error, size: 18)),
-                      const SizedBox(width: 10),
+                      Container(width: 40, height: 40, decoration: BoxDecoration(color: AppColors.error.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
+                        child: const Icon(Icons.medical_information_rounded, color: AppColors.error, size: 20)),
+                      const SizedBox(width: 12),
                       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text(r['title'] ?? '', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
-                        Text(dateStr, style: const TextStyle(fontSize: 11, color: AppColors.textTertiary)),
+                        Text(r['title'] ?? '', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+                        const SizedBox(height: 2),
+                        Text(dateStr, style: const TextStyle(fontSize: 12, color: AppColors.textTertiary)),
                       ])),
                     ]),
                     if (r['notes'] != null && r['notes'].toString().isNotEmpty) ...[
-                      const SizedBox(height: 8),
-                      Text(r['notes'], style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+                      const SizedBox(height: 10),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(color: AppColors.surfaceLight, borderRadius: BorderRadius.circular(8)),
+                        child: Text(r['notes'], style: const TextStyle(fontSize: 13, color: AppColors.textSecondary, height: 1.4)),
+                      ),
                     ],
                     if (files.isNotEmpty) ...[
-                      const SizedBox(height: 8),
-                      SizedBox(height: 64, child: ListView.separated(
+                      const SizedBox(height: 12),
+                      SizedBox(height: 100, child: ListView.separated(
                         scrollDirection: Axis.horizontal, itemCount: files.length,
-                        separatorBuilder: (_, __) => const SizedBox(width: 6),
+                        separatorBuilder: (_, __) => const SizedBox(width: 8),
                         itemBuilder: (_, fi) {
                           try {
                             final bytes = base64Decode(files[fi]['file_data']);
-                            return ClipRRect(borderRadius: BorderRadius.circular(8), child: Image.memory(bytes, width: 64, height: 64, fit: BoxFit.cover));
+                            final allBytes = files.map<Uint8List>((f) => base64Decode(f['file_data'] as String)).toList();
+                            return ScaleOnTap(
+                              onTap: () => _showFullImage(bytes, files[fi]['file_name'] ?? '', allImages: allBytes, initialIndex: fi),
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(10),
+                                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 6, offset: const Offset(0, 2))],
+                                ),
+                                child: ClipRRect(borderRadius: BorderRadius.circular(10), child: Image.memory(bytes, width: 100, height: 100, fit: BoxFit.cover)),
+                              ),
+                            );
                           } catch (_) {
-                            return Container(width: 64, height: 64, decoration: BoxDecoration(color: AppColors.surfaceLight, borderRadius: BorderRadius.circular(8)),
-                              child: const Icon(Icons.broken_image_rounded, color: AppColors.textTertiary, size: 20));
+                            return Container(width: 100, height: 100, decoration: BoxDecoration(color: AppColors.surfaceLight, borderRadius: BorderRadius.circular(10)),
+                              child: const Icon(Icons.broken_image_rounded, color: AppColors.textTertiary, size: 24));
                           }
                         },
                       )),
@@ -471,4 +537,102 @@ class _AthleteDetailScreenState extends State<_AthleteDetailScreen> {
 
   Widget _measureChip(String label, String value) => Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8), decoration: BoxDecoration(color: AppColors.surfaceLight, borderRadius: BorderRadius.circular(10)),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(label, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: AppColors.textTertiary)), Text(value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.textPrimary))]));
+}
+
+// ═══════════════════════════════════════════════════════
+// FULL-SCREEN IMAGE VIEWER WITH PINCH-ZOOM & GALLERY
+// ═══════════════════════════════════════════════════════
+class _FullImageViewer extends StatefulWidget {
+  final List<Uint8List> images;
+  final List<String> names;
+  final int initialIndex;
+  const _FullImageViewer({required this.images, required this.names, this.initialIndex = 0});
+  @override
+  State<_FullImageViewer> createState() => _FullImageViewerState();
+}
+
+class _FullImageViewerState extends State<_FullImageViewer> {
+  late PageController _pageCtrl;
+  late int _current;
+
+  @override
+  void initState() {
+    super.initState();
+    _current = widget.initialIndex;
+    _pageCtrl = PageController(initialPage: widget.initialIndex);
+  }
+
+  @override
+  void dispose() {
+    _pageCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Stack(children: [
+        PageView.builder(
+          controller: _pageCtrl,
+          itemCount: widget.images.length,
+          onPageChanged: (i) => setState(() => _current = i),
+          itemBuilder: (_, i) => GestureDetector(
+            onTap: () => Navigator.pop(context),
+            child: Center(
+              child: InteractiveViewer(
+                minScale: 0.5,
+                maxScale: 4.0,
+                child: Image.memory(widget.images[i], fit: BoxFit.contain),
+              ),
+            ),
+          ),
+        ),
+        Positioned(
+          top: 0, left: 0, right: 0,
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              child: Row(children: [
+                IconButton(
+                  icon: Container(
+                    width: 36, height: 36,
+                    decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.15), shape: BoxShape.circle),
+                    child: const Icon(Icons.close_rounded, color: Colors.white, size: 20),
+                  ),
+                  onPressed: () => Navigator.pop(context),
+                ),
+                const Spacer(),
+                if (widget.names[_current].isNotEmpty)
+                  Flexible(child: Text(widget.names[_current], style: const TextStyle(color: Colors.white70, fontSize: 13), overflow: TextOverflow.ellipsis)),
+                const Spacer(),
+                const SizedBox(width: 48),
+              ]),
+            ),
+          ),
+        ),
+        if (widget.images.length > 1)
+          Positioned(
+            bottom: 0, left: 0, right: 0,
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(widget.images.length, (i) => AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    width: _current == i ? 24 : 8, height: 8,
+                    margin: const EdgeInsets.symmetric(horizontal: 3),
+                    decoration: BoxDecoration(
+                      color: _current == i ? Colors.white : Colors.white38,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  )),
+                ),
+              ),
+            ),
+          ),
+      ]),
+    );
+  }
 }

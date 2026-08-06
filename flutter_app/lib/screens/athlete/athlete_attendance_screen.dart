@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:intl/intl.dart';
 import '../../services/offline/offline_repository.dart';
 import '../../services/offline/connectivity_service.dart';
+import '../../services/refresh_bus.dart';
 import '../../theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
 
@@ -13,7 +14,7 @@ class AthleteAttendanceScreen extends StatefulWidget {
   State<AthleteAttendanceScreen> createState() => _AthleteAttendanceScreenState();
 }
 
-class _AthleteAttendanceScreenState extends State<AthleteAttendanceScreen> {
+class _AthleteAttendanceScreenState extends State<AthleteAttendanceScreen> with LiveRefreshMixin {
   DateTime _currentMonth = DateTime(DateTime.now().year, DateTime.now().month);
   Map<String, String> _attendanceMap = {};
   bool _loading = true;
@@ -21,6 +22,9 @@ class _AthleteAttendanceScreenState extends State<AthleteAttendanceScreen> {
 
   @override
   void initState() { super.initState(); _init(); }
+
+  @override
+  void onLiveRefresh() { _fetchMonth(); }
 
   Future<void> _init() async {
     final prefs = await SharedPreferences.getInstance();

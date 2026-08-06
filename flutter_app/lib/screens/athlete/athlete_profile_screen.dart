@@ -9,6 +9,7 @@ import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
 import '../../services/offline/offline_repository.dart';
 import '../../services/offline/connectivity_service.dart';
+import '../../services/refresh_bus.dart';
 import '../../widgets/app_feedback.dart';
 import '../../theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
@@ -20,7 +21,7 @@ class AthleteProfileScreen extends StatefulWidget {
   State<AthleteProfileScreen> createState() => AthleteProfileScreenState();
 }
 
-class AthleteProfileScreenState extends State<AthleteProfileScreen> {
+class AthleteProfileScreenState extends State<AthleteProfileScreen> with LiveRefreshMixin {
   Map<String, dynamic>? user;
   List<dynamic> attendance = [];
   String branchName = '';
@@ -37,6 +38,9 @@ class AthleteProfileScreenState extends State<AthleteProfileScreen> {
   bool eventsEditable = true;
 
   void silentRefresh() { _fetchData(); }
+
+  @override
+  void onLiveRefresh() { _fetchData(); }
 
   @override
   void initState() {
@@ -195,24 +199,48 @@ class AthleteProfileScreenState extends State<AthleteProfileScreen> {
     final passCtrl = TextEditingController();
 
     final l = AppLocalizations.of(context);
-    final result = await showDialog<bool>(
+    final result = await showModalBottomSheet<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l.translate('change_email'), style: const TextStyle(fontWeight: FontWeight.w700)),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(controller: emailCtrl, keyboardType: TextInputType.emailAddress, decoration: InputDecoration(labelText: l.translate('new_email'))),
-              const SizedBox(height: 12),
-              TextField(controller: passCtrl, obscureText: true, decoration: InputDecoration(labelText: l.translate('confirm_password_label'))),
-            ],
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: EdgeInsets.fromLTRB(24, 8, 24, MediaQuery.of(ctx).viewInsets.bottom + 24),
+        decoration: const BoxDecoration(color: AppColors.cardBg, borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+        child: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(width: 40, height: 4, margin: const EdgeInsets.only(bottom: 20), decoration: BoxDecoration(color: AppColors.divider, borderRadius: BorderRadius.circular(2))),
+          Container(
+            width: 56, height: 56,
+            decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), shape: BoxShape.circle),
+            child: const Icon(Icons.email_rounded, color: AppColors.accent, size: 26),
           ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l.translate('cancel'))),
-          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: Text(l.translate('update'))),
-        ],
+          const SizedBox(height: 16),
+          Text(l.translate('change_email'), style: AppTypography.titleLarge),
+          const SizedBox(height: 24),
+          AppFormField(
+            label: l.translate('new_email'),
+            controller: emailCtrl,
+            keyboardType: TextInputType.emailAddress,
+            hint: l.translate('enter_email'),
+            prefixIcon: Icons.mail_outline_rounded,
+          ),
+          AppFormField(
+            label: l.translate('confirm_password_label'),
+            controller: passCtrl,
+            obscure: true,
+            hint: l.translate('enter_password'),
+            prefixIcon: Icons.lock_outline_rounded,
+          ),
+          const SizedBox(height: 8),
+          Row(children: [
+            Expanded(child: OutlinedButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14), side: BorderSide(color: AppColors.divider)),
+              child: Text(l.translate('cancel'), style: TextStyle(color: AppColors.textSecondary)),
+            )),
+            const SizedBox(width: 12),
+            Expanded(child: PrimaryButton(label: l.translate('update'), onPressed: () => Navigator.pop(ctx, true))),
+          ]),
+        ])),
       ),
     );
 
@@ -246,26 +274,55 @@ class AthleteProfileScreenState extends State<AthleteProfileScreen> {
     final confirmCtrl = TextEditingController();
 
     final l = AppLocalizations.of(context);
-    final result = await showDialog<bool>(
+    final result = await showModalBottomSheet<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l.translate('change_password'), style: const TextStyle(fontWeight: FontWeight.w700)),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(controller: oldCtrl, obscureText: true, decoration: InputDecoration(labelText: l.translate('current_password'))),
-              const SizedBox(height: 12),
-              TextField(controller: newCtrl, obscureText: true, decoration: InputDecoration(labelText: l.translate('new_password'))),
-              const SizedBox(height: 12),
-              TextField(controller: confirmCtrl, obscureText: true, decoration: InputDecoration(labelText: l.translate('confirm_new_password'))),
-            ],
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: EdgeInsets.fromLTRB(24, 8, 24, MediaQuery.of(ctx).viewInsets.bottom + 24),
+        decoration: const BoxDecoration(color: AppColors.cardBg, borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+        child: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(width: 40, height: 4, margin: const EdgeInsets.only(bottom: 20), decoration: BoxDecoration(color: AppColors.divider, borderRadius: BorderRadius.circular(2))),
+          Container(
+            width: 56, height: 56,
+            decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.1), shape: BoxShape.circle),
+            child: const Icon(Icons.lock_rounded, color: AppColors.primary, size: 26),
           ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l.translate('cancel'))),
-          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: Text(l.translate('update'))),
-        ],
+          const SizedBox(height: 16),
+          Text(l.translate('change_password'), style: AppTypography.titleLarge),
+          const SizedBox(height: 24),
+          AppFormField(
+            label: l.translate('current_password'),
+            controller: oldCtrl,
+            obscure: true,
+            hint: l.translate('enter_password'),
+            prefixIcon: Icons.lock_outline_rounded,
+          ),
+          AppFormField(
+            label: l.translate('new_password'),
+            controller: newCtrl,
+            obscure: true,
+            hint: l.translate('enter_password'),
+            prefixIcon: Icons.lock_reset_rounded,
+          ),
+          AppFormField(
+            label: l.translate('confirm_new_password'),
+            controller: confirmCtrl,
+            obscure: true,
+            hint: l.translate('enter_password'),
+            prefixIcon: Icons.lock_reset_rounded,
+          ),
+          const SizedBox(height: 8),
+          Row(children: [
+            Expanded(child: OutlinedButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14), side: BorderSide(color: AppColors.divider)),
+              child: Text(l.translate('cancel'), style: TextStyle(color: AppColors.textSecondary)),
+            )),
+            const SizedBox(width: 12),
+            Expanded(child: PrimaryButton(label: l.translate('update'), onPressed: () => Navigator.pop(ctx, true))),
+          ]),
+        ])),
       ),
     );
 
@@ -290,32 +347,47 @@ class AthleteProfileScreenState extends State<AthleteProfileScreen> {
     final passCtrl = TextEditingController();
     final l = AppLocalizations.of(context);
 
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showModalBottomSheet<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l.translate('delete_account'), style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.error)),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(l.translate('delete_account_confirm'), style: AppTypography.bodyMedium),
-              const SizedBox(height: 16),
-              TextField(
-                controller: passCtrl,
-                obscureText: true,
-                decoration: InputDecoration(labelText: l.translate('delete_account_password')),
-              ),
-            ],
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: EdgeInsets.fromLTRB(24, 8, 24, MediaQuery.of(ctx).viewInsets.bottom + 24),
+        decoration: const BoxDecoration(color: AppColors.cardBg, borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+        child: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(width: 40, height: 4, margin: const EdgeInsets.only(bottom: 20), decoration: BoxDecoration(color: AppColors.divider, borderRadius: BorderRadius.circular(2))),
+          Container(
+            width: 56, height: 56,
+            decoration: BoxDecoration(color: AppColors.error.withValues(alpha: 0.1), shape: BoxShape.circle),
+            child: const Icon(Icons.warning_rounded, color: AppColors.error, size: 28),
           ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l.translate('cancel'))),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(l.translate('delete_account')),
+          const SizedBox(height: 16),
+          Text(l.translate('delete_account'), style: AppTypography.titleLarge.copyWith(color: AppColors.error)),
+          const SizedBox(height: 8),
+          Text(l.translate('delete_account_confirm'), style: AppTypography.bodyMedium, textAlign: TextAlign.center),
+          const SizedBox(height: 24),
+          AppFormField(
+            label: l.translate('delete_account_password'),
+            controller: passCtrl,
+            obscure: true,
+            hint: l.translate('enter_password'),
+            prefixIcon: Icons.lock_outline_rounded,
           ),
-        ],
+          const SizedBox(height: 8),
+          Row(children: [
+            Expanded(child: OutlinedButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14), side: BorderSide(color: AppColors.divider)),
+              child: Text(l.translate('cancel'), style: TextStyle(color: AppColors.textSecondary)),
+            )),
+            const SizedBox(width: 12),
+            Expanded(child: ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md))),
+              child: Text(l.translate('delete_account'), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+            )),
+          ]),
+        ])),
       ),
     );
 
@@ -548,6 +620,12 @@ class AthleteProfileScreenState extends State<AthleteProfileScreen> {
                       color: AppColors.accent,
                       title: l.translate('privacy_policy'),
                       onTap: () => launchUrl(Uri.parse('${ApiService.baseUrl}/privacy-policy'), mode: LaunchMode.externalApplication),
+                    )),
+                    FadeSlideIn(delay: 775, child: ActionTile(
+                      icon: Icons.description_outlined,
+                      color: AppColors.info,
+                      title: l.translate('terms_of_service'),
+                      onTap: () => launchUrl(Uri.parse('${ApiService.baseUrl}/terms-of-service'), mode: LaunchMode.externalApplication),
                     )),
                     FadeSlideIn(delay: 800, child: ActionTile(
                       icon: Icons.logout_rounded,

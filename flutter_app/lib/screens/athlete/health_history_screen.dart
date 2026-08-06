@@ -6,6 +6,7 @@ import 'dart:convert';
 import 'dart:io';
 import '../../services/offline/offline_repository.dart';
 import '../../services/offline/connectivity_service.dart';
+import '../../services/refresh_bus.dart';
 import '../../widgets/app_feedback.dart';
 import '../../theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
@@ -16,7 +17,7 @@ class HealthHistoryScreen extends StatefulWidget {
   State<HealthHistoryScreen> createState() => _HealthHistoryScreenState();
 }
 
-class _HealthHistoryScreenState extends State<HealthHistoryScreen> {
+class _HealthHistoryScreenState extends State<HealthHistoryScreen> with LiveRefreshMixin {
   List<dynamic> records = [];
   bool loading = true;
 
@@ -32,6 +33,9 @@ class _HealthHistoryScreenState extends State<HealthHistoryScreen> {
     _fetch();
   }
 
+  @override
+  void onLiveRefresh() { _fetch(); }
+
   Future<void> _fetch() async {
     final data = await OfflineRepository.getHealthRecords(onFresh: (fresh) {
       if (mounted && fresh is List) setState(() => records = fresh);
@@ -46,19 +50,38 @@ class _HealthHistoryScreenState extends State<HealthHistoryScreen> {
 
   Future<void> _deleteRecord(int id) async {
     final l = AppLocalizations.of(context);
-    final confirm = await showDialog<bool>(
+    final confirm = await showModalBottomSheet<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l.translate('delete'), style: const TextStyle(fontWeight: FontWeight.w700)),
-        content: Text(l.translate('delete_health_record_confirm')),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l.translate('cancel'))),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(l.translate('delete')),
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
+        decoration: const BoxDecoration(color: AppColors.cardBg, borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(width: 40, height: 4, margin: const EdgeInsets.only(bottom: 24), decoration: BoxDecoration(color: AppColors.divider, borderRadius: BorderRadius.circular(2))),
+          Container(
+            width: 56, height: 56,
+            decoration: BoxDecoration(color: AppColors.error.withValues(alpha: 0.1), shape: BoxShape.circle),
+            child: const Icon(Icons.delete_outline_rounded, color: AppColors.error, size: 28),
           ),
-        ],
+          const SizedBox(height: 16),
+          Text(l.translate('delete'), style: AppTypography.titleLarge.copyWith(color: AppColors.error)),
+          const SizedBox(height: 8),
+          Text(l.translate('delete_health_record_confirm'), style: AppTypography.bodyMedium, textAlign: TextAlign.center),
+          const SizedBox(height: 24),
+          Row(children: [
+            Expanded(child: OutlinedButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14), side: BorderSide(color: AppColors.divider)),
+              child: Text(l.translate('cancel'), style: TextStyle(color: AppColors.textSecondary)),
+            )),
+            const SizedBox(width: 12),
+            Expanded(child: ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md))),
+              child: Text(l.translate('delete'), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+            )),
+          ]),
+        ]),
       ),
     );
     if (confirm != true || !mounted) return;
@@ -167,8 +190,9 @@ class _HealthHistoryScreenState extends State<HealthHistoryScreen> {
                                       itemBuilder: (_, fi) {
                                         final file = files[fi];
                                         final bytes = base64Decode(file['file_data']);
+                                        final allBytes = files.map((f) => base64Decode(f['file_data'] as String)).toList();
                                         return ScaleOnTap(
-                                          onTap: () => _showFullImage(bytes, file['file_name'] ?? ''),
+                                          onTap: () => _showFullImage(bytes, file['file_name'] ?? '', allImages: allBytes, initialIndex: fi),
                                           child: ClipRRect(
                                             borderRadius: BorderRadius.circular(AppRadius.sm),
                                             child: Image.memory(bytes, width: 80, height: 80, fit: BoxFit.cover),
@@ -195,20 +219,119 @@ class _HealthHistoryScreenState extends State<HealthHistoryScreen> {
       .fadeIn(duration: 250.ms)
       .slideY(begin: 0.08, curve: Curves.easeOutCubic);
 
-  void _showFullImage(Uint8List bytes, String name) {
-    showDialog(
-      context: context,
-      builder: (ctx) => Dialog(
-        backgroundColor: Colors.transparent,
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(AppRadius.lg),
-            child: Image.memory(bytes, fit: BoxFit.contain),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Text(name, style: const TextStyle(color: Colors.white, fontSize: 14)),
-        ]),
+  void _showFullImage(Uint8List bytes, String name, {List<Uint8List>? allImages, int initialIndex = 0}) {
+    Navigator.of(context).push(PageRouteBuilder(
+      opaque: false,
+      barrierColor: Colors.black87,
+      pageBuilder: (_, __, ___) => _FullImageViewer(
+        images: allImages ?? [bytes],
+        names: allImages != null ? List.generate(allImages.length, (i) => name) : [name],
+        initialIndex: allImages != null ? initialIndex : 0,
       ),
+      transitionsBuilder: (_, anim, __, child) => FadeTransition(opacity: anim, child: child),
+    ));
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// FULL-SCREEN IMAGE VIEWER WITH PINCH-ZOOM & GALLERY
+// ═══════════════════════════════════════════════════════
+class _FullImageViewer extends StatefulWidget {
+  final List<Uint8List> images;
+  final List<String> names;
+  final int initialIndex;
+  const _FullImageViewer({required this.images, required this.names, this.initialIndex = 0});
+  @override
+  State<_FullImageViewer> createState() => _FullImageViewerState();
+}
+
+class _FullImageViewerState extends State<_FullImageViewer> {
+  late PageController _pageCtrl;
+  late int _current;
+
+  @override
+  void initState() {
+    super.initState();
+    _current = widget.initialIndex;
+    _pageCtrl = PageController(initialPage: widget.initialIndex);
+  }
+
+  @override
+  void dispose() {
+    _pageCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Stack(children: [
+        // Swipeable image gallery
+        PageView.builder(
+          controller: _pageCtrl,
+          itemCount: widget.images.length,
+          onPageChanged: (i) => setState(() => _current = i),
+          itemBuilder: (_, i) => GestureDetector(
+            onTap: () => Navigator.pop(context),
+            child: Center(
+              child: InteractiveViewer(
+                minScale: 0.5,
+                maxScale: 4.0,
+                child: Image.memory(widget.images[i], fit: BoxFit.contain),
+              ),
+            ),
+          ),
+        ),
+
+        // Top bar with close button and file name
+        Positioned(
+          top: 0, left: 0, right: 0,
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              child: Row(children: [
+                IconButton(
+                  icon: Container(
+                    width: 36, height: 36,
+                    decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.15), shape: BoxShape.circle),
+                    child: const Icon(Icons.close_rounded, color: Colors.white, size: 20),
+                  ),
+                  onPressed: () => Navigator.pop(context),
+                ),
+                const Spacer(),
+                if (widget.names[_current].isNotEmpty)
+                  Flexible(child: Text(widget.names[_current], style: const TextStyle(color: Colors.white70, fontSize: 13), overflow: TextOverflow.ellipsis)),
+                const Spacer(),
+                const SizedBox(width: 48),
+              ]),
+            ),
+          ),
+        ),
+
+        // Page indicator dots (only if multiple images)
+        if (widget.images.length > 1)
+          Positioned(
+            bottom: 0, left: 0, right: 0,
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(widget.images.length, (i) => AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    width: _current == i ? 24 : 8, height: 8,
+                    margin: const EdgeInsets.symmetric(horizontal: 3),
+                    decoration: BoxDecoration(
+                      color: _current == i ? Colors.white : Colors.white38,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  )),
+                ),
+              ),
+            ),
+          ),
+      ]),
     );
   }
 }

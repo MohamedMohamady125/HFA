@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/offline/offline_repository.dart';
 import '../../services/offline/connectivity_service.dart';
+import '../../services/refresh_bus.dart';
 import '../../widgets/app_feedback.dart';
 import '../../theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
@@ -14,12 +15,15 @@ class CoachPaymentsScreen extends StatefulWidget {
   State<CoachPaymentsScreen> createState() => CoachPaymentsScreenState();
 }
 
-class CoachPaymentsScreenState extends State<CoachPaymentsScreen> {
+class CoachPaymentsScreenState extends State<CoachPaymentsScreen> with LiveRefreshMixin {
   List<dynamic> records = [];
   List<String> sessionDates = [];
   bool loading = true;
   String search = '';
   void silentRefresh() { _fetchSummary(silent: true); }
+
+  @override
+  void onLiveRefresh() { _fetchSummary(silent: true); }
 
   @override
   void initState() {

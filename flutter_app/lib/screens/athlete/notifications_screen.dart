@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../services/offline/offline_repository.dart';
 import '../../services/offline/connectivity_service.dart';
+import '../../services/refresh_bus.dart';
 import '../../theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
 
@@ -12,7 +13,7 @@ class NotificationsScreen extends StatefulWidget {
   State<NotificationsScreen> createState() => _NotificationsScreenState();
 }
 
-class _NotificationsScreenState extends State<NotificationsScreen> {
+class _NotificationsScreenState extends State<NotificationsScreen> with LiveRefreshMixin {
   List<Map<String, dynamic>> notifications = [];
   bool loading = true;
 
@@ -21,6 +22,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     super.initState();
     _fetch();
   }
+
+  @override
+  void onLiveRefresh() { _fetch(); }
 
   void _apply(dynamic data) {
     if (data is List) {

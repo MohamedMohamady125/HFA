@@ -3,6 +3,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'api_service.dart';
+import 'refresh_bus.dart';
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -45,11 +46,13 @@ class PushNotificationService {
       _sendTokenToBackend(token);
     });
 
-    // Handle foreground messages
+    // Handle foreground messages — refresh open screens so new data
+    // (e.g. thread messages) appears immediately.
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       if (kDebugMode) {
         print('[PUSH] Foreground: ${message.notification?.title} - ${message.notification?.body}');
       }
+      RefreshBus.notify();
     });
   }
 

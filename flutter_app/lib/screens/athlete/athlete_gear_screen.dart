@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../services/offline/offline_repository.dart';
 import '../../services/offline/connectivity_service.dart';
+import '../../services/refresh_bus.dart';
 import '../../theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
 
@@ -10,7 +11,7 @@ class AthleteGearScreen extends StatefulWidget {
   State<AthleteGearScreen> createState() => AthleteGearScreenState();
 }
 
-class AthleteGearScreenState extends State<AthleteGearScreen> {
+class AthleteGearScreenState extends State<AthleteGearScreen> with LiveRefreshMixin {
   String? gearMessage;
   bool loading = true;
   bool _fetched = false;
@@ -19,6 +20,9 @@ class AthleteGearScreenState extends State<AthleteGearScreen> {
   void initState() { super.initState(); _fetchGear(); }
 
   void silentRefresh() { if (_fetched) _fetchGear(silent: true); }
+
+  @override
+  void onLiveRefresh() { _fetchGear(silent: true); }
 
   Future<void> _fetchGear({bool silent = false}) async {
     try {

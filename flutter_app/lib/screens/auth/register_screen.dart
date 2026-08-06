@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../services/api_service.dart';
 import '../../services/offline/connectivity_service.dart';
+import '../../services/offline/offline_repository.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_feedback.dart';
 import '../../l10n/app_localizations.dart';
@@ -23,14 +24,38 @@ class _RegisterScreenState extends State<RegisterScreen> {
   String? _selectedBranchId;
   bool _loading = false;
 
-  final _branches = [
-    {'label': 'Maadi', 'value': '1'}, {'label': 'Hadayek Al-Ahram', 'value': '2'},
-    {'label': '6th October', 'value': '3'}, {'label': 'Nasr City', 'value': '4'}, {'label': 'New Cairo', 'value': '5'},
-  ];
+  List<Map<String, String>> _branches = [];
+
+  @override
+  void initState() {
+    super.initState();
+    // Cache-first: show cached branches instantly (works offline once visited).
+    final cached = OfflineRepository.getCached('branches_public_list');
+    if (cached is List) _applyBranches(cached);
+    _fetchBranches();
+  }
+
+  void _applyBranches(List data) {
+    _branches = data
+        .map((b) => {'label': (b['name'] ?? '').toString(), 'value': (b['id'] ?? '').toString()})
+        .where((b) => b['label']!.isNotEmpty && b['value']!.isNotEmpty)
+        .toList();
+    // Drop selection if the branch no longer exists.
+    if (_selectedBranchId != null && !_branches.any((b) => b['value'] == _selectedBranchId)) {
+      _selectedBranchId = null;
+    }
+  }
+
+  Future<void> _fetchBranches() async {
+    final data = await OfflineRepository.getPublicBranches(onFresh: (fresh) {
+      if (mounted && fresh is List) setState(() => _applyBranches(fresh));
+    });
+    if (mounted && data.isNotEmpty) setState(() => _applyBranches(data));
+  }
 
   Future<void> _handleRegister() async {
     final l = AppLocalizations.of(context);
-    if ([_nameCtrl, _emailCtrl, _phoneCtrl, _passCtrl, _confirmCtrl].any((c) => c.text.isEmpty) || _selectedBranchId == null) {
+    if ([_nameCtrl, _emailCtrl, _passCtrl, _confirmCtrl].any((c) => c.text.isEmpty) || _selectedBranchId == null) {
       _showMsg(l.translate('fill_all_fields'), isError: true); return;
     }
     if (_passCtrl.text != _confirmCtrl.text) { _showMsg(l.translate('passwords_no_match'), isError: true); return; }
@@ -61,15 +86,27 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   Future<void> _showSuccessDialog(AppLocalizations l) async {
     if (!mounted) return;
-    await showDialog<void>(
+    await showModalBottomSheet<void>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        icon: const Icon(Icons.check_circle_rounded, color: AppColors.success, size: 48),
-        title: Text(l.translate('successfully_registered')),
-        content: Text(l.translate('registration_submitted'), textAlign: TextAlign.center),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: Text(l.translate('ok'))),
-        ],
+      backgroundColor: Colors.transparent,
+      isDismissible: false,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
+        decoration: const BoxDecoration(color: AppColors.cardBg, borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(width: 40, height: 4, margin: const EdgeInsets.only(bottom: 24), decoration: BoxDecoration(color: AppColors.divider, borderRadius: BorderRadius.circular(2))),
+          Container(
+            width: 72, height: 72,
+            decoration: BoxDecoration(color: AppColors.success.withValues(alpha: 0.1), shape: BoxShape.circle),
+            child: const Icon(Icons.check_rounded, color: AppColors.success, size: 36),
+          ),
+          const SizedBox(height: 20),
+          Text(l.translate('successfully_registered'), style: AppTypography.titleLarge),
+          const SizedBox(height: 8),
+          Text(l.translate('registration_submitted'), style: AppTypography.bodyMedium, textAlign: TextAlign.center),
+          const SizedBox(height: 28),
+          SizedBox(width: double.infinity, child: PrimaryButton(label: l.translate('ok'), onPressed: () => Navigator.of(ctx).pop())),
+        ]),
       ),
     );
   }
@@ -118,7 +155,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
             FadeSlideIn(delay: 240, child: AppFormField(
               label: l.translate('email'), controller: _emailCtrl, keyboardType: TextInputType.emailAddress, prefixIcon: Icons.mail_outline_rounded)),
             FadeSlideIn(delay: 300, child: AppFormField(
-              label: l.translate('phone'), controller: _phoneCtrl, keyboardType: TextInputType.phone, prefixIcon: Icons.phone_outlined)),
+              label: l.translate('phone_optional'), controller: _phoneCtrl, keyboardType: TextInputType.phone, prefixIcon: Icons.phone_outlined)),
+            FadeSlideIn(delay: 320, child: Padding(
+              padding: const EdgeInsetsDirectional.only(start: 4, end: 4, bottom: AppSpacing.md),
+              child: Text(l.translate('phone_verify_hint'), style: AppTypography.caption),
+            )),
             FadeSlideIn(delay: 360, child: AppFormField(
               label: l.translate('password'), controller: _passCtrl, obscure: true, prefixIcon: Icons.lock_outline_rounded)),
             FadeSlideIn(delay: 420, child: AppFormField(
@@ -143,7 +184,26 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
               ],
             )),
-            const SizedBox(height: AppSpacing.xxl),
+            const SizedBox(height: AppSpacing.md),
+            FadeSlideIn(delay: 520, child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Text.rich(
+                TextSpan(children: [
+                  TextSpan(text: l.translate('agree_terms_prefix'), style: AppTypography.caption),
+                  WidgetSpan(child: GestureDetector(
+                    onTap: () => launchUrl(Uri.parse('${ApiService.baseUrl}/terms-of-service'), mode: LaunchMode.externalApplication),
+                    child: Text(l.translate('terms_of_service'), style: AppTypography.caption.copyWith(color: AppColors.accent, fontWeight: FontWeight.w700, decoration: TextDecoration.underline)),
+                  )),
+                  TextSpan(text: l.translate('and_word'), style: AppTypography.caption),
+                  WidgetSpan(child: GestureDetector(
+                    onTap: () => launchUrl(Uri.parse('${ApiService.baseUrl}/privacy-policy'), mode: LaunchMode.externalApplication),
+                    child: Text(l.translate('privacy_policy'), style: AppTypography.caption.copyWith(color: AppColors.accent, fontWeight: FontWeight.w700, decoration: TextDecoration.underline)),
+                  )),
+                ]),
+                textAlign: TextAlign.center,
+              ),
+            )),
+            const SizedBox(height: AppSpacing.lg),
             FadeSlideIn(delay: 540, child: PrimaryButton(
               label: l.translate('submit_registration'),
               loading: _loading,

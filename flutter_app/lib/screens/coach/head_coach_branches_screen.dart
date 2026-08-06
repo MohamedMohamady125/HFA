@@ -8,6 +8,7 @@ import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
 import '../../services/offline/offline_repository.dart';
 import '../../services/offline/connectivity_service.dart';
+import '../../services/refresh_bus.dart';
 import '../../widgets/app_feedback.dart';
 import '../../theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
@@ -18,7 +19,7 @@ class HeadCoachBranchesScreen extends StatefulWidget {
   State<HeadCoachBranchesScreen> createState() => _HeadCoachBranchesScreenState();
 }
 
-class _HeadCoachBranchesScreenState extends State<HeadCoachBranchesScreen> {
+class _HeadCoachBranchesScreenState extends State<HeadCoachBranchesScreen> with LiveRefreshMixin {
   List<dynamic> branches = [];
   bool loading = true;
   int? _switchingId;
@@ -31,6 +32,9 @@ class _HeadCoachBranchesScreenState extends State<HeadCoachBranchesScreen> {
     if (cached is List && cached.isNotEmpty) { branches = cached; loading = false; }
     _fetchBranches();
   }
+
+  @override
+  void onLiveRefresh() { _fetchBranches(); }
 
   Future<void> _fetchBranches() async {
     try {

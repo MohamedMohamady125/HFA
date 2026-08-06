@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../services/api_service.dart';
 import '../../services/offline/offline_repository.dart';
 import '../../services/offline/connectivity_service.dart';
+import '../../services/refresh_bus.dart';
 import '../../widgets/app_feedback.dart';
 import '../../theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
@@ -14,7 +15,7 @@ class ManageCoachesScreen extends StatefulWidget {
   State<ManageCoachesScreen> createState() => _ManageCoachesScreenState();
 }
 
-class _ManageCoachesScreenState extends State<ManageCoachesScreen> {
+class _ManageCoachesScreenState extends State<ManageCoachesScreen> with LiveRefreshMixin {
   List<dynamic> coaches = [];
   List<dynamic> branches = [];
   bool loading = true;
@@ -30,6 +31,9 @@ class _ManageCoachesScreenState extends State<ManageCoachesScreen> {
     if (coaches.isNotEmpty) loading = false;
     _loadData();
   }
+
+  @override
+  void onLiveRefresh() { _loadData(); }
 
   Future<void> _loadData() async {
     if (coaches.isEmpty) setState(() => loading = true);
@@ -447,10 +451,40 @@ class _ManageCoachesScreenState extends State<ManageCoachesScreen> {
   // ═══════════════════════════════════════════════════════
   void _deleteCoach(int id, String name) async {
     final l = AppLocalizations.of(context);
-    final ok = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
-      title: Text(l.translate('delete_coach')), content: Text('${l.translate('delete_confirm')} $name ${l.translate('remove_permanently')}'),
-      actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l.translate('cancel'))), TextButton(onPressed: () => Navigator.pop(ctx, true), style: TextButton.styleFrom(foregroundColor: AppColors.error), child: Text(l.translate('delete')))],
-    ));
+    final ok = await showModalBottomSheet<bool>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
+        decoration: const BoxDecoration(color: AppColors.cardBg, borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(width: 40, height: 4, margin: const EdgeInsets.only(bottom: 24), decoration: BoxDecoration(color: AppColors.divider, borderRadius: BorderRadius.circular(2))),
+          Container(
+            width: 56, height: 56,
+            decoration: BoxDecoration(color: AppColors.error.withValues(alpha: 0.1), shape: BoxShape.circle),
+            child: const Icon(Icons.person_remove_rounded, color: AppColors.error, size: 26),
+          ),
+          const SizedBox(height: 16),
+          Text(l.translate('delete_coach'), style: AppTypography.titleLarge.copyWith(color: AppColors.error)),
+          const SizedBox(height: 8),
+          Text('${l.translate('delete_confirm')} $name ${l.translate('remove_permanently')}', style: AppTypography.bodyMedium, textAlign: TextAlign.center),
+          const SizedBox(height: 24),
+          Row(children: [
+            Expanded(child: OutlinedButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14), side: BorderSide(color: AppColors.divider)),
+              child: Text(l.translate('cancel'), style: TextStyle(color: AppColors.textSecondary)),
+            )),
+            const SizedBox(width: 12),
+            Expanded(child: ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md))),
+              child: Text(l.translate('delete'), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+            )),
+          ]),
+        ]),
+      ),
+    );
     if (ok != true) return;
     if (_blockIfOffline()) return;
     try {
@@ -570,16 +604,12 @@ class _ManageCoachesScreenState extends State<ManageCoachesScreen> {
                             ),
                             const SizedBox(height: 12),
 
-                            // Action buttons row
-                            Row(children: [
+                            // Action buttons
+                            Wrap(spacing: 8, runSpacing: 8, crossAxisAlignment: WrapCrossAlignment.center, children: [
                               if (hasPassword) _actionChip(Icons.key_rounded, AppLocalizations.of(context).translate('credentials'), AppColors.accent, () => _showCredentialsSheet(c['email'] ?? '', c['plain_password'] ?? '')),
-                              if (hasPassword) const SizedBox(width: 8),
                               _actionChip(Icons.swap_horiz_rounded, AppLocalizations.of(context).translate('branch_label'), AppColors.info, () => _showAssignBranchSheet(c)),
-                              const SizedBox(width: 8),
                               _actionChip(Icons.edit_rounded, AppLocalizations.of(context).translate('edit'), AppColors.primary, () => _showEditSheet(c)),
-                              const SizedBox(width: 8),
                               _actionChip(Icons.lock_reset_rounded, AppLocalizations.of(context).translate('reset'), AppColors.warning, () => _showResetSheet(c)),
-                              const Spacer(),
                               ScaleOnTap(
                                 onTap: () => _deleteCoach(c['id'], c['name'] ?? ''),
                                 child: Container(
