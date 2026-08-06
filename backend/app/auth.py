@@ -12,7 +12,7 @@ from jose import jwt
 from app.config import settings
 from app.utils.email import send_reset_email
 from app.utils.tokens import create_reset_token
-from app.utils.db_helpers import get_user_by_email
+from app.utils.db_helpers import get_user_by_email, delete_user_cascade
 
 router = APIRouter()
 
@@ -25,6 +25,10 @@ def register(user: UserCreate):
     if cursor.fetchone():
         raise HTTPException(status_code=400, detail="Email already submitted")
 
+    cursor.execute("SELECT id FROM users WHERE email = %s", (user.email,))
+    if cursor.fetchone():
+        raise HTTPException(status_code=400, detail="Email already registered")
+
     cursor.execute("SELECT name FROM branches WHERE id = %s", (user.branch_id,))
     branch = cursor.fetchone()
     if not branch:
@@ -32,10 +36,20 @@ def register(user: UserCreate):
 
     branch_name = branch["name"]
 
+    password_hash = bcrypt.hash(user.password)
     cursor.execute(
         "INSERT INTO registration_requests (athlete_name, phone, email, password_hash, branch_name) VALUES (%s, %s, %s, %s, %s)",
-        (user.name, user.phone, user.email, bcrypt.hash(user.password), branch_name)
+        (user.name, user.phone, user.email, password_hash, branch_name)
     )
+
+    # Create the user immediately (unapproved) so the app can log them in
+    # and show the waiting screen; approval later flips approved = TRUE.
+    cursor.execute("""
+        INSERT INTO users (name, email, phone, password_hash, role, approved, branch_id)
+        VALUES (%s, %s, %s, %s, 'athlete', FALSE, %s)
+        RETURNING id
+    """, (user.name, user.email, user.phone, password_hash, user.branch_id))
+    new_user_id = cursor.fetchone()["id"]
     conn.commit()
 
     cursor.execute("SELECT id FROM users WHERE role = 'coach' AND branch_id = %s LIMIT 1", (user.branch_id,))
@@ -49,7 +63,26 @@ def register(user: UserCreate):
 
     cursor.close()
     conn.close()
-    return {"message": "Request submitted. A coach will review and approve it."}
+
+    # Auto-login: return a token so the app can go straight to the waiting screen
+    token = jwt.encode(
+        {"sub": str(new_user_id)},
+        settings.JWT_SECRET,
+        algorithm=settings.JWT_ALGORITHM,
+    )
+    return {
+        "message": "Request submitted. A coach will review and approve it.",
+        "token": token,
+        "user": {
+            "id": new_user_id,
+            "name": user.name,
+            "email": user.email,
+            "phone": user.phone,
+            "role": "athlete",
+            "approved": False,
+            "branch_id": user.branch_id,
+        },
+    }
 
 
 @router.post("/login")
@@ -127,36 +160,7 @@ def delete_account(data: DeleteAccountRequest, user=Depends(get_current_user)):
         conn.close()
         raise HTTPException(status_code=401, detail="Incorrect password")
 
-    user_id = user["id"]
-
-    # Delete all related data
-    cursor.execute("DELETE FROM device_tokens WHERE user_id = %s", (user_id,))
-    cursor.execute("DELETE FROM notifications WHERE user_id = %s", (user_id,))
-    cursor.execute("DELETE FROM password_reset_codes WHERE user_id = %s", (user_id,))
-    cursor.execute("DELETE FROM parent_access_codes WHERE user_id = %s", (user_id,))
-    cursor.execute("DELETE FROM posts WHERE user_id = %s", (user_id,))
-
-    # Delete athlete-specific data
-    cursor.execute("SELECT id FROM athletes WHERE user_id = %s", (user_id,))
-    athlete = cursor.fetchone()
-    if athlete:
-        athlete_id = athlete["id"]
-        cursor.execute("DELETE FROM payments WHERE athlete_id = %s", (athlete_id,))
-        cursor.execute("DELETE FROM attendance WHERE athlete_id = %s", (athlete_id,))
-        cursor.execute("DELETE FROM measurements WHERE athlete_id = %s", (athlete_id,))
-        cursor.execute("DELETE FROM performance_logs WHERE athlete_id = %s", (athlete_id,))
-        cursor.execute("DELETE FROM health_records WHERE athlete_id = %s", (athlete_id,))
-        cursor.execute("DELETE FROM athletes WHERE id = %s", (athlete_id,))
-
-    # Delete coach assignments
-    cursor.execute("DELETE FROM coach_assignments WHERE user_id = %s", (user_id,))
-
-    # Delete registration requests
-    cursor.execute("DELETE FROM registration_requests WHERE email = %s", (user["email"],))
-
-    # Finally delete the user
-    cursor.execute("DELETE FROM users WHERE id = %s", (user_id,))
-
+    delete_user_cascade(cursor, user["id"], user["email"])
     conn.commit()
     cursor.close()
     conn.close()

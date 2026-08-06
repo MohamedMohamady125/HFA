@@ -17,6 +17,10 @@ class AppColors {
   static const cardBg = Colors.white;
   static const surfaceLight = Color(0xFFF1F4F8);
 
+  /// Chat screen background — tinted blue-gray so white message bubbles
+  /// stand out (WhatsApp/iMessage style) instead of white-on-white.
+  static const chatBg = Color(0xFFE8EFF5);
+
   static const textPrimary = Color(0xFF0F1419);
   static const textSecondary = Color(0xFF536471);
   static const textTertiary = Color(0xFF8899A6);

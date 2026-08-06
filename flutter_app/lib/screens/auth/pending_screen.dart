@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../services/refresh_bus.dart';
 import '../../theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
 
@@ -13,14 +14,18 @@ class PendingScreen extends StatefulWidget {
   State<PendingScreen> createState() => _PendingScreenState();
 }
 
-class _PendingScreenState extends State<PendingScreen> {
+class _PendingScreenState extends State<PendingScreen> with LiveRefreshMixin {
   Timer? _pollTimer;
+  bool _checking = false;
+  bool _handled = false;
 
   @override
   void initState() {
     super.initState();
     // Poll every 5 seconds to check if the coach has approved
     _pollTimer = Timer.periodic(const Duration(seconds: 5), (_) => _checkApproval());
+    // Also check right away (covers the push-notification arrival case)
+    _checkApproval();
   }
 
   @override
@@ -29,19 +34,61 @@ class _PendingScreenState extends State<PendingScreen> {
     super.dispose();
   }
 
+  // A push (approval/rejection) fires RefreshBus → re-check instantly.
+  @override
+  void onLiveRefresh() => _checkApproval();
+
   Future<void> _checkApproval() async {
-    final auth = context.read<AuthProvider>();
-    final approved = await auth.checkApproval();
-    if (approved && mounted) {
-      final role = auth.role;
-      if (role == 'head_coach') {
-        context.go('/head-coach-branches');
-      } else if (role == 'coach') {
-        context.go('/coach/home');
-      } else {
-        context.go('/athlete/home');
+    if (_checking || _handled) return;
+    _checking = true;
+    try {
+      final auth = context.read<AuthProvider>();
+      final status = await auth.checkApprovalStatus();
+      if (!mounted || _handled) return;
+      if (status == 'approved') {
+        _handled = true;
+        final role = auth.role;
+        if (role == 'head_coach') {
+          context.go('/head-coach-branches');
+        } else if (role == 'coach') {
+          context.go('/coach/home');
+        } else {
+          context.go('/athlete/home');
+        }
+      } else if (status == 'rejected') {
+        _handled = true;
+        _pollTimer?.cancel();
+        await _showRejectedDialog();
       }
+    } finally {
+      _checking = false;
     }
+  }
+
+  Future<void> _showRejectedDialog() async {
+    final l = AppLocalizations.of(context);
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        icon: const Icon(Icons.info_outline_rounded, color: AppColors.error, size: 40),
+        title: Text(l.translate('registration_rejected'), textAlign: TextAlign.center),
+        content: Text(l.translate('registration_rejected_message'), textAlign: TextAlign.center, style: AppTypography.bodyMedium),
+        actions: [
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: Text(l.translate('ok')),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (!mounted) return;
+    await context.read<AuthProvider>().logout();
+    if (mounted) context.go('/guest-home');
   }
 
   @override

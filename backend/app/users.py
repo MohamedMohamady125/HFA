@@ -5,6 +5,8 @@ from passlib.hash import bcrypt
 from datetime import date, datetime
 import json
 from pydantic import BaseModel
+from app.utils.push import send_push_to_users, send_push_to_tokens
+from app.utils.db_helpers import delete_user_cascade
 
 router = APIRouter()
 
@@ -178,6 +180,17 @@ def approve_registration_request(request_id: int, user=Depends(get_current_user)
         """, (user["id"], request_id))
 
     conn.commit()
+
+    # Notify the athlete — the app's waiting screen picks this up and goes home
+    send_push_to_users(
+        cursor, [user_id],
+        "Registration Approved",
+        "Welcome to HFA! Your registration has been accepted.",
+        title_ar="تم قبول التسجيل",
+        body_ar="أهلاً بك في أكاديمية HFA! تم قبول طلب تسجيلك.",
+        data={"type": "approval_result", "result": "approved"},
+    )
+
     cursor.close()
     conn.close()
     return {"message": "Registration approved"}
@@ -252,9 +265,32 @@ def reject_registration_request(request_id: int, user=Depends(get_current_user))
             conn.close()
             raise HTTPException(status_code=403, detail="You can only reject requests for your branch")
 
-    cursor.execute("DELETE FROM registration_requests WHERE id = %s", (request_id,))
+    # If the athlete's user account exists (created at registration), grab the
+    # device tokens BEFORE deleting so we can still notify them, then wipe all
+    # of their data so the email is free to register again.
+    token_rows = []
+    cursor.execute(
+        "SELECT id FROM users WHERE email = %s AND role = 'athlete' AND approved = FALSE",
+        (request["email"],)
+    )
+    pending_user = cursor.fetchone()
+    if pending_user:
+        cursor.execute("SELECT token, lang FROM device_tokens WHERE user_id = %s", (pending_user["id"],))
+        token_rows = cursor.fetchall()
+        delete_user_cascade(cursor, pending_user["id"], request["email"])
+    else:
+        cursor.execute("DELETE FROM registration_requests WHERE id = %s", (request_id,))
     conn.commit()
     cursor.close()
     conn.close()
+
+    send_push_to_tokens(
+        token_rows,
+        "Registration Update",
+        "Unfortunately, your registration was not accepted. You may register again at any time.",
+        title_ar="تحديث التسجيل",
+        body_ar="نأسف، لم يتم قبول طلب تسجيلك. يمكنك التسجيل مرة أخرى في أي وقت.",
+        data={"type": "approval_result", "result": "rejected"},
+    )
 
     return {"message": "Registration request rejected successfully"}

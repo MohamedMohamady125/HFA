@@ -186,7 +186,7 @@ class AthleteThreadsScreenState extends State<AthleteThreadsScreen> with Automat
           // Messages
           Expanded(
             child: Container(
-              color: AppColors.scaffoldBg,
+              color: AppColors.chatBg,
               child: postsLoading
                   ? const ShimmerList(count: 5)
                   : posts.isEmpty

@@ -175,6 +175,38 @@ def _send_pushes_worker(user_ids: list, title: str, body: str,
                 pass
 
 
+def _send_tokens_worker(token_rows: list, title: str, body: str,
+                        title_ar: str = None, body_ar: str = None, data: dict = None):
+    """Send to explicit device tokens (no DB lookup) — used when the user's
+    rows are deleted before the push can go out (e.g. registration rejection)."""
+    try:
+        access_token, project_id = _get_access_token()
+        if not access_token:
+            logger.warning("Could not get FCM access token — push disabled")
+            return
+        for row in token_rows:
+            lang = row.get("lang", "en") or "en"
+            localized_title = title_ar if (lang == "ar" and title_ar) else title
+            localized_body = body_ar if (lang == "ar" and body_ar) else body
+            result = _send_fcm_v1(row["token"], localized_title, localized_body, access_token, project_id, data=data)
+            if not result["success"]:
+                logger.error(f"FCM send failed for token {row['token'][:20]}...: {result}")
+    except Exception as e:
+        logger.error(f"Push to explicit tokens failed: {e}")
+
+
+def send_push_to_tokens(token_rows: list, title: str, body: str,
+                        title_ar: str = None, body_ar: str = None, data: dict = None):
+    """Non-blocking push to explicit token rows [{'token': ..., 'lang': ...}]."""
+    if not token_rows:
+        return
+    threading.Thread(
+        target=_send_tokens_worker,
+        args=([dict(r) for r in token_rows], title, body, title_ar, body_ar, data),
+        daemon=True,
+    ).start()
+
+
 def send_push_to_user(cursor, user_id: int, title: str, body: str,
                       title_ar: str = None, body_ar: str = None, data: dict = None):
     """Send push notification to all devices registered for a user (non-blocking)."""

@@ -107,7 +107,7 @@ def post_gear(branch_id: int, data: GearPost, user=Depends(get_current_user)):
     # Send push notifications (after commit so DB is consistent)
     send_push_to_users(
         cursor, athlete_user_ids, "Gear for this week", data.content,
-        title_ar="مستلزمات السباحة لهذا الأسبوع",
+        title_ar="معدات اللياقة لهذا الأسبوع",
         data={"type": "gear"},
     )
 

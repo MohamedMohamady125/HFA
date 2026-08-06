@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
@@ -86,9 +87,10 @@ class AuthProvider extends ChangeNotifier {
   }
 
   /// Check with the server if the user has been approved.
-  /// Returns true if status changed to approved.
-  Future<bool> checkApproval() async {
-    if (_user == null || isApproved) return false;
+  /// Returns 'approved', 'pending', or 'rejected' (account deleted by coach).
+  Future<String> checkApprovalStatus() async {
+    if (_user == null) return 'pending';
+    if (isApproved) return 'approved';
     try {
       final resp = await ApiService().get('/auth/me');
       if (resp.data != null && resp.data['approved'] == true) {
@@ -96,10 +98,17 @@ class AuthProvider extends ChangeNotifier {
         _prefs ??= await SharedPreferences.getInstance();
         await _prefs!.setString('authUser', jsonEncode(_user));
         notifyListeners();
-        return true;
+        return 'approved';
       }
-    } catch (_) {}
-    return false;
+      return 'pending';
+    } on DioException catch (e) {
+      final code = e.response?.statusCode;
+      // Coach rejected the request → the account was deleted server-side
+      if (code == 401 || code == 404) return 'rejected';
+      return 'pending';
+    } catch (_) {
+      return 'pending';
+    }
   }
 
   Future<void> setHeadCoachMode(bool value) async {

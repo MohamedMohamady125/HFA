@@ -17,7 +17,7 @@ class AppLocalizations {
     'en': {
       // Guest Home
       'welcome_title': 'Welcome to HFA!',
-      'branch_count': 'We have 9 branches across Cairo and Giza!',
+      'branch_count': 'We have branches across Cairo and Giza!',
       'nearest_branch': 'Nearest Branch',
       'branch_name': 'Main Branch - Downtown',
       'practice_time': 'Practice Time: Mon-Fri, 4PM-6PM',
@@ -81,6 +81,8 @@ class AppLocalizations {
       // Pending
       'pending_approval': 'Pending Approval',
       'pending_message': 'Your registration is being reviewed by a coach.\nYou will be notified once approved.',
+      'registration_rejected': 'Registration Not Accepted',
+      'registration_rejected_message': 'Unfortunately, your registration was not accepted. You may register again at any time.',
       'logout': 'Logout',
 
       // Reset Password
@@ -409,7 +411,7 @@ class AppLocalizations {
     'ar': {
       // Guest Home
       'welcome_title': 'مرحبًا بك في HFA!',
-      'branch_count': 'لدينا ٩ فروع في القاهرة والجيزة!',
+      'branch_count': 'لدينا فروع في القاهرة والجيزة!',
       'nearest_branch': 'أقرب فرع',
       'branch_name': 'الفرع الرئيسي - وسط البلد',
       'practice_time': 'مواعيد التمرين: من الإثنين إلى الجمعة، من ٤ إلى ٦ مساءً',
@@ -473,6 +475,8 @@ class AppLocalizations {
       // Pending
       'pending_approval': 'في انتظار الموافقة',
       'pending_message': 'طلب تسجيلك قيد المراجعة من المدرب.\nسنخطرك فور الموافقة عليه.',
+      'registration_rejected': 'لم يتم قبول التسجيل',
+      'registration_rejected_message': 'نأسف، لم يتم قبول طلب تسجيلك. يمكنك التسجيل مرة أخرى في أي وقت.',
       'logout': 'تسجيل الخروج',
 
       // Reset Password
@@ -504,7 +508,7 @@ class AppLocalizations {
       'dashboard': 'لوحة التحكم',
       'weekly_attendance': 'الحضور الأسبوعي',
       'latest_chat': 'آخر محادثة',
-      'gear_check': 'أدوات السباحة',
+      'gear_check': 'معدات اللياقة',
       'payment': 'الاشتراك',
       'status': 'الحالة',
       'paid': 'مدفوع',
@@ -524,9 +528,9 @@ class AppLocalizations {
       'no_messages': 'لا توجد رسائل بعد',
 
       // Gear
-      'gear_update': 'تحديث أدوات السباحة',
-      'gear_subtitle': 'آخر أدوات السباحة المطلوبة من مدربك',
-      'loading_gear': 'جارٍ تحميل أدوات السباحة...',
+      'gear_update': 'تحديث معدات اللياقة',
+      'gear_subtitle': 'آخر معدات اللياقة المطلوبة من مدربك',
+      'loading_gear': 'جارٍ تحميل معدات اللياقة...',
 
       // Profile
       'attendance_tracker': 'الحضور',
@@ -561,12 +565,12 @@ class AppLocalizations {
       'type_message': 'اكتب رسالتك...',
 
       // Coach Gear
-      'weekly_gear_update': 'تحديث أدوات السباحة',
-      'enter_gear': 'اكتب أدوات السباحة المطلوبة من اللاعبين...',
-      'save_gear': 'حفظ أدوات السباحة',
+      'weekly_gear_update': 'تحديث معدات اللياقة',
+      'enter_gear': 'اكتب معدات اللياقة المطلوبة من اللاعبين...',
+      'save_gear': 'حفظ معدات اللياقة',
       'saving': 'جارٍ الحفظ...',
-      'gear_saved': 'تم حفظ أدوات السباحة!',
-      'gear_failed': 'تعذر نشر أدوات السباحة.',
+      'gear_saved': 'تم حفظ معدات اللياقة!',
+      'gear_failed': 'تعذر نشر معدات اللياقة.',
 
       // Coach Profile
       'coach_profile': 'الملف الشخصي للمدرب',
@@ -686,9 +690,9 @@ class AppLocalizations {
       'failed_to_approve': 'تعذر القبول',
       'failed_to_reject': 'تعذر الرفض',
       'failed_load_sessions': 'تعذر تحميل مواعيد الحصص',
-      'no_gear_posted': 'لم يتم نشر أدوات السباحة بعد.',
-      'error_loading_gear': 'حدث خطأ أثناء تحميل أدوات السباحة.',
-      'no_gear_updates': 'لا توجد تحديثات لأدوات السباحة.',
+      'no_gear_posted': 'لم يتم نشر معدات اللياقة بعد.',
+      'error_loading_gear': 'حدث خطأ أثناء تحميل معدات اللياقة.',
+      'no_gear_updates': 'لا توجد تحديثات لمعدات اللياقة.',
       'no_posts': 'لا توجد منشورات بعد.',
       'no_threads_available': 'لا توجد محادثات.',
       'message_hint': 'اكتب رسالة',
@@ -820,7 +824,6 @@ class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> 
 
 class LocaleProvider extends ChangeNotifier {
   Locale _locale = const Locale('en');
-  bool _initialized = false;
 
   Locale get locale => _locale;
 
@@ -838,7 +841,6 @@ class LocaleProvider extends ChangeNotifier {
       final deviceLocale = WidgetsBinding.instance.platformDispatcher.locale;
       _locale = deviceLocale.languageCode == 'ar' ? const Locale('ar') : const Locale('en');
     }
-    _initialized = true;
     notifyListeners();
   }
 
@@ -847,6 +849,8 @@ class LocaleProvider extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('app_locale', _locale.languageCode);
     notifyListeners();
+    // Re-register device token so push notifications use the new language
+    PushNotificationService.forceReRegister();
   }
 
   void setLocale(Locale locale) async {
@@ -855,6 +859,6 @@ class LocaleProvider extends ChangeNotifier {
     await prefs.setString('app_locale', locale.languageCode);
     notifyListeners();
     // Re-register device token so push notifications use the new language
-    PushNotificationService.registerDevice();
+    PushNotificationService.forceReRegister();
   }
 }

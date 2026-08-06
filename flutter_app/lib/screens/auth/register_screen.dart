@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
 import '../../services/offline/connectivity_service.dart';
 import '../../services/offline/offline_repository.dart';
@@ -68,17 +70,32 @@ class _RegisterScreenState extends State<RegisterScreen> {
     HapticFeedback.mediumImpact();
     setState(() => _loading = true);
     try {
-      await ApiService().post('/auth/register', data: {
+      final res = await ApiService().post('/auth/register', data: {
         'email': _emailCtrl.text.trim(), 'password': _passCtrl.text, 'name': _nameCtrl.text.trim(),
         'phone': _phoneCtrl.text.trim(), 'branch_id': int.parse(_selectedBranchId!),
       });
       if (!mounted) return;
-      for (var c in [_nameCtrl, _emailCtrl, _phoneCtrl, _passCtrl, _confirmCtrl]) {
-        c.clear();
+      final token = res.data?['token'];
+      final user = res.data?['user'];
+      if (token != null && user != null) {
+        // Auto-login and wait on the pending screen until the coach decides
+        final authUser = {
+          ...Map<String, dynamic>.from(user),
+          'isLoggedIn': true,
+          'isApproved': false,
+          'token': token,
+        };
+        await context.read<AuthProvider>().login(authUser);
+        if (mounted) context.go('/pending');
+      } else {
+        // Fallback for an older backend that doesn't return a token
+        for (var c in [_nameCtrl, _emailCtrl, _phoneCtrl, _passCtrl, _confirmCtrl]) {
+          c.clear();
+        }
+        setState(() => _selectedBranchId = null);
+        await _showSuccessDialog(l);
+        if (mounted) AppFeedback.showSuccess(context, l.translate('registration_submitted'));
       }
-      setState(() => _selectedBranchId = null);
-      await _showSuccessDialog(l);
-      if (mounted) AppFeedback.showSuccess(context, l.translate('registration_submitted'));
     } catch (e) {
       if (mounted) AppFeedback.showError(context, e, fallback: l.translate('server_error'));
     } finally { if (mounted) setState(() => _loading = false); }

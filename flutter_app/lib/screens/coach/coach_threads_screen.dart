@@ -180,7 +180,7 @@ class CoachThreadsScreenState extends State<CoachThreadsScreen> with LiveRefresh
             // Messages
             Expanded(
               child: Container(
-                color: AppColors.scaffoldBg,
+                color: AppColors.chatBg,
                 child: messages.isEmpty
                     ? (!ConnectivityService.isOnline && threadId == null
                         ? EmptyState(
