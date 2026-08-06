@@ -79,20 +79,22 @@ def _get_access_token():
     return credentials.token, cred_dict.get("project_id")
 
 
-def _send_fcm_v1(token: str, title: str, body: str, access_token: str, project_id: str):
+def _send_fcm_v1(token: str, title: str, body: str, access_token: str, project_id: str, data: dict = None):
     """Send a single push notification via FCM HTTP v1 API directly."""
     import urllib.request
 
     url = f"https://fcm.googleapis.com/v1/projects/{project_id}/messages:send"
-    payload = json.dumps({
-        "message": {
-            "token": token,
-            "notification": {
-                "title": title,
-                "body": body,
-            }
+    message = {
+        "token": token,
+        "notification": {
+            "title": title,
+            "body": body,
         }
-    }).encode("utf-8")
+    }
+    if data:
+        # FCM v1 requires all data values to be strings
+        message["data"] = {k: str(v) for k, v in data.items()}
+    payload = json.dumps({"message": message}).encode("utf-8")
 
     req = urllib.request.Request(url, data=payload, method="POST")
     req.add_header("Authorization", f"Bearer {access_token}")
@@ -108,31 +110,8 @@ def _send_fcm_v1(token: str, title: str, body: str, access_token: str, project_i
         return {"success": False, "status": None, "error": str(e)}
 
 
-# Arabic translations for push notification titles
-_AR_TITLES = {
-    "Gear for this week": "أدوات هذا الأسبوع",
-    "Attendance": "الحضور",
-}
-
-
-def _localize_title(title: str, lang: str) -> str:
-    if lang == "ar" and title in _AR_TITLES:
-        return _AR_TITLES[title]
-    return title
-
-
-def _localize_body(body: str, lang: str, title: str) -> str:
-    if lang != "ar":
-        return body
-    # Attendance messages
-    if title == "Attendance" or title == _AR_TITLES.get("Attendance", ""):
-        body = body.replace("You were marked present", "تم تسجيل حضورك")
-        body = body.replace("You were marked absent", "تم تسجيل غيابك")
-        body = body.replace(" for ", " في ")
-    return body
-
-
-def _send_pushes_worker(user_ids: list, title: str, body: str):
+def _send_pushes_worker(user_ids: list, title: str, body: str,
+                        title_ar: str = None, body_ar: str = None, data: dict = None):
     """Runs in a background thread: fetches token once, uses its own DB connection."""
     from app.database import get_connection, get_cursor
 
@@ -155,9 +134,10 @@ def _send_pushes_worker(user_ids: list, title: str, body: str):
         for row in rows:
             device_token = row["token"]
             lang = row.get("lang", "en") or "en"
-            localized_title = _localize_title(title, lang)
-            localized_body = _localize_body(body, lang, title)
-            result = _send_fcm_v1(device_token, localized_title, localized_body, access_token, project_id)
+            # Per-device localization: use the Arabic variant when provided
+            localized_title = title_ar if (lang == "ar" and title_ar) else title
+            localized_body = body_ar if (lang == "ar" and body_ar) else body
+            result = _send_fcm_v1(device_token, localized_title, localized_body, access_token, project_id, data=data)
             if not result["success"]:
                 logger.error(f"FCM send failed for token {device_token[:20]}...: {result}")
                 error_str = result.get("error", "") or ""
@@ -180,14 +160,18 @@ def _send_pushes_worker(user_ids: list, title: str, body: str):
                 pass
 
 
-def send_push_to_user(cursor, user_id: int, title: str, body: str):
+def send_push_to_user(cursor, user_id: int, title: str, body: str,
+                      title_ar: str = None, body_ar: str = None, data: dict = None):
     """Send push notification to all devices registered for a user (non-blocking)."""
-    send_push_to_users(cursor, [user_id], title, body)
+    send_push_to_users(cursor, [user_id], title, body, title_ar=title_ar, body_ar=body_ar, data=data)
 
 
-def send_push_to_users(cursor, user_ids: list, title: str, body: str):
+def send_push_to_users(cursor, user_ids: list, title: str, body: str,
+                       title_ar: str = None, body_ar: str = None, data: dict = None):
     """Send push notifications in a background thread so the request returns immediately.
 
+    `title_ar`/`body_ar` are used for devices whose registered language is Arabic.
+    `data` is attached to the FCM message so the app can deep-link on tap.
     The `cursor` argument is unused (kept for call-site compatibility); the worker
     opens its own DB connection since the request's cursor is closed after return.
     """
@@ -195,6 +179,6 @@ def send_push_to_users(cursor, user_ids: list, title: str, body: str):
         return
     threading.Thread(
         target=_send_pushes_worker,
-        args=(list(user_ids), title, body),
+        args=(list(user_ids), title, body, title_ar, body_ar, data),
         daemon=True,
     ).start()

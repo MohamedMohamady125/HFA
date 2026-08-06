@@ -128,7 +128,15 @@ def _mark_attendance_sync(data: AttendanceMark, user: dict):
                 (athlete_user["user_id"], notif_msg)
             )
             conn.commit()
-            send_push_to_user(cursor, athlete_user["user_id"], "Attendance", notif_msg)
+            notif_msg_ar = (
+                f"تم تسجيل حضورك يوم {data.session_date}" if data.status == "present"
+                else f"تم تسجيل غيابك يوم {data.session_date}"
+            )
+            send_push_to_user(
+                cursor, athlete_user["user_id"], "Attendance", notif_msg,
+                title_ar="الحضور", body_ar=notif_msg_ar,
+                data={"type": "attendance"},
+            )
 
     cursor.close()
     conn.close()
