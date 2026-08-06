@@ -205,6 +205,78 @@ def privacy_policy():
 </html>"""
 
 
+@app.get("/terms-of-service", response_class=HTMLResponse)
+def terms_of_service():
+    return """<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Terms of Service – HFA Fitness</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; line-height: 1.6; color: #333; }
+        h1 { color: #1a1a1a; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        h2 { color: #2c2c2c; margin-top: 30px; }
+        ul { padding-left: 20px; }
+        li { margin-bottom: 6px; }
+        .updated { color: #666; font-size: 0.9em; }
+    </style>
+</head>
+<body>
+    <h1>Terms of Service</h1>
+    <p class="updated">Last updated: July 14, 2026</p>
+    <p>Welcome to HFA Fitness. By downloading, installing, or using the HFA Fitness mobile application ("App"), you agree to be bound by these Terms of Service ("Terms"). If you do not agree to these Terms, do not use the App.</p>
+
+    <h2>1. Eligibility</h2>
+    <p>You must be at least 13 years of age to create an account. Users under 18 must have a parent or guardian's consent. Parents may monitor their child's account using the parent access code feature provided within the App.</p>
+
+    <h2>2. Account Registration</h2>
+    <p>To use the App, you must register with accurate and complete information including your name, email address, and phone number. You are responsible for maintaining the confidentiality of your login credentials and for all activities that occur under your account.</p>
+
+    <h2>3. Acceptable Use</h2>
+    <p>You agree to use the App only for its intended purpose — managing fitness training, tracking athletic performance, and communicating with coaches. You agree not to:</p>
+    <ul>
+        <li>Use the App for any unlawful purpose</li>
+        <li>Share your account credentials with others</li>
+        <li>Upload harmful, offensive, or inappropriate content</li>
+        <li>Attempt to gain unauthorized access to other users' accounts or data</li>
+        <li>Interfere with or disrupt the App's functionality</li>
+    </ul>
+
+    <h2>4. Health & Fitness Data</h2>
+    <p>The App allows you to record health and fitness information including body measurements, performance records, and health history. This data is provided for informational and training purposes only and does not constitute medical advice. Always consult a qualified healthcare professional for medical decisions.</p>
+
+    <h2>5. Coach and Athlete Relationship</h2>
+    <p>The App facilitates communication between coaches and athletes. Coaches may view athlete data relevant to training including measurements, attendance, and performance records. Head coaches have additional administrative privileges including managing coaches and branches.</p>
+
+    <h2>6. Push Notifications</h2>
+    <p>The App may send push notifications regarding training updates, gear announcements, payment reminders, and other relevant information. You can manage notification preferences through your device settings.</p>
+
+    <h2>7. Intellectual Property</h2>
+    <p>All content, design, and functionality of the App are the property of HFA Fitness and are protected by intellectual property laws. You may not copy, modify, distribute, or create derivative works based on the App.</p>
+
+    <h2>8. Account Termination</h2>
+    <p>You may delete your account at any time through the App settings. We reserve the right to suspend or terminate accounts that violate these Terms. Upon termination, your data will be deleted in accordance with our Privacy Policy.</p>
+
+    <h2>9. Disclaimer of Warranties</h2>
+    <p>The App is provided "as is" without warranties of any kind, express or implied. We do not guarantee that the App will be available at all times or free from errors.</p>
+
+    <h2>10. Limitation of Liability</h2>
+    <p>To the fullest extent permitted by law, HFA Fitness shall not be liable for any indirect, incidental, special, or consequential damages arising from your use of the App, including but not limited to injuries sustained during training activities.</p>
+
+    <h2>11. Changes to These Terms</h2>
+    <p>We may update these Terms from time to time. Continued use of the App after changes are posted constitutes acceptance of the modified Terms.</p>
+
+    <h2>12. Governing Law</h2>
+    <p>These Terms are governed by and construed in accordance with the laws of the Arab Republic of Egypt.</p>
+
+    <h2>13. Contact Us</h2>
+    <p>If you have questions about these Terms, please contact us at:</p>
+    <p>Email: <a href="mailto:mohamadhany97@gmail.com">mohamadhany97@gmail.com</a></p>
+</body>
+</html>"""
+
+
 @app.get("/delete-account", response_class=HTMLResponse)
 def delete_account():
     return """<!DOCTYPE html>

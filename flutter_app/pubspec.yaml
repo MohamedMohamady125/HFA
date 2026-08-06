@@ -1,7 +1,7 @@
 name: hfa_app
 description: "HFA Swimming Academy App"
 publish_to: 'none'
-version: 1.0.7+11
+version: 1.0.8+12
 
 environment:
   sdk: ^3.9.2
@@ -29,6 +29,7 @@ dependencies:
   webview_flutter: ^4.13.1
   web: ^1.1.1
   flutter_animate: ^4.5.2
+  flutter_local_notifications: ^20.1.0
 
 dev_dependencies:
   flutter_test:

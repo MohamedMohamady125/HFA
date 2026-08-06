@@ -79,7 +79,7 @@ class _GuestHomeScreenState extends State<GuestHomeScreen> with TickerProviderSt
                       delay: 120,
                       child: Text(
                         l.translate('fitness_academy'),
-                        style: AppTypography.overline.copyWith(color: AppColors.textSecondary, letterSpacing: 4),
+                        style: AppTypography.overline.copyWith(color: AppColors.textSecondary),
                       ),
                     ),
                     const SizedBox(height: AppSpacing.xxl),
@@ -224,7 +224,7 @@ class _GuestHomeScreenState extends State<GuestHomeScreen> with TickerProviderSt
           children: [
             Icon(icon, color: AppColors.accent, size: 18),
             const SizedBox(width: AppSpacing.sm),
-            Text(label, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.accent, letterSpacing: -0.2)),
+            Text(label, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.accent, letterSpacing: 0)),
           ],
         ),
       ),

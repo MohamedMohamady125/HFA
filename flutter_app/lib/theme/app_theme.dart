@@ -73,16 +73,18 @@ class AppRadius {
 // TYPOGRAPHY — modular scale 12/13/14/15/17/22/28/34
 // ═══════════════════════════════════════════════════════════
 class AppTypography {
-  static const displayXL = TextStyle(fontSize: 34, fontWeight: FontWeight.w900, color: AppColors.textPrimary, letterSpacing: -1.0, height: 1.1);
-  static const displayLarge = TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: AppColors.textPrimary, letterSpacing: -0.5);
-  static const displayMedium = TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.textPrimary, letterSpacing: -0.4);
-  static const titleLarge = TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: AppColors.textPrimary, letterSpacing: -0.3);
+  // Note: letterSpacing is intentionally 0 everywhere — non-zero values break
+  // Arabic script (letters must stay connected).
+  static const displayXL = TextStyle(fontSize: 34, fontWeight: FontWeight.w900, color: AppColors.textPrimary, letterSpacing: 0, height: 1.1);
+  static const displayLarge = TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: AppColors.textPrimary, letterSpacing: 0);
+  static const displayMedium = TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.textPrimary, letterSpacing: 0);
+  static const titleLarge = TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: AppColors.textPrimary, letterSpacing: 0);
   static const titleMedium = TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.textPrimary);
   static const bodyLarge = TextStyle(fontSize: 15, fontWeight: FontWeight.w400, color: AppColors.textPrimary, height: 1.5);
   static const bodyMedium = TextStyle(fontSize: 14, fontWeight: FontWeight.w400, color: AppColors.textSecondary, height: 1.5);
   static const caption = TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.textTertiary);
-  static const label = TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textSecondary, letterSpacing: 0.3);
-  static const overline = TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.textTertiary, letterSpacing: 1.2);
+  static const label = TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textSecondary, letterSpacing: 0);
+  static const overline = TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.textTertiary, letterSpacing: 0);
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -113,7 +115,7 @@ class AppTheme {
       scrolledUnderElevation: 0,
       centerTitle: true,
       foregroundColor: AppColors.textPrimary,
-      titleTextStyle: TextStyle(color: AppColors.textPrimary, fontSize: 17, fontWeight: FontWeight.w700, letterSpacing: -0.4),
+      titleTextStyle: TextStyle(color: AppColors.textPrimary, fontSize: 17, fontWeight: FontWeight.w700, letterSpacing: 0),
     ),
 
     cardTheme: CardThemeData(
@@ -131,7 +133,7 @@ class AppTheme {
         minimumSize: const Size.fromHeight(52),
         padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 24),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
-        textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: -0.2),
+        textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: 0),
       ),
     ),
 
@@ -274,7 +276,7 @@ class HeroHeader extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(title, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: -0.5)),
+                        Text(title, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 0)),
                         if (subtitle != null)
                           Padding(
                             padding: const EdgeInsets.only(top: 3),
@@ -322,9 +324,9 @@ class HeaderIconButton extends StatelessWidget {
           ),
         ),
         if (badgeCount > 0)
-          Positioned(
+          PositionedDirectional(
             top: -2,
-            right: -2,
+            end: -2,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
               decoration: BoxDecoration(color: AppColors.error, borderRadius: BorderRadius.circular(10), border: Border.all(color: Colors.white, width: 1.5)),
@@ -501,7 +503,7 @@ class PrimaryButton extends StatelessWidget {
               : [BoxShadow(color: AppColors.accent.withValues(alpha: 0.35), blurRadius: 14, offset: const Offset(0, 5))],
         ),
         child: DefaultTextStyle(
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.white, letterSpacing: -0.2),
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.white, letterSpacing: 0),
           child: IconTheme(data: const IconThemeData(color: Colors.white), child: child),
         ),
       ),
@@ -603,7 +605,7 @@ class SectionHeader extends StatelessWidget {
           Container(
             width: 4,
             height: 18,
-            margin: const EdgeInsets.only(right: 10),
+            margin: const EdgeInsetsDirectional.only(end: 10),
             decoration: BoxDecoration(gradient: AppColors.accentGradient, borderRadius: BorderRadius.circular(2)),
           ),
           Expanded(

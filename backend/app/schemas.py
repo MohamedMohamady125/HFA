@@ -4,7 +4,7 @@ from pydantic import BaseModel, EmailStr
 
 class UserCreate(BaseModel):
     name: str
-    phone: str
+    phone: str = ""
     email: EmailStr
     password: str
     branch_id: int  # ✅ Now expecting numeric branch_id

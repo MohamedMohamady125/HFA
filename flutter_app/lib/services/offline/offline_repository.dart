@@ -68,7 +68,9 @@ class OfflineRepository {
 
   static Future<void> _prefetch(String path, {Duration ttl = const Duration(hours: 4), String? cacheKey}) async {
     try {
+      final epoch = HiveCache.epoch;
       final res = await _api.get(path);
+      if (HiveCache.epoch != epoch) return; // cache was wiped mid-flight (branch switch/logout)
       await HiveCache.put(cacheKey ?? HiveCache.pathToKey(path), res.data, ttl: ttl);
     } catch (_) {}
   }
@@ -122,8 +124,9 @@ class OfflineRepository {
     // 2. No cache - fetch if online
     if (ConnectivityService.isOnline) {
       try {
+        final epoch = HiveCache.epoch;
         final res = await _api.get(path);
-        await HiveCache.put(key, res.data, ttl: ttl);
+        if (HiveCache.epoch == epoch) await HiveCache.put(key, res.data, ttl: ttl);
         return res.data;
       } catch (_) {
         return null;
@@ -138,9 +141,11 @@ class OfflineRepository {
 
     Future(() async {
       try {
+        final epoch = HiveCache.epoch;
         final res = await _api.get(path);
-        // Don't overwrite if a write just happened to this key
-        if (!_isWriteLocked(key)) {
+        // Don't write if the cache was wiped mid-flight (branch switch/logout)
+        // or a write just happened to this key.
+        if (HiveCache.epoch == epoch && !_isWriteLocked(key)) {
           await HiveCache.put(key, res.data, ttl: ttl);
           onFresh?.call(res.data);
         }

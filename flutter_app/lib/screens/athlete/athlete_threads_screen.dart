@@ -148,7 +148,7 @@ class AthleteThreadsScreenState extends State<AthleteThreadsScreen> with Automat
                     GradientAvatar(name: branchName, size: 44),
                     const SizedBox(width: AppSpacing.md),
                     Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text(branchName, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900, letterSpacing: -0.4)),
+                      Text(branchName, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900, letterSpacing: 0)),
                       const SizedBox(height: 2),
                       Text('${posts.length} ${l.translate('messages')}', style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 12.5, fontWeight: FontWeight.w500)),
                     ])),

@@ -437,7 +437,7 @@ class AthleteProfileScreenState extends State<AthleteProfileScreen> with LiveRef
                         GradientAvatar(name: user!['name'] ?? 'U', size: 84),
                         const SizedBox(height: AppSpacing.md),
                         Text(user!['name'] ?? '', textAlign: TextAlign.center,
-                          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: -0.5)),
+                          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 0)),
                         const SizedBox(height: AppSpacing.sm),
                         if (branchName.isNotEmpty)
                           StatusBadge(label: branchName, color: AppColors.accentLight),

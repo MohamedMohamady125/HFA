@@ -122,11 +122,12 @@ class _HFAAppState extends State<HFAApp> with WidgetsBindingObserver {
         if (auth.loading) return null;
         final loc = state.matchedLocation;
 
-        final guestOnly = ['/guest-home', '/login', '/register', '/admin-login', '/head-coach-login', '/forgot-password', '/parent-code', '/branches'];
+        final guestOnly = ['/guest-home', '/login', '/register', '/admin-login', '/head-coach-login', '/parent-code', '/branches'];
         final isGuestOnly = guestOnly.any((r) => loc.startsWith(r));
 
         if (!auth.isLoggedIn) {
-          return isGuestOnly ? null : '/guest-home';
+          // Forgot-password is public: reachable by guests and logged-in users alike.
+          return (isGuestOnly || loc.startsWith('/forgot-password')) ? null : '/guest-home';
         }
 
         if (!auth.isApproved && loc != '/pending') return '/pending';

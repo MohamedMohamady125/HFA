@@ -78,6 +78,13 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
               obscure: true,
               prefixIcon: Icons.lock_outline_rounded,
             )),
+            FadeSlideIn(delay: 210, child: Align(
+              alignment: AlignmentDirectional.centerEnd,
+              child: TextButton(
+                onPressed: () => context.push('/forgot-password'),
+                child: Text(l.translate('forgot_password'), style: AppTypography.label.copyWith(color: AppColors.accent)),
+              ),
+            )),
             const SizedBox(height: AppSpacing.sm),
             FadeSlideIn(delay: 240, child: PrimaryButton(
               label: l.translate('update_password'),

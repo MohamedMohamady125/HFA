@@ -63,6 +63,12 @@ class CoachThreadsScreenState extends State<CoachThreadsScreen> with LiveRefresh
     _loadThread();
   }
 
+  /// authUser prefs are updated synchronously on branch switch, while the
+  /// cached /users/me can briefly be stale — always trust authUser first.
+  int? _effectiveBranchId(Map me) {
+    return (user?['branch_id'] ?? me['branch_id']) as int?;
+  }
+
   Color _colorFor(String name) => _authorColors.putIfAbsent(name, () => _nameColors[_authorColors.length % _nameColors.length]);
 
   Future<void> _loadThread() async {
@@ -71,11 +77,13 @@ class CoachThreadsScreenState extends State<CoachThreadsScreen> with LiveRefresh
       final prefs = await SharedPreferences.getInstance();
       user = jsonDecode(prefs.getString('authUser')!);
       final me = await OfflineRepository.getUserMe();
-      displayBranchId = me['branch_id'];
-      branchName = me['branch_name'] ?? 'Branch $displayBranchId';
+      displayBranchId = _effectiveBranchId(me);
+      branchName = user?['branch_name'] ?? me['branch_name'] ?? 'Branch $displayBranchId';
       final tr = await OfflineRepository.getThreads(displayBranchId!);
       if (tr.isNotEmpty) {
-        threadId = tr[0]['id'];
+        final newThreadId = tr[0]['id'];
+        if (newThreadId != threadId) messages = [];
+        threadId = newThreadId;
         await _loadMessages();
       }
     } catch (_) {} finally { if (mounted) setState(() => loading = false); }
@@ -161,7 +169,7 @@ class CoachThreadsScreenState extends State<CoachThreadsScreen> with LiveRefresh
                 GradientAvatar(name: branchName, size: 44),
                 const SizedBox(width: 12),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(branchName, style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w800, letterSpacing: -0.3)),
+                  Text(branchName, style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w800, letterSpacing: 0)),
                   const SizedBox(height: 2),
                   Text('${messages.length} ${AppLocalizations.of(context).translate('messages')}', style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 12, fontWeight: FontWeight.w500)),
                 ])),

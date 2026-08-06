@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../services/deep_link.dart';
 import '../../theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
 import 'coach_home_screen.dart';
@@ -39,6 +40,26 @@ class _CoachShellState extends State<CoachShell> {
       CoachAthletesScreen(key: _athletesKey),
       CoachProfileScreen(key: _profileKey),
     ];
+    DeepLink.pending.addListener(_onDeepLink);
+    // Consume a deep link set before this shell mounted (cold start from a notification tap).
+    WidgetsBinding.instance.addPostFrameCallback((_) => _onDeepLink());
+  }
+
+  void _onDeepLink() {
+    if (!mounted) return;
+    final type = DeepLink.consume();
+    switch (type) {
+      case 'thread': _onTabSelected(1);
+      case 'gear': _onTabSelected(2);
+      case 'attendance': _onTabSelected(3);
+      case null: break;
+    }
+  }
+
+  @override
+  void dispose() {
+    DeepLink.pending.removeListener(_onDeepLink);
+    super.dispose();
   }
 
   void _onTabSelected(int i) {
@@ -77,7 +98,7 @@ class _CoachShellState extends State<CoachShell> {
                     child: const Icon(Icons.location_city_rounded, color: Colors.white, size: 14),
                   ),
                   const SizedBox(width: 10),
-                  Text(branchName, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700, letterSpacing: -0.2)),
+                  Text(branchName, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700, letterSpacing: 0)),
                   const Spacer(),
                   Text(AppLocalizations.of(context).translate('switch_text'), style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 12, fontWeight: FontWeight.w600)),
                   const SizedBox(width: 4),

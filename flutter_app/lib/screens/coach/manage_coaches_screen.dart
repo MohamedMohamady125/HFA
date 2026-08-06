@@ -112,7 +112,7 @@ class _ManageCoachesScreenState extends State<ManageCoachesScreen> with LiveRefr
                 const SizedBox(height: 8),
 
                 // Branch selector
-                Align(alignment: Alignment.centerLeft, child: Text(l.translate('branch'), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textSecondary, letterSpacing: 0.5))),
+                Align(alignment: AlignmentDirectional.centerStart, child: Text(l.translate('branch'), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textSecondary, letterSpacing: 0))),
                 const SizedBox(height: 8),
                 SizedBox(
                   height: 44,
@@ -121,7 +121,7 @@ class _ManageCoachesScreenState extends State<ManageCoachesScreen> with LiveRefr
                     children: branches.map((b) {
                       final active = b['id'] == selectedBranch;
                       return Padding(
-                        padding: const EdgeInsets.only(right: 8),
+                        padding: const EdgeInsetsDirectional.only(end: 8),
                         child: GestureDetector(
                           onTap: () => setSheetState(() => selectedBranch = b['id']),
                           child: AnimatedContainer(
@@ -245,9 +245,9 @@ class _ManageCoachesScreenState extends State<ManageCoachesScreen> with LiveRefr
           Icon(icon, color: AppColors.accent, size: 20),
           const SizedBox(width: 12),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.textTertiary, letterSpacing: 0.5)),
+            Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.textTertiary, letterSpacing: 0)),
             const SizedBox(height: 2),
-            Text(value, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.textPrimary, letterSpacing: 0.3)),
+            Text(value, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.textPrimary, letterSpacing: 0)),
           ])),
           const Icon(Icons.copy_rounded, size: 16, color: AppColors.textTertiary),
         ]),
@@ -290,11 +290,11 @@ class _ManageCoachesScreenState extends State<ManageCoachesScreen> with LiveRefr
                 _sheetField(l.translate('email'), emailCtrl, Icons.email_outlined, type: TextInputType.emailAddress),
                 _sheetField(l.translate('phone'), phoneCtrl, Icons.phone_outlined, type: TextInputType.phone),
                 const SizedBox(height: 8),
-                Align(alignment: Alignment.centerLeft, child: Text(l.translate('branch'), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textSecondary, letterSpacing: 0.5))),
+                Align(alignment: AlignmentDirectional.centerStart, child: Text(l.translate('branch'), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textSecondary, letterSpacing: 0))),
                 const SizedBox(height: 8),
                 SizedBox(height: 44, child: ListView(scrollDirection: Axis.horizontal, children: branches.map((b) {
                   final active = b['id'] == selectedBranch;
-                  return Padding(padding: const EdgeInsets.only(right: 8), child: GestureDetector(
+                  return Padding(padding: const EdgeInsetsDirectional.only(end: 8), child: GestureDetector(
                     onTap: () => setSheetState(() => selectedBranch = b['id']),
                     child: AnimatedContainer(duration: const Duration(milliseconds: 200), padding: const EdgeInsets.symmetric(horizontal: 16),
                       decoration: BoxDecoration(color: active ? AppColors.accent : AppColors.surfaceLight, borderRadius: BorderRadius.circular(22), border: active ? null : Border.all(color: AppColors.divider)),

@@ -3,6 +3,12 @@ import 'package:hive_flutter/hive_flutter.dart';
 class HiveCache {
   static Box? _box;
 
+  /// Bumped whenever the cache is wiped (logout / branch switch).
+  /// In-flight fetches capture the epoch before the request and must not
+  /// write their result if the epoch changed — otherwise a slow response
+  /// from the previous branch can repopulate the cache with stale data.
+  static int epoch = 0;
+
   static Future<void> init() async {
     try {
       await Hive.initFlutter();
@@ -37,7 +43,10 @@ class HiveCache {
 
   static bool has(String key) => get(key) != null;
 
-  static Future<void> clearAll() async => await _box?.clear();
+  static Future<void> clearAll() async {
+    epoch++;
+    await _box?.clear();
+  }
 
   static Future<void> clearPrefix(String prefix) async {
     if (_box == null) return;

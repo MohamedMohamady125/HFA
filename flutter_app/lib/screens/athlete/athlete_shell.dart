@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
+import '../../services/deep_link.dart';
 import '../../theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
 import 'athlete_home_screen.dart';
@@ -44,6 +46,26 @@ class _AthleteShellState extends State<AthleteShell> {
       AthleteGearScreen(key: _gearKey),
       AthleteProfileScreen(key: _profileKey),
     ];
+    DeepLink.pending.addListener(_onDeepLink);
+    // Consume a deep link set before this shell mounted (cold start from a notification tap).
+    WidgetsBinding.instance.addPostFrameCallback((_) => _onDeepLink());
+  }
+
+  void _onDeepLink() {
+    if (!mounted) return;
+    final type = DeepLink.consume();
+    switch (type) {
+      case 'thread': _switchTab(1);
+      case 'gear': _switchTab(2);
+      case 'attendance': context.push('/athlete/attendance-history');
+      case null: break;
+    }
+  }
+
+  @override
+  void dispose() {
+    DeepLink.pending.removeListener(_onDeepLink);
+    super.dispose();
   }
 
   void _switchTab(int i) {

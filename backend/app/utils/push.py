@@ -89,7 +89,22 @@ def _send_fcm_v1(token: str, title: str, body: str, access_token: str, project_i
         "notification": {
             "title": title,
             "body": body,
-        }
+        },
+        # iOS: play sound + vibrate + wake screen, delivered immediately
+        "apns": {
+            "headers": {"apns-priority": "10"},
+            "payload": {"aps": {"sound": "default"}},
+        },
+        # Android: heads-up banner with sound/vibration via high-importance channel
+        "android": {
+            "priority": "HIGH",
+            "notification": {
+                "channel_id": "high_importance_channel",
+                "default_sound": True,
+                "default_vibrate_timings": True,
+                "notification_priority": "PRIORITY_MAX",
+            },
+        },
     }
     if data:
         # FCM v1 requires all data values to be strings
