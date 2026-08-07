@@ -100,6 +100,19 @@ def root():
     return {"message": "HFA API is running"}
 
 
+@app.get("/app/min-version")
+def min_app_version():
+    """Force-update gate: the app blocks usage below this version.
+    Bump MIN_APP_VERSION on Railway to force everyone to update.
+    NEVER set it above the version currently in App Store review."""
+    import os
+    return {
+        "min_version": os.getenv("MIN_APP_VERSION", "1.0.0"),
+        "ios_url": os.getenv("APP_STORE_URL", ""),
+        "android_url": os.getenv("PLAY_STORE_URL", ""),
+    }
+
+
 @app.get("/privacy-policy", response_class=HTMLResponse)
 def privacy_policy():
     return """<!DOCTYPE html>

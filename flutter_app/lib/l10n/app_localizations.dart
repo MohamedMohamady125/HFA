@@ -81,6 +81,9 @@ class AppLocalizations {
       // Pending
       'pending_approval': 'Pending Approval',
       'pending_message': 'Your registration is being reviewed by a coach.\nYou will be notified once approved.',
+      'update_required': 'Update Required',
+      'update_required_message': 'A new version of the app is available.\nPlease update to continue.',
+      'update_now': 'Update Now',
       'invalid_egyptian_phone': 'Please enter a valid Egyptian phone number (e.g. 01012345678).',
       'weak_password': 'Password must be at least 8 characters and include letters and numbers.',
       'registration_rejected': 'Registration Not Accepted',
@@ -477,6 +480,9 @@ class AppLocalizations {
       // Pending
       'pending_approval': 'في انتظار الموافقة',
       'pending_message': 'طلب تسجيلك قيد المراجعة من المدرب.\nسنخطرك فور الموافقة عليه.',
+      'update_required': 'التحديث مطلوب',
+      'update_required_message': 'يتوفر إصدار جديد من التطبيق.\nيرجى التحديث للمتابعة.',
+      'update_now': 'حدّث الآن',
       'invalid_egyptian_phone': 'يرجى إدخال رقم هاتف مصري صحيح (مثال: 01012345678).',
       'weak_password': 'يجب أن تكون كلمة المرور 8 أحرف على الأقل وتحتوي على حروف وأرقام.',
       'registration_rejected': 'لم يتم قبول التسجيل',

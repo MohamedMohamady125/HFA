@@ -31,6 +31,7 @@ import 'screens/coach/manage_branches_screen.dart';
 import 'screens/athlete/athlete_attendance_screen.dart';
 import 'screens/athlete/notifications_screen.dart';
 import 'screens/auth/branches_screen.dart';
+import 'screens/update_required_screen.dart';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
@@ -39,6 +40,7 @@ import 'services/offline/sync_queue.dart';
 import 'services/offline/connectivity_service.dart';
 import 'services/push_notification_service.dart';
 import 'services/refresh_bus.dart';
+import 'services/update_gate.dart';
 import 'widgets/offline_status_bar.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -71,6 +73,9 @@ void main() async {
 
   final authProvider = AuthProvider();
 
+  // Force-update gate (non-blocking; locks the UI if the app is too old)
+  UpdateGate.check();
+
   runApp(
     MultiProvider(
       providers: [
@@ -100,6 +105,7 @@ class _HFAAppState extends State<HFAApp> with WidgetsBindingObserver {
     if (state == AppLifecycleState.resumed) {
       ConnectivityService.recheckAndFlush();
       RefreshBus.notify();
+      UpdateGate.check();
     }
   }
 
@@ -116,11 +122,18 @@ class _HFAAppState extends State<HFAApp> with WidgetsBindingObserver {
     _router = GoRouter(
       navigatorKey: _rootNavigatorKey,
       initialLocation: '/guest-home',
-      refreshListenable: widget.authProvider,
+      refreshListenable: Listenable.merge([widget.authProvider, UpdateGate.required]),
       redirect: (context, state) {
         final auth = widget.authProvider;
-        if (auth.loading) return null;
         final loc = state.matchedLocation;
+
+        // Force-update gate beats everything else.
+        if (UpdateGate.required.value != null) {
+          return loc == '/update-required' ? null : '/update-required';
+        }
+        if (loc == '/update-required') return '/guest-home';
+
+        if (auth.loading) return null;
 
         final guestOnly = ['/guest-home', '/login', '/register', '/admin-login', '/head-coach-login', '/parent-code', '/branches'];
         final isGuestOnly = guestOnly.any((r) => loc.startsWith(r));
@@ -147,6 +160,7 @@ class _HFAAppState extends State<HFAApp> with WidgetsBindingObserver {
         return null;
       },
       routes: [
+        GoRoute(path: '/update-required', builder: (_, __) => const UpdateRequiredScreen()),
         GoRoute(path: '/guest-home', builder: (_, __) => const GuestHomeScreen()),
         GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
         GoRoute(path: '/register', builder: (_, __) => const RegisterScreen()),
