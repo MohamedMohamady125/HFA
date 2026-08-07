@@ -61,6 +61,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
       _showMsg(l.translate('fill_all_fields'), isError: true); return;
     }
     if (_passCtrl.text != _confirmCtrl.text) { _showMsg(l.translate('passwords_no_match'), isError: true); return; }
+    // Egyptian mobile format (only when a phone is provided — it's optional)
+    final phone = _phoneCtrl.text.trim().replaceAll(RegExp(r'[\s-]'), '');
+    if (phone.isNotEmpty && !RegExp(r'^(\+20|0020|0)?1[0125]\d{8}$').hasMatch(phone)) {
+      _showMsg(l.translate('invalid_egyptian_phone'), isError: true); return;
+    }
+    // Password strength: 8+ chars with letters and numbers
+    final pass = _passCtrl.text;
+    if (pass.length < 8 || !RegExp(r'[A-Za-z]').hasMatch(pass) || !RegExp(r'\d').hasMatch(pass)) {
+      _showMsg(l.translate('weak_password'), isError: true); return;
+    }
     if (!ConnectivityService.isOnline) {
       AppFeedback.showError(context, Exception(),
           fallback: l.translate('offline_register'));

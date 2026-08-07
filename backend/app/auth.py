@@ -1,4 +1,5 @@
 import random
+import re
 import string
 import threading
 from datetime import datetime, timedelta
@@ -16,8 +17,20 @@ from app.utils.db_helpers import get_user_by_email, delete_user_cascade
 
 router = APIRouter()
 
+EGYPTIAN_PHONE_RE = re.compile(r"^(\+20|0020|0)?1[0125]\d{8}$")
+
 @router.post("/register")
 def register(user: UserCreate):
+    # Phone is optional, but must be a valid Egyptian mobile number when given
+    if user.phone:
+        phone = re.sub(r"[\s-]", "", user.phone.strip())
+        if not EGYPTIAN_PHONE_RE.fullmatch(phone):
+            raise HTTPException(status_code=400, detail="Invalid Egyptian phone number")
+
+    # Password strength: 8+ chars with letters and numbers
+    if len(user.password) < 8 or not re.search(r"[A-Za-z]", user.password) or not re.search(r"\d", user.password):
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters and include letters and numbers")
+
     conn = get_connection()
     cursor = get_cursor(conn)
 
